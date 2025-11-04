@@ -1,0 +1,16 @@
+{
+  "name": "Spelling AAC",
+  "short_name": "AAC",
+  "description": "A simple spelling system with one or two switch scanning for accessibility and word prediction.",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#000000",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}

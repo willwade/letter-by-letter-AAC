@@ -1,0 +1,5 @@
+{
+  "name": "Spelling AAC with Prediction",
+  "description": "A simple spelling system with one or two switch scanning for accessibility. Features next-letter prediction powered by the Gemini API to speed up communication. Users can compose messages letter by letter, with options to add a space, undo the last character, or have the message spoken aloud.",
+  "requestFramePermissions": []
+}
