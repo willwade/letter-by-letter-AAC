@@ -52,77 +52,108 @@ npm run preview
 
 The built files will be in the `dist/` directory.
 
-## Deploy to Google Cloud Run
+## Deploy to GitHub Pages
 
-### Prerequisites
+This app is a **100% static site** - no server required! It runs entirely in the browser.
 
-- [Google Cloud SDK](https://cloud.google.com/sdk/docs/install) installed
-- A Google Cloud project with billing enabled
-- Cloud Run API enabled
+### Automatic Deployment (Recommended)
 
-### Quick Deploy
+The repository is configured for automatic deployment to GitHub Pages:
 
-1. Make sure you're logged in to gcloud:
+1. **Enable GitHub Pages** in your repository:
+   - Go to Settings > Pages
+   - Under "Source", select "GitHub Actions"
+
+2. **Push to main branch**:
    ```bash
-   gcloud auth login
+   git add .
+   git commit -m "Deploy to GitHub Pages"
+   git push origin main
    ```
 
-2. Deploy using the deployment script:
-   ```bash
-   ./deploy.sh YOUR_PROJECT_ID us-west1
-   ```
+3. **Wait for deployment** (usually 1-2 minutes)
+   - Check the Actions tab to see deployment progress
+   - Your app will be available at: `https://willwade.github.io/letter-by-letter-AAC/`
 
-   Replace `YOUR_PROJECT_ID` with your actual Google Cloud project ID.
+### Manual Deployment
 
-### Manual Deploy
-
-Alternatively, deploy manually:
+If you prefer to deploy manually:
 
 ```bash
-# Set your project
-gcloud config set project YOUR_PROJECT_ID
+# Build the app
+npm run build
 
-# Deploy to Cloud Run
-gcloud run deploy spelling-aac-with-prediction \
-  --source . \
-  --platform managed \
-  --region us-west1 \
-  --allow-unauthenticated \
-  --port 8080
+# Deploy the dist folder to gh-pages branch
+npx gh-pages -d dist
 ```
+
+### Custom Domain (Optional)
+
+To use a custom domain:
+
+1. Add a `CNAME` file to the `public/` directory with your domain
+2. Configure DNS settings with your domain provider
+3. Enable custom domain in GitHub Pages settings
 
 ## Project Structure
 
 ```
 .
-├── App.tsx                 # Main application component
-├── index.tsx              # Application entry point
-├── components/            # React components
-│   ├── Controls.tsx       # Control panel
-│   ├── Display.tsx        # Message display
-│   └── Scanner.tsx        # Scanning interface
-├── data/                  # Training data
-│   ├── aac_lexicon_en_gb.txt
-│   └── default_corpus.txt
-├── public/                # Static assets
-│   ├── sw.js             # Service worker
-│   ├── manifest.json     # PWA manifest
-│   └── icon.svg          # App icon
-├── Dockerfile            # Docker configuration
-├── nginx.conf            # Nginx configuration
-└── vite.config.ts        # Vite build configuration
+├── App.tsx                      # Main application component
+├── index.tsx                    # Application entry point
+├── components/                  # React components
+│   ├── Controls.tsx            # Control panel
+│   ├── Display.tsx             # Message display
+│   └── Scanner.tsx             # Scanning interface
+├── public/                      # Static assets
+│   ├── sw.js                   # Service worker (PWA)
+│   ├── manifest.json           # PWA manifest
+│   ├── icon.svg                # App icon
+│   └── data/                   # Training data
+│       ├── aac_lexicon_en_gb.txt
+│       └── default_corpus.txt
+├── .github/workflows/           # GitHub Actions
+│   └── deploy.yml              # Auto-deployment workflow
+└── vite.config.ts              # Vite build configuration
 ```
+
+## Technology Stack
+
+- **Frontend**: React 19 + TypeScript
+- **Build Tool**: Vite
+- **Prediction**: [@willwade/ppmpredictor](https://www.npmjs.com/package/@willwade/ppmpredictor) (client-side PPM algorithm)
+- **Text-to-Speech**: Web Speech API (browser native)
+- **PWA**: Service Worker for offline support
+- **Styling**: Tailwind CSS (via CDN)
+- **Deployment**: GitHub Pages (static hosting)
+
+## Why This is a Static Site
+
+This app requires **no server** because:
+
+- ✅ **Prediction runs client-side** using the PPM algorithm in `@willwade/ppmpredictor`
+- ✅ **Text-to-speech uses browser APIs** (Web Speech API)
+- ✅ **All data is static files** (lexicon and corpus are `.txt` files)
+- ✅ **No database needed** - everything runs in the browser
+- ✅ **No API calls** - completely self-contained
+
+This means:
+- 🚀 **Free hosting** on GitHub Pages
+- ⚡ **Fast loading** - no server round trips
+- 🔒 **Privacy** - all processing happens locally
+- 📱 **Works offline** - PWA with service worker
+- 🌍 **Works anywhere** - just HTML, CSS, and JavaScript
 
 ## Troubleshooting
 
-### Production Build Issues
+### GitHub Pages 404 Errors
 
-If you encounter 404 errors in production:
+If you get 404 errors after deploying:
 
-1. Ensure you're deploying the `dist/` folder, not the source files
-2. Check that the service worker is being served correctly
-3. Verify that all static assets are in the `public/` directory
-4. Clear browser cache and service worker cache
+1. Check that GitHub Pages is enabled in Settings > Pages
+2. Verify the `base` URL in `vite.config.ts` matches your repo name
+3. Wait a few minutes for GitHub Pages to update
+4. Clear browser cache
 
 ### Service Worker Issues
 
@@ -131,7 +162,20 @@ To clear the service worker cache:
 1. Open DevTools (F12)
 2. Go to Application > Service Workers
 3. Click "Unregister" for the service worker
-4. Refresh the page
+4. Hard refresh (Cmd+Shift+R or Ctrl+Shift+R)
+
+### Prediction Not Working
+
+If predictions aren't showing:
+
+1. Check browser console for errors
+2. Verify data files loaded correctly (check Network tab)
+3. Try disabling and re-enabling prediction in settings
+4. Upload a custom training file to retrain the model
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## License
 
