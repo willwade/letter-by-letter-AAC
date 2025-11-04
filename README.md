@@ -1,12 +1,10 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+
 
 # Spelling AAC with Prediction
 
 A simple spelling system with one or two switch scanning for accessibility. Features next-letter prediction powered by PPM (Prediction by Partial Matching) to speed up communication. Users can compose messages letter by letter, with options to add a space, undo the last character, or have the message spoken aloud.
 
-View your app in AI Studio: https://ai.studio/apps/drive/1DFRZNDWFA_53DS0ta5v-Aw4wGCeLWSHG
+https://willwade.github.io/letter-by-letter-AAC/
 
 ## Features
 
