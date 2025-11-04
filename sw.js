@@ -1,18 +1,26 @@
-const CACHE_NAME = 'aac-pwa-cache-v1';
+const CACHE_NAME = 'aac-pwa-cache-v2';
 const urlsToCache = [
-  '/',
-  '/index.html',
-  '/index.tsx',
-  '/App.tsx',
-  '/types.ts',
-  '/constants.ts',
-  '/components/Display.tsx',
-  '/components/Scanner.tsx',
-  '/components/Controls.tsx',
-  '/icon.svg',
-  '/manifest.json',
-  '/data/aac_lexicon_en_gb.txt',
-  '/data/default_corpus.txt'
+  // Local App Shell
+  './',
+  './index.html',
+  './index.tsx',
+  './App.tsx',
+  './types.ts',
+  './constants.ts',
+  './components/Display.tsx',
+  './components/Scanner.tsx',
+  './components/Controls.tsx',
+  './icon.svg',
+  './manifest.json',
+  './data/aac_lexicon_en_gb.txt',
+  './data/default_corpus.txt',
+
+  // Third-party Libraries from CDN
+  'https://cdn.tailwindcss.com',
+  'https://aistudiocdn.com/@google/genai@^1.28.0',
+  'https://aistudiocdn.com/react@^19.2.0',
+  'https://aistudiocdn.com/react-dom@^19.2.0/client',
+  'https://cdn.jsdelivr.net/npm/@willwade/ppmpredictor@0.0.3/dist/index.mjs'
 ];
 
 // Install a service worker

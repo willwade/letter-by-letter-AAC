@@ -33,8 +33,8 @@ const App: React.FC = () => {
         setTrainingStatus('Loading default model...');
         try {
             const [corpusResponse, lexiconResponse] = await Promise.all([
-                fetch('/data/default_corpus.txt'),
-                fetch('/data/aac_lexicon_en_gb.txt')
+                fetch('./data/default_corpus.txt'),
+                fetch('./data/aac_lexicon_en_gb.txt')
             ]);
 
             if (!corpusResponse.ok || !lexiconResponse.ok) {
@@ -212,7 +212,7 @@ const App: React.FC = () => {
       const text = await file.text();
       
       // Load lexicon (optional but recommended)
-      const lexiconResponse = await fetch('/data/aac_lexicon_en_gb.txt');
+      const lexiconResponse = await fetch('./data/aac_lexicon_en_gb.txt');
       const lexiconText = await lexiconResponse.text();
       const lexicon = lexiconText.split('\n').filter(w => w.trim());
       
