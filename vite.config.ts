@@ -18,6 +18,21 @@ export default defineConfig(({ mode }) => {
         alias: {
           '@': path.resolve(__dirname, '.'),
         }
-      }
+      },
+      build: {
+        outDir: 'dist',
+        assetsDir: 'assets',
+        // Copy public assets to dist
+        copyPublicDir: true,
+        rollupOptions: {
+          output: {
+            // Ensure consistent file naming for caching
+            entryFileNames: 'assets/[name].[hash].js',
+            chunkFileNames: 'assets/[name].[hash].js',
+            assetFileNames: 'assets/[name].[hash].[ext]'
+          }
+        }
+      },
+      publicDir: 'public'
     };
 });
