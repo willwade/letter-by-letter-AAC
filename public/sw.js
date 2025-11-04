@@ -1,4 +1,4 @@
-const CACHE_NAME = 'aac-pwa-cache-v3';
+const CACHE_NAME = 'aac-pwa-cache-v4';
 const urlsToCache = [
   // Core app files
   '/',

@@ -23,6 +23,8 @@ const App: React.FC = () => {
   const [isFullscreen, setIsFullscreen] = useState<boolean>(!!document.fullscreenElement);
   const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [selectedVoiceURI, setSelectedVoiceURI] = useState<string | null>(null);
+  const [showSettingsModal, setShowSettingsModal] = useState<boolean>(false);
+  const [hideControlBar, setHideControlBar] = useState<boolean>(false);
 
   const [predictor, setPredictor] = useState<Predictor | null>(null);
   const [trainingStatus, setTrainingStatus] = useState<string>('No model loaded.');
@@ -301,47 +303,59 @@ const App: React.FC = () => {
 
   return (
     <div className="flex flex-col h-screen bg-white text-black font-sans">
-      <header className="p-1 bg-gray-100 border-b border-gray-300">
-        <h1 className="text-base font-bold text-center">Spelling AAC</h1>
-      </header>
-      
+      {/* Settings Cog Icon - Top Right */}
+      <button
+        onClick={() => setShowSettingsModal(true)}
+        className="fixed top-2 right-2 z-50 p-2 bg-gray-200 bg-opacity-70 hover:bg-opacity-100 rounded-full transition-all hover:scale-110"
+        aria-label="Open Settings"
+        title="Settings"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+        </svg>
+      </button>
+
       <main className="flex-grow flex flex-col p-4 md:p-8 space-y-4">
         <Display message={message} fontSize={messageFontSize} />
         <Scanner currentItem={scanItems[scanIndex] ?? ''} fontSize={scannerFontSize} />
       </main>
-      
-      <footer className="p-4 bg-gray-100 border-t-2 border-gray-300">
-        <Controls
-          scanMode={scanMode}
-          setScanMode={mode => {
-            setScanMode(mode);
-            setIsScanning(false);
-            setScanIndex(0);
-          }}
-          scanSpeed={scanSpeed}
-          setScanSpeed={setScanSpeed}
-          isScanning={isScanning}
-          setIsScanning={setIsScanning}
-          onSwitch1={handleSwitch1}
-          onSwitch2={handleSwitch2}
-          onClear={handleClear}
-          messageFontSize={messageFontSize}
-          setMessageFontSize={setMessageFontSize}
-          scannerFontSize={scannerFontSize}
-          setScannerFontSize={setScannerFontSize}
-          isFullscreen={isFullscreen}
-          onToggleFullscreen={handleToggleFullscreen}
-          enablePrediction={enablePrediction}
-          setEnablePrediction={setEnablePrediction}
-          showWordPrediction={showWordPrediction}
-          setShowWordPrediction={setShowWordPrediction}
-          availableVoices={availableVoices}
-          selectedVoiceURI={selectedVoiceURI}
-          setSelectedVoiceURI={setSelectedVoiceURI}
-          onFileUpload={handleFileUpload}
-          trainingStatus={trainingStatus}
-        />
-      </footer>
+
+      {/* Settings Modal - Always rendered so it's accessible even when control bar is hidden */}
+      <Controls
+        scanMode={scanMode}
+        setScanMode={mode => {
+          setScanMode(mode);
+          setIsScanning(false);
+          setScanIndex(0);
+        }}
+        scanSpeed={scanSpeed}
+        setScanSpeed={setScanSpeed}
+        isScanning={isScanning}
+        setIsScanning={setIsScanning}
+        onSwitch1={handleSwitch1}
+        onSwitch2={handleSwitch2}
+        onClear={handleClear}
+        messageFontSize={messageFontSize}
+        setMessageFontSize={setMessageFontSize}
+        scannerFontSize={scannerFontSize}
+        setScannerFontSize={setScannerFontSize}
+        isFullscreen={isFullscreen}
+        onToggleFullscreen={handleToggleFullscreen}
+        enablePrediction={enablePrediction}
+        setEnablePrediction={setEnablePrediction}
+        showWordPrediction={showWordPrediction}
+        setShowWordPrediction={setShowWordPrediction}
+        availableVoices={availableVoices}
+        selectedVoiceURI={selectedVoiceURI}
+        setSelectedVoiceURI={setSelectedVoiceURI}
+        onFileUpload={handleFileUpload}
+        trainingStatus={trainingStatus}
+        showSettingsModal={showSettingsModal}
+        setShowSettingsModal={setShowSettingsModal}
+        hideControlBar={hideControlBar}
+        setHideControlBar={setHideControlBar}
+      />
     </div>
   );
 };

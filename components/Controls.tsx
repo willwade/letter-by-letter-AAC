@@ -26,6 +26,10 @@ interface ControlsProps {
   setSelectedVoiceURI: (uri: string) => void;
   onFileUpload: (file: File) => void;
   trainingStatus: string;
+  showSettingsModal: boolean;
+  setShowSettingsModal: (show: boolean) => void;
+  hideControlBar: boolean;
+  setHideControlBar: (hide: boolean) => void;
 }
 
 const Controls: React.FC<ControlsProps> = ({
@@ -53,8 +57,11 @@ const Controls: React.FC<ControlsProps> = ({
   setSelectedVoiceURI,
   onFileUpload,
   trainingStatus,
+  showSettingsModal,
+  setShowSettingsModal,
+  hideControlBar,
+  setHideControlBar,
 }) => {
-  const [showSettings, setShowSettings] = useState(false);
 
   const handleStartStop = () => {
     setIsScanning(!isScanning);
@@ -81,128 +88,147 @@ const Controls: React.FC<ControlsProps> = ({
 
 
   return (
-    <div className="w-full flex flex-col items-center justify-between gap-4">
-      {/* Collapsible Settings Panel */}
-      {showSettings && (
-        <div className="w-full p-4 mb-4 border rounded-lg bg-gray-50 flex flex-col items-center justify-between gap-6 animate-fade-in-down">
-          <div className="w-full flex flex-col gap-4">
-            {/* Scan Mode */}
-            <div className="flex items-center gap-4">
-              <span className="font-semibold w-28">Mode:</span>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="radio"
-                  name="scanMode"
-                  value="one-switch"
-                  checked={scanMode === 'one-switch'}
-                  onChange={() => setScanMode('one-switch')}
-                  className="form-radio h-5 w-5 text-black"
-                />
-                One-Switch
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="radio"
-                  name="scanMode"
-                  value="two-switch"
-                  checked={scanMode === 'two-switch'}
-                  onChange={() => setScanMode('two-switch')}
-                  className="form-radio h-5 w-5 text-black"
-                />
-                Two-Switch
-              </label>
-            </div>
-             {/* Scan Speed */}
-            {scanMode === 'one-switch' && (
-              <div className="flex items-center gap-2">
-                <label htmlFor="scanSpeed" className="font-semibold w-28">Speed:</label>
-                <input
-                  id="scanSpeed"
-                  type="range"
-                  min="200"
-                  max="3000"
-                  step="100"
-                  value={scanSpeed}
-                  onChange={(e) => setScanSpeed(Number(e.target.value))}
-                  className="w-48"
-                />
-                <span>{(scanSpeed / 1000).toFixed(1)}s</span>
-              </div>
-            )}
-            {/* Voice Picker */}
-            {availableVoices.length > 0 && (
-              <div className="flex items-center gap-2">
-                <label htmlFor="voicePicker" className="font-semibold w-28">Voice:</label>
-                <select
-                  id="voicePicker"
-                  value={selectedVoiceURI || ''}
-                  onChange={(e) => setSelectedVoiceURI(e.target.value)}
-                  className="form-select w-64 rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
-                >
-                  {availableVoices.map((voice, index) => (
-                    <option key={`${voice.voiceURI}-${index}`} value={voice.voiceURI}>
-                      {`${voice.name} (${voice.lang})`}
-                    </option>
-                  ))}
-                </select>
-                <button
-                  onClick={handlePreviewVoice}
-                  className="p-2 bg-gray-200 text-black rounded-lg hover:bg-gray-300 transition-transform transform active:scale-95"
-                  aria-label="Preview selected voice"
-                  title="Preview Voice"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
-                  </svg>
-                </button>
-              </div>
-            )}
-            {/* Prediction Master Toggle */}
-            <div className="flex items-center gap-4">
-              <span className="font-semibold w-28">Prediction:</span>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={enablePrediction}
-                  onChange={(e) => setEnablePrediction(e.target.checked)}
-                  className="form-checkbox h-5 w-5 text-black rounded"
-                />
-                Enable
-              </label>
-            </div>
-             {/* Training File Upload */}
-            <div className={`flex items-center gap-4 transition-opacity ${!enablePrediction ? 'opacity-50' : 'opacity-100'}`}>
-              <span className="font-semibold w-28"></span> {/* Spacer */}
-              <div className="flex flex-col">
-                <input
-                  type="file"
-                  id="corpusFile"
-                  accept=".txt"
-                  onChange={handleFileChange}
-                  disabled={!enablePrediction}
-                  className="text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-violet-50 file:text-violet-700 hover:file:bg-violet-100 disabled:opacity-50 disabled:cursor-not-allowed"
-                />
-                <span className="text-sm text-gray-600 mt-1">{trainingStatus}</span>
-              </div>
+    <>
+      {/* Settings Modal - Always rendered regardless of hideControlBar */}
+      {showSettingsModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50" onClick={() => setShowSettingsModal(false)}>
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto m-4" onClick={(e) => e.stopPropagation()}>
+            <div className="sticky top-0 bg-white border-b border-gray-200 p-4 flex justify-between items-center">
+              <h2 className="text-2xl font-bold">Settings</h2>
+              <button
+                onClick={() => setShowSettingsModal(false)}
+                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                aria-label="Close Settings"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
             </div>
 
-            {/* Word Prediction Toggle */}
-            <div className={`flex items-center gap-4 transition-opacity ${!enablePrediction ? 'opacity-50' : 'opacity-100'}`}>
-              <span className="font-semibold w-28"></span> {/* Spacer */}
-              <label className={`flex items-center gap-2 ${!enablePrediction ? 'cursor-not-allowed' : 'cursor-pointer'}`}>
-                <input
-                  type="checkbox"
-                  checked={showWordPrediction}
-                  onChange={(e) => setShowWordPrediction(e.target.checked)}
-                  disabled={!enablePrediction}
-                  className="form-checkbox h-5 w-5 text-black rounded"
-                />
-                Show Words
-              </label>
-            </div>
-            {/* Message Font Size */}
-            <div className="flex items-center gap-2">
-                <label htmlFor="messageFontSize" className="font-semibold w-28">Msg Font:</label>
+            <div className="p-6 flex flex-col gap-6">
+              {/* Scan Mode */}
+              <div className="flex items-center gap-4">
+                <span className="font-semibold w-32">Mode:</span>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="scanMode"
+                    value="one-switch"
+                    checked={scanMode === 'one-switch'}
+                    onChange={() => setScanMode('one-switch')}
+                    className="form-radio h-5 w-5 text-black"
+                  />
+                  One-Switch
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="scanMode"
+                    value="two-switch"
+                    checked={scanMode === 'two-switch'}
+                    onChange={() => setScanMode('two-switch')}
+                    className="form-radio h-5 w-5 text-black"
+                  />
+                  Two-Switch
+                </label>
+              </div>
+
+              {/* Scan Speed */}
+              {scanMode === 'one-switch' && (
+                <div className="flex items-center gap-2">
+                  <label htmlFor="scanSpeed" className="font-semibold w-32">Speed:</label>
+                  <input
+                    id="scanSpeed"
+                    type="range"
+                    min="200"
+                    max="3000"
+                    step="100"
+                    value={scanSpeed}
+                    onChange={(e) => setScanSpeed(Number(e.target.value))}
+                    className="w-48"
+                  />
+                  <span>{(scanSpeed / 1000).toFixed(1)}s</span>
+                </div>
+              )}
+
+              {/* Voice Picker */}
+              {availableVoices.length > 0 && (
+                <div className="flex items-center gap-2">
+                  <label htmlFor="voicePicker" className="font-semibold w-32">Voice:</label>
+                  <select
+                    id="voicePicker"
+                    value={selectedVoiceURI || ''}
+                    onChange={(e) => setSelectedVoiceURI(e.target.value)}
+                    className="form-select w-64 rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+                  >
+                    {availableVoices.map((voice, index) => (
+                      <option key={`${voice.voiceURI}-${index}`} value={voice.voiceURI}>
+                        {`${voice.name} (${voice.lang})`}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    onClick={handlePreviewVoice}
+                    className="p-2 bg-gray-200 text-black rounded-lg hover:bg-gray-300 transition-transform transform active:scale-95"
+                    aria-label="Preview selected voice"
+                    title="Preview Voice"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
+                    </svg>
+                  </button>
+                </div>
+              )}
+
+              {/* Prediction Master Toggle */}
+              <div className="flex items-center gap-4">
+                <span className="font-semibold w-32">Prediction:</span>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={enablePrediction}
+                    onChange={(e) => setEnablePrediction(e.target.checked)}
+                    className="form-checkbox h-5 w-5 text-black rounded"
+                  />
+                  Enable
+                </label>
+              </div>
+
+              {/* Training File Upload */}
+              <div className={`flex items-center gap-4 transition-opacity ${!enablePrediction ? 'opacity-50' : 'opacity-100'}`}>
+                <span className="font-semibold w-32"></span> {/* Spacer */}
+                <div className="flex flex-col">
+                  <input
+                    type="file"
+                    id="corpusFile"
+                    accept=".txt"
+                    onChange={handleFileChange}
+                    disabled={!enablePrediction}
+                    className="text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-violet-50 file:text-violet-700 hover:file:bg-violet-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                  />
+                  <span className="text-sm text-gray-600 mt-1">{trainingStatus}</span>
+                </div>
+              </div>
+
+              {/* Word Prediction Toggle */}
+              <div className={`flex items-center gap-4 transition-opacity ${!enablePrediction ? 'opacity-50' : 'opacity-100'}`}>
+                <span className="font-semibold w-32"></span> {/* Spacer */}
+                <label className={`flex items-center gap-2 ${!enablePrediction ? 'cursor-not-allowed' : 'cursor-pointer'}`}>
+                  <input
+                    type="checkbox"
+                    checked={showWordPrediction}
+                    onChange={(e) => setShowWordPrediction(e.target.checked)}
+                    disabled={!enablePrediction}
+                    className="form-checkbox h-5 w-5 text-black rounded"
+                  />
+                  Show Words
+                </label>
+              </div>
+
+              {/* Message Font Size */}
+              <div className="flex items-center gap-2">
+                <label htmlFor="messageFontSize" className="font-semibold w-32">Msg Font:</label>
                 <input
                   id="messageFontSize"
                   type="range"
@@ -214,10 +240,11 @@ const Controls: React.FC<ControlsProps> = ({
                   className="w-48"
                 />
                 <span>{messageFontSize}px</span>
-            </div>
-             {/* Scanner Font Size */}
-            <div className="flex items-center gap-2">
-                <label htmlFor="scannerFontSize" className="font-semibold w-28">Ltr Font:</label>
+              </div>
+
+              {/* Scanner Font Size */}
+              <div className="flex items-center gap-2">
+                <label htmlFor="scannerFontSize" className="font-semibold w-32">Ltr Font:</label>
                 <input
                   id="scannerFontSize"
                   type="range"
@@ -229,26 +256,50 @@ const Controls: React.FC<ControlsProps> = ({
                   className="w-48"
                 />
                 <span>{scannerFontSize}px</span>
+              </div>
+
+              {/* Fullscreen Toggle */}
+              <div className="flex items-center gap-2">
+                <span className="font-semibold w-32">Display:</span>
+                <button
+                  onClick={onToggleFullscreen}
+                  className="font-semibold py-2 px-4 bg-gray-200 text-black rounded-lg hover:bg-gray-300 transition-transform transform active:scale-95"
+                >
+                  {isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}
+                </button>
+              </div>
+
+              {/* Hide Control Bar Toggle */}
+              <div className="flex items-center gap-4">
+                <span className="font-semibold w-32">Control Bar:</span>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={hideControlBar}
+                    onChange={(e) => setHideControlBar(e.target.checked)}
+                    className="form-checkbox h-5 w-5 text-black rounded"
+                  />
+                  Hide (use cog icon to access settings)
+                </label>
+              </div>
             </div>
-            {/* Fullscreen Toggle */}
-            <div className="flex items-center gap-2">
-              <span className="font-semibold w-28">Display:</span>
+
+            <div className="sticky bottom-0 bg-white border-t border-gray-200 p-4 flex justify-end">
               <button
-                onClick={onToggleFullscreen}
-                className="font-semibold py-2 px-4 bg-gray-200 text-black rounded-lg hover:bg-gray-300 transition-transform transform active:scale-95"
+                onClick={() => setShowSettingsModal(false)}
+                className="text-lg font-bold py-2 px-6 bg-violet-500 text-white rounded-lg hover:bg-violet-600 transition-transform transform active:scale-95"
               >
-                {isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}
+                Close
               </button>
             </div>
           </div>
-          <button onClick={() => setShowSettings(false)} className="mt-2 text-lg font-bold py-2 px-4 bg-gray-300 text-black rounded-lg hover:bg-gray-400">
-            Close
-          </button>
         </div>
       )}
 
-      {/* Main Control Bar */}
-      <div className="w-full flex items-center justify-between gap-4">
+      {/* Main Control Bar - Only show if not hidden */}
+      {!hideControlBar && (
+        <footer className="p-4 bg-gray-100 border-t-2 border-gray-300">
+          <div className="w-full flex items-center justify-between gap-4">
         {/* ---- LEFT SIDE ---- */}
         <div className="flex-1 flex justify-start">
           {scanMode === 'one-switch' && (
@@ -273,11 +324,6 @@ const Controls: React.FC<ControlsProps> = ({
 
         {/* ---- MIDDLE ---- */}
         <div className="flex justify-center items-center gap-4">
-          {!showSettings && (
-            <button onClick={() => setShowSettings(true)} className="text-xl font-bold py-3 px-5 bg-gray-200 text-black rounded-lg hover:bg-gray-300 transition-transform transform active:scale-95">
-              Settings
-            </button>
-          )}
           <button
               onClick={onClear}
               className="w-40 text-2xl font-bold py-4 px-6 bg-yellow-300 text-yellow-900 rounded-lg hover:bg-yellow-400 transition-transform transform active:scale-95"
@@ -286,7 +332,7 @@ const Controls: React.FC<ControlsProps> = ({
               CLEAR
           </button>
         </div>
-        
+
         {/* ---- RIGHT SIDE ---- */}
         <div className="flex-1 flex justify-end">
           {scanMode === 'one-switch' && (
@@ -307,8 +353,10 @@ const Controls: React.FC<ControlsProps> = ({
             </button>
           )}
         </div>
-      </div>
-    </div>
+          </div>
+        </footer>
+      )}
+    </>
   );
 };
 
