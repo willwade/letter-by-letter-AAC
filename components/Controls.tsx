@@ -254,7 +254,7 @@ const Controls: React.FC<ControlsProps> = ({
           {scanMode === 'one-switch' && (
             <button
                 onClick={onSwitch1}
-                className="w-40 text-2xl font-bold py-4 px-6 bg-gray-300 text-black rounded-lg hover:bg-gray-400 transition-transform transform active:scale-95"
+                className="w-40 text-2xl font-bold py-4 px-6 bg-violet-300 text-violet-900 rounded-lg hover:bg-violet-400 transition-transform transform active:scale-95"
                 aria-label="Select"
             >
                 SELECT
@@ -263,7 +263,7 @@ const Controls: React.FC<ControlsProps> = ({
           {scanMode === 'two-switch' && (
             <button
                 onClick={onSwitch2}
-                className="w-40 text-2xl font-bold py-4 px-6 bg-gray-300 text-black rounded-lg hover:bg-gray-400 transition-transform transform active:scale-95"
+                className="w-40 text-2xl font-bold py-4 px-6 bg-violet-300 text-violet-900 rounded-lg hover:bg-violet-400 transition-transform transform active:scale-95"
                 aria-label="Select"
             >
                 SELECT
@@ -280,7 +280,7 @@ const Controls: React.FC<ControlsProps> = ({
           )}
           <button
               onClick={onClear}
-              className="w-40 text-2xl font-bold py-4 px-6 bg-gray-300 text-black rounded-lg hover:bg-gray-400 transition-transform transform active:scale-95"
+              className="w-40 text-2xl font-bold py-4 px-6 bg-yellow-300 text-yellow-900 rounded-lg hover:bg-yellow-400 transition-transform transform active:scale-95"
               aria-label="Clear Message"
           >
               CLEAR
@@ -292,7 +292,7 @@ const Controls: React.FC<ControlsProps> = ({
           {scanMode === 'one-switch' && (
             <button
                 onClick={handleStartStop}
-                className="w-40 text-2xl font-bold py-4 px-6 bg-gray-300 text-black rounded-lg hover:bg-gray-400 transition-transform transform active:scale-95"
+                className={`w-40 text-2xl font-bold py-4 px-6 rounded-lg transition-transform transform active:scale-95 ${isScanning ? 'bg-red-300 text-red-900 hover:bg-red-400' : 'bg-green-300 text-green-900 hover:bg-green-400'}`}
             >
                 {isScanning ? 'STOP' : 'START'}
             </button>
@@ -300,7 +300,7 @@ const Controls: React.FC<ControlsProps> = ({
           {scanMode === 'two-switch' && (
             <button
                 onClick={onSwitch1}
-                className="w-40 text-2xl font-bold py-4 px-6 bg-gray-300 text-black rounded-lg hover:bg-gray-400 transition-transform transform active:scale-95"
+                className="w-40 text-2xl font-bold py-4 px-6 bg-violet-300 text-violet-900 rounded-lg hover:bg-violet-400 transition-transform transform active:scale-95"
                 aria-label="Next"
             >
                 NEXT
