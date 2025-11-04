@@ -139,8 +139,8 @@ const Controls: React.FC<ControlsProps> = ({
                   onChange={(e) => setSelectedVoiceURI(e.target.value)}
                   className="form-select w-64 rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
                 >
-                  {availableVoices.map((voice) => (
-                    <option key={voice.voiceURI} value={voice.voiceURI}>
+                  {availableVoices.map((voice, index) => (
+                    <option key={`${voice.voiceURI}-${index}`} value={voice.voiceURI}>
                       {`${voice.name} (${voice.lang})`}
                     </option>
                   ))}
@@ -249,46 +249,61 @@ const Controls: React.FC<ControlsProps> = ({
 
       {/* Main Control Bar */}
       <div className="w-full flex items-center justify-between gap-4">
+        {/* ---- LEFT SIDE ---- */}
         <div className="flex-1 flex justify-start">
+          {scanMode === 'one-switch' && (
+            <button
+                onClick={onSwitch1}
+                className="w-40 text-2xl font-bold py-4 px-6 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-transform transform active:scale-95"
+                aria-label="Select"
+            >
+                SELECT
+            </button>
+          )}
+          {scanMode === 'two-switch' && (
+            <button
+                onClick={onSwitch2}
+                className="w-40 text-2xl font-bold py-4 px-6 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-transform transform active:scale-95"
+                aria-label="Select"
+            >
+                SELECT
+            </button>
+          )}
+        </div>
+
+        {/* ---- MIDDLE ---- */}
+        <div className="flex justify-center items-center gap-4">
           {!showSettings && (
             <button onClick={() => setShowSettings(true)} className="text-xl font-bold py-3 px-5 bg-gray-200 text-black rounded-lg hover:bg-gray-300 transition-transform transform active:scale-95">
               Settings
             </button>
           )}
+          <button
+              onClick={onClear}
+              className="w-40 text-2xl font-bold py-4 px-6 bg-yellow-400 text-black rounded-lg hover:bg-yellow-500 transition-transform transform active:scale-95"
+              aria-label="Clear Message"
+          >
+              CLEAR
+          </button>
         </div>
-
-        <div className="flex justify-center md:justify-end gap-4">
-          <button
-            onClick={onClear}
-            className="w-40 text-2xl font-bold py-4 px-6 bg-yellow-400 text-black rounded-lg hover:bg-yellow-500 transition-transform transform active:scale-95"
-            aria-label="Clear Message"
-          >
-            CLEAR
-          </button>
-          {scanMode === 'one-switch' ? (
+        
+        {/* ---- RIGHT SIDE ---- */}
+        <div className="flex-1 flex justify-end">
+          {scanMode === 'one-switch' && (
             <button
-              onClick={handleStartStop}
-              className={`w-40 text-2xl font-bold py-4 px-6 rounded-lg transition-transform transform active:scale-95 ${isScanning ? 'bg-red-500 hover:bg-red-600 text-white' : 'bg-green-500 hover:bg-green-600 text-white'}`}
+                onClick={handleStartStop}
+                className={`w-40 text-2xl font-bold py-4 px-6 rounded-lg transition-transform transform active:scale-95 ${isScanning ? 'bg-red-500 hover:bg-red-600 text-white' : 'bg-green-500 hover:bg-green-600 text-white'}`}
             >
-              {isScanning ? 'STOP' : 'START'}
+                {isScanning ? 'STOP' : 'START'}
             </button>
-          ) : null}
-          
-          <button
-            onClick={onSwitch1}
-            className="w-40 text-2xl font-bold py-4 px-6 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-transform transform active:scale-95"
-            aria-label={scanMode === 'one-switch' ? 'Select' : 'Next'}
-          >
-            {scanMode === 'one-switch' ? 'SELECT' : 'NEXT'}
-          </button>
-
+          )}
           {scanMode === 'two-switch' && (
             <button
-              onClick={onSwitch2}
-              className="w-40 text-2xl font-bold py-4 px-6 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-transform transform active:scale-95"
-              aria-label="Select"
+                onClick={onSwitch1}
+                className="w-40 text-2xl font-bold py-4 px-6 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-transform transform active:scale-95"
+                aria-label="Next"
             >
-              SELECT
+                NEXT
             </button>
           )}
         </div>
