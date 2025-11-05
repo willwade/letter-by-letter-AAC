@@ -11,6 +11,7 @@ interface ControlsProps {
   onSwitch1: () => void;
   onSwitch2: () => void;
   onClear: () => void;
+  onUndo: () => void;
   messageFontSize: number;
   setMessageFontSize: (size: number) => void;
   scannerFontSize: number;
@@ -26,10 +27,20 @@ interface ControlsProps {
   setSelectedVoiceURI: (uri: string) => void;
   onFileUpload: (file: File) => void;
   trainingStatus: string;
+  hasTrainingData: boolean;
   showSettingsModal: boolean;
   setShowSettingsModal: (show: boolean) => void;
   hideControlBar: boolean;
   setHideControlBar: (hide: boolean) => void;
+  selectedLanguage: string;
+  setSelectedLanguage: (lang: string) => void;
+  availableLanguages: string[];
+  languageNames: Record<string, string>;
+  selectedScript: string | null;
+  setSelectedScript: (script: string | null) => void;
+  availableScripts: string[];
+  useUppercase: boolean;
+  setUseUppercase: (uppercase: boolean) => void;
 }
 
 const Controls: React.FC<ControlsProps> = ({
@@ -42,6 +53,7 @@ const Controls: React.FC<ControlsProps> = ({
   onSwitch1,
   onSwitch2,
   onClear,
+  onUndo,
   messageFontSize,
   setMessageFontSize,
   scannerFontSize,
@@ -57,10 +69,20 @@ const Controls: React.FC<ControlsProps> = ({
   setSelectedVoiceURI,
   onFileUpload,
   trainingStatus,
+  hasTrainingData,
   showSettingsModal,
   setShowSettingsModal,
   hideControlBar,
   setHideControlBar,
+  selectedLanguage,
+  setSelectedLanguage,
+  availableLanguages,
+  languageNames,
+  selectedScript,
+  setSelectedScript,
+  availableScripts,
+  useUppercase,
+  setUseUppercase,
 }) => {
 
   const handleStartStop = () => {
@@ -108,30 +130,40 @@ const Controls: React.FC<ControlsProps> = ({
 
             <div className="p-6 flex flex-col gap-6">
               {/* Scan Mode */}
-              <div className="flex items-center gap-4">
-                <span className="font-semibold w-32">Mode:</span>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="scanMode"
-                    value="one-switch"
-                    checked={scanMode === 'one-switch'}
-                    onChange={() => setScanMode('one-switch')}
-                    className="form-radio h-5 w-5 text-black"
-                  />
-                  One-Switch
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="scanMode"
-                    value="two-switch"
-                    checked={scanMode === 'two-switch'}
-                    onChange={() => setScanMode('two-switch')}
-                    className="form-radio h-5 w-5 text-black"
-                  />
-                  Two-Switch
-                </label>
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center gap-4">
+                  <span className="font-semibold w-32">Mode:</span>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="scanMode"
+                      value="one-switch"
+                      checked={scanMode === 'one-switch'}
+                      onChange={() => setScanMode('one-switch')}
+                      className="form-radio h-5 w-5 text-black"
+                    />
+                    One-Switch
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="scanMode"
+                      value="two-switch"
+                      checked={scanMode === 'two-switch'}
+                      onChange={() => setScanMode('two-switch')}
+                      className="form-radio h-5 w-5 text-black"
+                    />
+                    Two-Switch
+                  </label>
+                </div>
+                <div className="flex items-center gap-4">
+                  <span className="w-32"></span>
+                  <span className="text-sm text-gray-600 italic">
+                    {scanMode === 'one-switch'
+                      ? 'Press Space to select'
+                      : 'Press Space to advance, Enter to select'}
+                  </span>
+                </div>
               </div>
 
               {/* Scan Speed */}
@@ -151,6 +183,72 @@ const Controls: React.FC<ControlsProps> = ({
                   <span>{(scanSpeed / 1000).toFixed(1)}s</span>
                 </div>
               )}
+
+              {/* Language Selection */}
+              <div className="border-t pt-4">
+                <h3 className="font-bold text-lg mb-3">Language & Alphabet</h3>
+
+                {/* Language Picker */}
+                <div className="flex items-center gap-2 mb-3">
+                  <label htmlFor="languagePicker" className="font-semibold w-32">Language:</label>
+                  <select
+                    id="languagePicker"
+                    value={selectedLanguage}
+                    onChange={(e) => setSelectedLanguage(e.target.value)}
+                    className="form-select w-64 rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+                  >
+                    {availableLanguages.map((lang) => (
+                      <option key={lang} value={lang}>
+                        {languageNames[lang] || lang.toUpperCase()}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Script Picker (only show if language has multiple scripts) */}
+                {availableScripts.length > 0 && (
+                  <div className="flex items-center gap-2 mb-3">
+                    <label htmlFor="scriptPicker" className="font-semibold w-32">Script:</label>
+                    <select
+                      id="scriptPicker"
+                      value={selectedScript || ''}
+                      onChange={(e) => setSelectedScript(e.target.value || null)}
+                      className="form-select w-64 rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+                    >
+                      {availableScripts.map((script) => (
+                        <option key={script} value={script}>
+                          {script}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                {/* Case Toggle */}
+                <div className="flex items-center gap-4">
+                  <span className="font-semibold w-32">Case:</span>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="letterCase"
+                      checked={useUppercase}
+                      onChange={() => setUseUppercase(true)}
+                      className="form-radio h-5 w-5 text-black"
+                    />
+                    Uppercase
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="letterCase"
+                      checked={!useUppercase}
+                      onChange={() => setUseUppercase(false)}
+                      className="form-radio h-5 w-5 text-black"
+                    />
+                    Lowercase
+                  </label>
+                </div>
+              </div>
 
               {/* Voice Picker */}
               {availableVoices.length > 0 && (
@@ -184,15 +282,22 @@ const Controls: React.FC<ControlsProps> = ({
               {/* Prediction Master Toggle */}
               <div className="flex items-center gap-4">
                 <span className="font-semibold w-32">Prediction:</span>
-                <label className="flex items-center gap-2 cursor-pointer">
+                <label className={`flex items-center gap-2 ${hasTrainingData ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'}`}>
                   <input
                     type="checkbox"
                     checked={enablePrediction}
                     onChange={(e) => setEnablePrediction(e.target.checked)}
-                    className="form-checkbox h-5 w-5 text-black rounded"
+                    disabled={!hasTrainingData}
+                    className="form-checkbox h-5 w-5 text-black rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                    title={!hasTrainingData ? 'No training data available for this language' : ''}
                   />
                   Enable
                 </label>
+                {!hasTrainingData && (
+                  <span className="text-sm text-gray-500 italic">
+                    (No training data available)
+                  </span>
+                )}
               </div>
 
               {/* Training File Upload */}
@@ -226,61 +331,66 @@ const Controls: React.FC<ControlsProps> = ({
                 </label>
               </div>
 
-              {/* Message Font Size */}
-              <div className="flex items-center gap-2">
-                <label htmlFor="messageFontSize" className="font-semibold w-32">Msg Font:</label>
-                <input
-                  id="messageFontSize"
-                  type="range"
-                  min="16"
-                  max="150"
-                  step="1"
-                  value={messageFontSize}
-                  onChange={(e) => setMessageFontSize(Number(e.target.value))}
-                  className="w-48"
-                />
-                <span>{messageFontSize}px</span>
-              </div>
+              {/* Appearance Section */}
+              <div className="border-t pt-4">
+                <h3 className="font-bold text-lg mb-3">Appearance</h3>
 
-              {/* Scanner Font Size */}
-              <div className="flex items-center gap-2">
-                <label htmlFor="scannerFontSize" className="font-semibold w-32">Ltr Font:</label>
-                <input
-                  id="scannerFontSize"
-                  type="range"
-                  min="100"
-                  max="800"
-                  step="10"
-                  value={scannerFontSize}
-                  onChange={(e) => setScannerFontSize(Number(e.target.value))}
-                  className="w-48"
-                />
-                <span>{scannerFontSize}px</span>
-              </div>
-
-              {/* Fullscreen Toggle */}
-              <div className="flex items-center gap-2">
-                <span className="font-semibold w-32">Display:</span>
-                <button
-                  onClick={onToggleFullscreen}
-                  className="font-semibold py-2 px-4 bg-gray-200 text-black rounded-lg hover:bg-gray-300 transition-transform transform active:scale-95"
-                >
-                  {isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}
-                </button>
-              </div>
-
-              {/* Hide Control Bar Toggle */}
-              <div className="flex items-center gap-4">
-                <span className="font-semibold w-32">Control Bar:</span>
-                <label className="flex items-center gap-2 cursor-pointer">
+                {/* Message Font Size */}
+                <div className="flex items-center gap-2 mb-3">
+                  <label htmlFor="messageFontSize" className="font-semibold w-32">Msg Font:</label>
                   <input
-                    type="checkbox"
-                    checked={hideControlBar}
-                    onChange={(e) => setHideControlBar(e.target.checked)}
-                    className="form-checkbox h-5 w-5 text-black rounded"
+                    id="messageFontSize"
+                    type="range"
+                    min="16"
+                    max="150"
+                    step="1"
+                    value={messageFontSize}
+                    onChange={(e) => setMessageFontSize(Number(e.target.value))}
+                    className="w-48"
                   />
-                  Hide (use cog icon to access settings)
-                </label>
+                  <span>{messageFontSize}px</span>
+                </div>
+
+                {/* Scanner Font Size */}
+                <div className="flex items-center gap-2 mb-3">
+                  <label htmlFor="scannerFontSize" className="font-semibold w-32">Ltr Font:</label>
+                  <input
+                    id="scannerFontSize"
+                    type="range"
+                    min="100"
+                    max="800"
+                    step="10"
+                    value={scannerFontSize}
+                    onChange={(e) => setScannerFontSize(Number(e.target.value))}
+                    className="w-48"
+                  />
+                  <span>{scannerFontSize}px</span>
+                </div>
+
+                {/* Fullscreen Toggle */}
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="font-semibold w-32">Display:</span>
+                  <button
+                    onClick={onToggleFullscreen}
+                    className="font-semibold py-2 px-4 bg-gray-200 text-black rounded-lg hover:bg-gray-300 transition-transform transform active:scale-95"
+                  >
+                    {isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}
+                  </button>
+                </div>
+
+                {/* Hide Control Bar Toggle */}
+                <div className="flex items-center gap-4">
+                  <span className="font-semibold w-32">Control Bar:</span>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={hideControlBar}
+                      onChange={(e) => setHideControlBar(e.target.checked)}
+                      className="form-checkbox h-5 w-5 text-black rounded"
+                    />
+                    Hide (use cog icon to access settings)
+                  </label>
+                </div>
               </div>
             </div>
 
@@ -324,6 +434,13 @@ const Controls: React.FC<ControlsProps> = ({
 
         {/* ---- MIDDLE ---- */}
         <div className="flex justify-center items-center gap-4">
+          <button
+              onClick={onUndo}
+              className="w-40 text-2xl font-bold py-4 px-6 bg-orange-300 text-orange-900 rounded-lg hover:bg-orange-400 transition-transform transform active:scale-95"
+              aria-label="Undo Last Character"
+          >
+              UNDO
+          </button>
           <button
               onClick={onClear}
               className="w-40 text-2xl font-bold py-4 px-6 bg-yellow-300 text-yellow-900 rounded-lg hover:bg-yellow-400 transition-transform transform active:scale-95"

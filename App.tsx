@@ -5,7 +5,14 @@ import Display from './components/Display';
 import Scanner from './components/Scanner';
 import Controls from './components/Controls';
 import { createErrorTolerantPredictor, type Predictor } from '@willwade/ppmpredictor';
-
+import {
+  getUppercase,
+  getLowercase,
+  getAvailableCodes,
+  getScripts,
+  getIndexData,
+  loadFrequencyList
+} from 'worldalphabets';
 
 const App: React.FC = () => {
   const [message, setMessage] = useState<string>('');
@@ -28,45 +35,257 @@ const App: React.FC = () => {
 
   const [predictor, setPredictor] = useState<Predictor | null>(null);
   const [trainingStatus, setTrainingStatus] = useState<string>('No model loaded.');
+  const [hasTrainingData, setHasTrainingData] = useState<boolean>(true); // Track if training data was loaded
 
-  // Effect to load a default model and lexicon on startup
+  // Language and alphabet state
+  const [selectedLanguage, setSelectedLanguage] = useState<string>(() => {
+    return localStorage.getItem('selectedLanguage') || 'en';
+  });
+  const [selectedScript, setSelectedScript] = useState<string | null>(() => {
+    return localStorage.getItem('selectedScript') || null;
+  });
+  const [useUppercase, setUseUppercase] = useState<boolean>(() => {
+    return localStorage.getItem('useUppercase') === 'true';
+  });
+  const [alphabet, setAlphabet] = useState<string[]>(ALPHABET);
+  const [availableLanguages, setAvailableLanguages] = useState<string[]>([]);
+  const [availableScripts, setAvailableScripts] = useState<string[]>([]);
+  const [languageNames, setLanguageNames] = useState<Record<string, string>>({});
+  const [isRTL, setIsRTL] = useState<boolean>(false);
+
+  // Effect to load language-specific model and lexicon
   useEffect(() => {
-    const loadInitialModel = async () => {
-        setTrainingStatus('Loading default model...');
+    const loadLanguageModel = async () => {
+        setTrainingStatus(`Loading model for ${selectedLanguage}...`);
         try {
-            const [corpusResponse, lexiconResponse] = await Promise.all([
-                fetch('./data/default_corpus.txt'),
-                fetch('./data/aac_lexicon_en_gb.txt')
-            ]);
+            // Try to load training data from Dasher project
+            // Map language codes to Dasher training file names
+            const dasherLangMap: Record<string, string> = {
+              'sq': 'training_albanian_SQ.txt',
+              'eu': 'training_basque_ES.txt',
+              'bn': 'training_bengali_BD.txt',
+              'ja': 'training_canna_JP.txt',
+              'cs': 'training_czech_CS.txt',
+              'da': 'training_danish_DK.txt',
+              'nl': 'training_dutch_NL.txt',
+              'en': 'training_english_GB.txt',
+              'fi': 'training_finnish_FI.txt',
+              'fr': 'training_french_FR.txt',
+              'de': 'training_german_DE.txt',
+              'el': 'training_greek_GR.txt',
+              'he': 'training_hebrew_IL.txt',
+              'hu': 'training_hungarian_HU.txt',
+              'it': 'training_italian_IT.txt',
+              'mn': 'training_mongolian_MN.txt',
+              'fa': 'training_persian_IR.txt',
+              'pl': 'training_polish_PL.txt',
+              'pt': 'training_portuguese_BR.txt',
+              'ru': 'training_russian_RU.txt',
+              'es': 'training_spanish_ES.txt',
+              'sw': 'training_swahili_KE.txt',
+              'sv': 'training_swedish_SE.txt',
+              'tr': 'training_turkish_TR.txt',
+              'cy': 'training_welsh_GB.txt',
+            };
 
-            if (!corpusResponse.ok || !lexiconResponse.ok) {
-                throw new Error('Failed to fetch initial model data.');
+            const dasherFile = dasherLangMap[selectedLanguage];
+            let corpusText = '';
+            let lexicon: string[] = [];
+
+            // Try to fetch training data from Dasher project on GitHub
+            if (dasherFile) {
+              try {
+                const dasherUrl = `https://raw.githubusercontent.com/dasher-project/dasher/master/Data/training/${dasherFile}`;
+                const response = await fetch(dasherUrl);
+                if (response.ok) {
+                  corpusText = await response.text();
+                  console.log(`Loaded Dasher training data for ${selectedLanguage}`);
+                }
+              } catch (error) {
+                console.warn(`Could not load Dasher training data for ${selectedLanguage}:`, error);
+              }
             }
 
-            const corpusText = await corpusResponse.text();
-            const lexiconText = await lexiconResponse.text();
-            const lexicon = lexiconText.split('\n').filter(w => w.trim());
+            // Try to load frequency list from WorldAlphabets as lexicon
+            try {
+              const freqData = await loadFrequencyList(selectedLanguage);
+              if (freqData && freqData.tokens && freqData.tokens.length > 0) {
+                lexicon = freqData.tokens;
+                console.log(`Loaded ${lexicon.length} words from WorldAlphabets for ${selectedLanguage} (mode: ${freqData.mode})`);
 
-            const newPredictor = createErrorTolerantPredictor({ 
-                maxOrder: 5, 
+                // If no Dasher training data, use frequency list as basic training corpus
+                if (!corpusText && lexicon.length > 0) {
+                  corpusText = lexicon.join(' ');
+                  console.log(`Using frequency list as training corpus for ${selectedLanguage}`);
+                }
+              }
+            } catch (error) {
+              console.warn(`Could not load frequency data for ${selectedLanguage}:`, error);
+            }
+
+            // Fallback to local English data if nothing was loaded
+            if (!corpusText && selectedLanguage === 'en') {
+              try {
+                const [corpusResponse, lexiconResponse] = await Promise.all([
+                  fetch('./data/default_corpus.txt'),
+                  fetch('./data/aac_lexicon_en_gb.txt')
+                ]);
+
+                if (corpusResponse.ok) {
+                  corpusText = await corpusResponse.text();
+                }
+                if (lexiconResponse.ok) {
+                  const lexiconText = await lexiconResponse.text();
+                  lexicon = lexiconText.split('\n').filter(w => w.trim());
+                }
+              } catch (error) {
+                console.warn('Could not load local English data:', error);
+              }
+            }
+
+            // Create predictor with available data
+            const newPredictor = createErrorTolerantPredictor({
+                maxOrder: 5,
                 adaptive: true,
-                lexicon: lexicon,
+                lexicon: lexicon.length > 0 ? lexicon : undefined,
                 maxEditDistance: 2,
                 minSimilarity: 0.6,
                 maxPredictions: 10
             });
 
-            newPredictor.train(corpusText);
+            if (corpusText) {
+              newPredictor.train(corpusText);
+              setTrainingStatus(`Model loaded for ${selectedLanguage} with ${lexicon.length} words.`);
+              setHasTrainingData(true);
+            } else {
+              setTrainingStatus(`Basic model for ${selectedLanguage} (no training data available).`);
+              setHasTrainingData(false);
+              // Disable prediction when no training data is available
+              setEnablePrediction(false);
+            }
+
             setPredictor(newPredictor);
-            setTrainingStatus(`Default model loaded with ${lexicon.length} words.`);
         } catch (error) {
-            console.error("Failed to load initial model:", error);
-            setTrainingStatus("Error: Could not load default model.");
+            console.error("Failed to load language model:", error);
+            setTrainingStatus(`Error: Could not load model for ${selectedLanguage}.`);
+            setHasTrainingData(false);
+            setEnablePrediction(false);
+
+            // Create a basic predictor as fallback
+            const fallbackPredictor = createErrorTolerantPredictor({
+                maxOrder: 5,
+                adaptive: true,
+                maxEditDistance: 2,
+                minSimilarity: 0.6,
+                maxPredictions: 10
+            });
+            setPredictor(fallbackPredictor);
         }
     };
 
-    loadInitialModel();
-  }, []); // Empty array ensures this runs only once on mount
+    loadLanguageModel();
+  }, [selectedLanguage]); // Reload when language changes
+
+  // Effect to load available languages and their names on startup
+  useEffect(() => {
+    const loadLanguages = async () => {
+      try {
+        // Get language index data from WorldAlphabets
+        const indexData = await getIndexData();
+
+        // Extract language codes and names
+        // Note: indexData has 'language' field for code and 'name' field for display name
+        const codesSet = new Set<string>();
+        const names: Record<string, string> = {};
+
+        for (const entry of indexData) {
+          if (entry.language) {
+            codesSet.add(entry.language);
+            if (entry.name && !names[entry.language]) {
+              // Use first name encountered for each language code
+              names[entry.language] = entry.name;
+            }
+          }
+        }
+
+        const codes = Array.from(codesSet).sort();
+        setAvailableLanguages(codes);
+        setLanguageNames(names);
+        console.log(`Loaded ${codes.length} languages from WorldAlphabets index`);
+      } catch (error) {
+        console.error('Failed to load available languages:', error);
+        setAvailableLanguages(['en']); // Fallback to English
+        setLanguageNames({ 'en': 'English' });
+      }
+    };
+    loadLanguages();
+  }, []);
+
+  // Effect to load available scripts when language changes
+  useEffect(() => {
+    const loadScripts = async () => {
+      try {
+        const scripts = await getScripts(selectedLanguage);
+        setAvailableScripts(scripts);
+        // If current script is not available for new language, reset to first available or null
+        if (scripts.length > 0 && !scripts.includes(selectedScript || '')) {
+          setSelectedScript(scripts[0]);
+        } else if (scripts.length === 0) {
+          setSelectedScript(null);
+        }
+
+        // Detect RTL scripts
+        // Common RTL scripts: Arab (Arabic), Hebr (Hebrew), Thaa (Thaana), Nkoo (N'Ko), Syrc (Syriac)
+        const rtlScripts = ['Arab', 'Hebr', 'Thaa', 'Nkoo', 'Syrc', 'Mand', 'Samr', 'Adlm'];
+        const currentScript = scripts.length > 0 ? scripts[0] : null;
+        const isRightToLeft = currentScript ? rtlScripts.includes(currentScript) : false;
+        setIsRTL(isRightToLeft);
+
+        console.log(`Language: ${selectedLanguage}, Script: ${currentScript}, RTL: ${isRightToLeft}`);
+      } catch (error) {
+        console.error('Failed to load scripts for language:', selectedLanguage, error);
+        setAvailableScripts([]);
+        setSelectedScript(null);
+        setIsRTL(false);
+      }
+    };
+    loadScripts();
+  }, [selectedLanguage]);
+
+  // Effect to update alphabet when language, script, or case changes
+  useEffect(() => {
+    const loadAlphabet = async () => {
+      try {
+        let letters: string[];
+        if (useUppercase) {
+          letters = await getUppercase(selectedLanguage, selectedScript || undefined);
+        } else {
+          letters = await getLowercase(selectedLanguage);
+        }
+        setAlphabet(letters);
+        // Update scan items with new alphabet
+        setScanItems([...letters, ...SPECIAL_ACTIONS]);
+      } catch (error) {
+        console.error('Failed to load alphabet:', error);
+        // Fallback to default English alphabet
+        const fallbackAlphabet = useUppercase ? ALPHABET : ALPHABET.map(l => l.toLowerCase());
+        setAlphabet(fallbackAlphabet);
+        setScanItems([...fallbackAlphabet, ...SPECIAL_ACTIONS]);
+      }
+    };
+    loadAlphabet();
+  }, [selectedLanguage, selectedScript, useUppercase]);
+
+  // Effect to save language preferences to localStorage
+  useEffect(() => {
+    localStorage.setItem('selectedLanguage', selectedLanguage);
+    if (selectedScript) {
+      localStorage.setItem('selectedScript', selectedScript);
+    } else {
+      localStorage.removeItem('selectedScript');
+    }
+    localStorage.setItem('useUppercase', useUppercase.toString());
+  }, [selectedLanguage, selectedScript, useUppercase]);
 
   // Debounced effect for running predictions as the user types
   useEffect(() => {
@@ -125,36 +344,46 @@ const App: React.FC = () => {
       if (message.length > 1) {
         newScanItems.push(SPEAK);
       }
-      newScanItems.push(...ALPHABET, ...SPECIAL_ACTIONS);
+      newScanItems.push(...alphabet, ...SPECIAL_ACTIONS);
     } else {
-      const uniqueAlphabet = ALPHABET.filter(letter => !predictedLetters.includes(letter));
-      
+      const uniqueAlphabet = alphabet.filter(letter => !predictedLetters.includes(letter));
+
       if (showWordPrediction && predictedWords.length > 0) {
         newScanItems.push(...predictedWords);
       }
-      
+
       newScanItems.push(...predictedLetters);
-      
+
       if (message.length > 1) {
           newScanItems.push(SPEAK);
       }
 
       newScanItems.push(...uniqueAlphabet, ...SPECIAL_ACTIONS);
     }
-    
+
     setScanItems(newScanItems);
     setScanIndex(0);
-  }, [predictedLetters, predictedWords, message, showWordPrediction, enablePrediction, predictor]);
+  }, [predictedLetters, predictedWords, message, showWordPrediction, enablePrediction, predictor, alphabet]);
 
   // Effect to load speech synthesis voices
   useEffect(() => {
     const loadVoices = () => {
-      const voices = window.speechSynthesis.getVoices();
-      if (voices.length > 0) {
-        setAvailableVoices(voices);
-        if (!selectedVoiceURI) {
-          // Try to set a default English voice
-          const defaultVoice = voices.find(voice => voice.lang.startsWith('en') && voice.localService) || voices[0];
+      const allVoices = window.speechSynthesis.getVoices();
+      if (allVoices.length > 0) {
+        // Filter voices by selected language
+        // Match voices where lang starts with the selected language code
+        const filteredVoices = allVoices.filter(voice =>
+          voice.lang.toLowerCase().startsWith(selectedLanguage.toLowerCase())
+        );
+
+        // If no voices match the selected language, show all voices as fallback
+        const voicesToShow = filteredVoices.length > 0 ? filteredVoices : allVoices;
+        setAvailableVoices(voicesToShow);
+
+        // Auto-select a voice for the current language if needed
+        if (!selectedVoiceURI || !voicesToShow.find(v => v.voiceURI === selectedVoiceURI)) {
+          // Prefer local voices for the selected language
+          const defaultVoice = voicesToShow.find(voice => voice.localService) || voicesToShow[0];
           if (defaultVoice) {
             setSelectedVoiceURI(defaultVoice.voiceURI);
           }
@@ -167,7 +396,7 @@ const App: React.FC = () => {
     return () => {
       window.speechSynthesis.onvoiceschanged = null;
     };
-  }, [selectedVoiceURI]);
+  }, [selectedLanguage, selectedVoiceURI]);
 
   const handleSelect = useCallback((item: string) => {
     if (showWordPrediction && predictedWords.includes(item)) {
@@ -203,6 +432,11 @@ const App: React.FC = () => {
   const handleClear = useCallback(() => {
     setMessage('');
     setIsScanning(false);
+    setScanIndex(0);
+  }, []);
+
+  const handleUndo = useCallback(() => {
+    setMessage(prev => prev.slice(0, -1));
     setScanIndex(0);
   }, []);
 
@@ -317,7 +551,7 @@ const App: React.FC = () => {
       </button>
 
       <main className="flex-grow flex flex-col p-4 md:p-8 space-y-4">
-        <Display message={message} fontSize={messageFontSize} />
+        <Display message={message} fontSize={messageFontSize} isRTL={isRTL} />
         <Scanner currentItem={scanItems[scanIndex] ?? ''} fontSize={scannerFontSize} />
       </main>
 
@@ -336,6 +570,7 @@ const App: React.FC = () => {
         onSwitch1={handleSwitch1}
         onSwitch2={handleSwitch2}
         onClear={handleClear}
+        onUndo={handleUndo}
         messageFontSize={messageFontSize}
         setMessageFontSize={setMessageFontSize}
         scannerFontSize={scannerFontSize}
@@ -351,10 +586,20 @@ const App: React.FC = () => {
         setSelectedVoiceURI={setSelectedVoiceURI}
         onFileUpload={handleFileUpload}
         trainingStatus={trainingStatus}
+        hasTrainingData={hasTrainingData}
         showSettingsModal={showSettingsModal}
         setShowSettingsModal={setShowSettingsModal}
         hideControlBar={hideControlBar}
         setHideControlBar={setHideControlBar}
+        selectedLanguage={selectedLanguage}
+        setSelectedLanguage={setSelectedLanguage}
+        availableLanguages={availableLanguages}
+        languageNames={languageNames}
+        selectedScript={selectedScript}
+        setSelectedScript={setSelectedScript}
+        availableScripts={availableScripts}
+        useUppercase={useUppercase}
+        setUseUppercase={setUseUppercase}
       />
     </div>
   );
