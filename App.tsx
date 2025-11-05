@@ -11,9 +11,64 @@ import {
   getAvailableCodes,
   getScripts,
   getIndexData,
+  loadFrequencyList,
 } from 'worldalphabets';
 import { getTheme } from './themes';
 import { getTrainingFileName, hasTrainingData as hasTrainingFile } from './trainingDataMap';
+
+/**
+ * Build a keyboard adjacency map from an alphabetical list.
+ * Each letter is adjacent to the letters immediately before and after it in the list.
+ * This helps the error-tolerant predictor understand that adjacent letters in our
+ * linear scanning interface are "closer" to each other.
+ */
+function buildKeyboardAdjacencyMap(letters: string[]): Record<string, string[]> {
+  const adjacencyMap: Record<string, string[]> = {};
+
+  for (let i = 0; i < letters.length; i++) {
+    const letter = letters[i].toLowerCase();
+    const adjacent: string[] = [];
+
+    // Add previous letter if exists
+    if (i > 0) {
+      adjacent.push(letters[i - 1].toLowerCase());
+    }
+
+    // Add next letter if exists
+    if (i < letters.length - 1) {
+      adjacent.push(letters[i + 1].toLowerCase());
+    }
+
+    if (adjacent.length > 0) {
+      adjacencyMap[letter] = adjacent;
+    }
+  }
+
+  console.log('🗺️ Built keyboard adjacency map:', adjacencyMap);
+  return adjacencyMap;
+}
+
+/**
+ * Load frequency word list from worldalphabets for a given language.
+ * Returns top 1000 most frequent words for the language.
+ */
+async function loadWordFrequencyList(languageCode: string): Promise<string[]> {
+  try {
+    // Use worldalphabets loadFrequencyList API
+    const freqData = await loadFrequencyList(languageCode);
+
+    if (freqData && freqData.tokens && freqData.tokens.length > 0) {
+      console.log(`✅ Loaded ${freqData.tokens.length} words from worldalphabets frequency list (mode: ${freqData.mode})`);
+      return freqData.tokens;
+    } else {
+      console.warn(`⚠️ No frequency list found for ${languageCode}`);
+      return [];
+    }
+  } catch (error) {
+    console.warn(`⚠️ Could not load frequency list for ${languageCode}:`, error);
+    return [];
+  }
+}
 
 const App: React.FC = () => {
   const [message, setMessage] = useState<string>('');
@@ -72,12 +127,13 @@ const App: React.FC = () => {
         try {
             const trainingFileName = getTrainingFileName(selectedLanguage);
             let corpusText = '';
+            let lexicon: string[] = [];
 
             // Try to load training data from ppmpredictor package via unpkg CDN
             if (trainingFileName) {
               try {
                 // Fetch from unpkg CDN
-                const cdnUrl = `https://unpkg.com/@willwade/ppmpredictor@0.0.4/data/training/${trainingFileName}`;
+                const cdnUrl = `https://unpkg.com/@willwade/ppmpredictor@0.0.6/data/training/${trainingFileName}`;
                 console.log(`📥 Fetching training data from: ${cdnUrl}`);
 
                 const response = await fetch(cdnUrl);
@@ -92,14 +148,68 @@ const App: React.FC = () => {
               }
             }
 
-            // Create predictor with error tolerance
+            // Try to load lexicon from worldalphabets frequency lists
+            try {
+              // First try worldalphabets frequency list (top 1000 words)
+              lexicon = await loadWordFrequencyList(selectedLanguage);
+
+              // If English and we got the frequency list, also add AAC-specific words
+              if (selectedLanguage === 'en' && lexicon.length > 0) {
+                try {
+                  const aacLexiconUrl = `https://unpkg.com/@willwade/ppmpredictor@0.0.6/data/aac_lexicon_en_gb.txt`;
+                  const aacResponse = await fetch(aacLexiconUrl);
+                  if (aacResponse.ok) {
+                    const aacText = await aacResponse.text();
+                    const aacWords = aacText.split('\n').filter(w => w.trim().length > 0);
+                    // Merge AAC words with frequency list, removing duplicates
+                    const combined = new Set([...lexicon, ...aacWords]);
+                    lexicon = Array.from(combined);
+                    console.log(`✅ Combined frequency list with AAC lexicon: ${lexicon.length} total words`);
+                  }
+                } catch (error) {
+                  console.warn(`⚠️ Could not load AAC lexicon:`, error);
+                }
+              }
+
+              // Fallback: if no frequency list, extract from training data
+              if (lexicon.length === 0 && corpusText) {
+                console.log(`⚠️ No frequency list available, extracting from training data`);
+                const words = corpusText.toLowerCase().split(/\s+/).filter(w => w.length > 0);
+                const wordFreq = new Map<string, number>();
+                words.forEach(word => {
+                  const count = wordFreq.get(word) || 0;
+                  wordFreq.set(word, count + 1);
+                });
+                // Sort by frequency and take top 5000 words
+                lexicon = Array.from(wordFreq.entries())
+                  .sort((a, b) => b[1] - a[1])
+                  .slice(0, 5000)
+                  .map(([word]) => word);
+                console.log(`✅ Extracted ${lexicon.length} words from training data as lexicon`);
+              }
+            } catch (error) {
+              console.warn(`⚠️ Could not load lexicon:`, error);
+            }
+
+            // Build keyboard adjacency map from current alphabet
+            const adjacencyMap = buildKeyboardAdjacencyMap(alphabet);
+
+            // Create predictor with error tolerance, keyboard awareness, and lexicon
             const newPredictor = createErrorTolerantPredictor({
                 maxOrder: 5,
                 adaptive: true,
                 maxEditDistance: 2,
                 minSimilarity: 0.6,
-                maxPredictions: 10
+                maxPredictions: 10,
+                keyboardAware: true,
+                keyboardAdjacencyMap: adjacencyMap,
+                lexicon: lexicon.length > 0 ? lexicon : undefined
             });
+
+            console.log('✅ Created predictor with keyboard awareness for alphabet:', alphabet.slice(0, 10));
+            if (lexicon.length > 0) {
+              console.log(`✅ Predictor has lexicon with ${lexicon.length} words for error-tolerant matching`);
+            }
 
             if (corpusText) {
               newPredictor.train(corpusText);
@@ -131,13 +241,16 @@ const App: React.FC = () => {
             setTrainingStatus(`❌ Error: Could not load model for ${selectedLanguage}.`);
             setHasTrainingData(false);
 
-            // Create a basic predictor as fallback
+            // Create a basic predictor as fallback with keyboard awareness
+            const adjacencyMap = buildKeyboardAdjacencyMap(alphabet);
             const fallbackPredictor = createErrorTolerantPredictor({
                 maxOrder: 5,
                 adaptive: true,
                 maxEditDistance: 2,
                 minSimilarity: 0.6,
-                maxPredictions: 10
+                maxPredictions: 10,
+                keyboardAware: true,
+                keyboardAdjacencyMap: adjacencyMap
             });
             setPredictor(fallbackPredictor);
         }
@@ -345,6 +458,27 @@ const App: React.FC = () => {
     setScanIndex(0);
   }, [predictedLetters, predictedWords, message, showWordPrediction, enablePrediction, predictor, alphabet]);
 
+  // Effect to update keyboard adjacency map when scan items change
+  useEffect(() => {
+    if (!predictor || !enablePrediction) return;
+
+    // Filter scanItems to only include single-character letters (not words, actions, etc.)
+    const letterItems = scanItems.filter(item =>
+      item.length === 1 &&
+      !SPECIAL_ACTIONS.includes(item) &&
+      item !== SPEAK
+    );
+
+    // Build adjacency map based on the CURRENT scan order
+    const adjacencyMap = buildKeyboardAdjacencyMap(letterItems);
+
+    // Update the predictor's keyboard adjacency map using updateConfig
+    if (predictor.updateConfig) {
+      predictor.updateConfig({ keyboardAdjacencyMap: adjacencyMap });
+      console.log('🔄 Updated keyboard adjacency map based on current scan order:', letterItems.slice(0, 10));
+    }
+  }, [scanItems, predictor, enablePrediction]);
+
   // Effect to load speech synthesis voices
   useEffect(() => {
     const loadVoices = () => {
@@ -442,19 +576,34 @@ const App: React.FC = () => {
     try {
       const text = await file.text();
 
-      // Load lexicon (optional but recommended)
-      const lexiconResponse = await fetch('./data/aac_lexicon_en_gb.txt');
-      const lexiconText = await lexiconResponse.text();
-      const lexicon = lexiconText.split('\n').filter(w => w.trim());
+      // Extract lexicon from uploaded file
+      const words = text.toLowerCase().split(/\s+/).filter(w => w.length > 0);
+      const wordFreq = new Map<string, number>();
+      words.forEach(word => {
+        const count = wordFreq.get(word) || 0;
+        wordFreq.set(word, count + 1);
+      });
+      // Sort by frequency and take top 5000 words
+      const lexicon = Array.from(wordFreq.entries())
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5000)
+        .map(([word]) => word);
 
-      // Use error-tolerant predictor
+      console.log(`✅ Extracted ${lexicon.length} words from uploaded file as lexicon`);
+
+      // Build keyboard adjacency map from current alphabet
+      const adjacencyMap = buildKeyboardAdjacencyMap(alphabet);
+
+      // Use error-tolerant predictor with keyboard awareness and lexicon
       const newPredictor = createErrorTolerantPredictor({
         maxOrder: 5,
         adaptive: true,
         lexicon: lexicon,
         maxEditDistance: 2,
         minSimilarity: 0.6,
-        maxPredictions: 10
+        maxPredictions: 10,
+        keyboardAware: true,
+        keyboardAdjacencyMap: adjacencyMap
       });
 
       // Train on uploaded file
@@ -490,7 +639,7 @@ const App: React.FC = () => {
 
     if (trainingFileName) {
       try {
-        const cdnUrl = `https://unpkg.com/@willwade/ppmpredictor@0.0.4/data/training/${trainingFileName}`;
+        const cdnUrl = `https://unpkg.com/@willwade/ppmpredictor@0.0.6/data/training/${trainingFileName}`;
         const response = await fetch(cdnUrl);
         if (response.ok) {
           baseTrainingData = await response.text();
@@ -538,11 +687,12 @@ const App: React.FC = () => {
     const loadLanguageModel = async () => {
       try {
         let corpusText = '';
+        let lexicon: string[] = [];
         const trainingFileName = getTrainingFileName(selectedLanguage);
 
         if (trainingFileName) {
           try {
-            const cdnUrl = `https://unpkg.com/@willwade/ppmpredictor@0.0.4/data/training/${trainingFileName}`;
+            const cdnUrl = `https://unpkg.com/@willwade/ppmpredictor@0.0.6/data/training/${trainingFileName}`;
             const response = await fetch(cdnUrl);
             if (response.ok) {
               corpusText = await response.text();
@@ -552,12 +702,53 @@ const App: React.FC = () => {
           }
         }
 
+        // Try to load lexicon from worldalphabets frequency lists
+        try {
+          lexicon = await loadWordFrequencyList(selectedLanguage);
+
+          if (selectedLanguage === 'en' && lexicon.length > 0) {
+            try {
+              const aacLexiconUrl = `https://unpkg.com/@willwade/ppmpredictor@0.0.6/data/aac_lexicon_en_gb.txt`;
+              const aacResponse = await fetch(aacLexiconUrl);
+              if (aacResponse.ok) {
+                const aacText = await aacResponse.text();
+                const aacWords = aacText.split('\n').filter(w => w.trim().length > 0);
+                const combined = new Set([...lexicon, ...aacWords]);
+                lexicon = Array.from(combined);
+              }
+            } catch (error) {
+              console.warn(`⚠️ Could not load AAC lexicon:`, error);
+            }
+          }
+
+          if (lexicon.length === 0 && corpusText) {
+            const words = corpusText.toLowerCase().split(/\s+/).filter(w => w.length > 0);
+            const wordFreq = new Map<string, number>();
+            words.forEach(word => {
+              const count = wordFreq.get(word) || 0;
+              wordFreq.set(word, count + 1);
+            });
+            lexicon = Array.from(wordFreq.entries())
+              .sort((a, b) => b[1] - a[1])
+              .slice(0, 5000)
+              .map(([word]) => word);
+          }
+        } catch (error) {
+          console.warn(`⚠️ Could not load lexicon:`, error);
+        }
+
+        // Build keyboard adjacency map from current alphabet
+        const adjacencyMap = buildKeyboardAdjacencyMap(alphabet);
+
         const newPredictor = createErrorTolerantPredictor({
           maxOrder: 5,
           adaptive: true,
           maxEditDistance: 2,
           minSimilarity: 0.6,
-          maxPredictions: 10
+          maxPredictions: 10,
+          keyboardAware: true,
+          keyboardAdjacencyMap: adjacencyMap,
+          lexicon: lexicon.length > 0 ? lexicon : undefined
         });
 
         if (corpusText) {

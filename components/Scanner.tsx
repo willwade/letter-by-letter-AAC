@@ -72,7 +72,7 @@ const Scanner: React.FC<ScannerProps> = ({ currentItem, fontSize, theme }) => {
 
       // Apply the best size we found
       item.style.fontSize = `${bestSize}px`;
-      console.log('✅ Final font size:', bestSize);
+      // console.log('✅ Final font size:', bestSize);
 
       // Allow wrapping for long words if needed
       if (currentItem.length > 10) {

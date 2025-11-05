@@ -11,7 +11,7 @@
     "lint": "tsc --noEmit"
   },
   "dependencies": {
-    "@willwade/ppmpredictor": "^0.0.4",
+    "@willwade/ppmpredictor": "^0.0.6",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "worldalphabets": "^0.0.24"
