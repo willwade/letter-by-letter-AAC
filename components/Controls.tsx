@@ -6,6 +6,8 @@ interface ControlsProps {
   setScanMode: (mode: ScanMode) => void;
   scanSpeed: number;
   setScanSpeed: (speed: number) => void;
+  firstItemDelay: number;
+  setFirstItemDelay: (delay: number) => void;
   isScanning: boolean;
   setIsScanning: (isScanning: boolean) => void;
   onSwitch1: () => void;
@@ -48,6 +50,8 @@ const Controls: React.FC<ControlsProps> = ({
   setScanMode,
   scanSpeed,
   setScanSpeed,
+  firstItemDelay,
+  setFirstItemDelay,
   isScanning,
   setIsScanning,
   onSwitch1,
@@ -168,20 +172,38 @@ const Controls: React.FC<ControlsProps> = ({
 
               {/* Scan Speed */}
               {scanMode === 'one-switch' && (
-                <div className="flex items-center gap-2">
-                  <label htmlFor="scanSpeed" className="font-semibold w-32">Speed:</label>
-                  <input
-                    id="scanSpeed"
-                    type="range"
-                    min="200"
-                    max="3000"
-                    step="100"
-                    value={scanSpeed}
-                    onChange={(e) => setScanSpeed(Number(e.target.value))}
-                    className="w-48"
-                  />
-                  <span>{(scanSpeed / 1000).toFixed(1)}s</span>
-                </div>
+                <>
+                  <div className="flex items-center gap-2">
+                    <label htmlFor="scanSpeed" className="font-semibold w-32">Speed:</label>
+                    <input
+                      id="scanSpeed"
+                      type="range"
+                      min="200"
+                      max="3000"
+                      step="100"
+                      value={scanSpeed}
+                      onChange={(e) => setScanSpeed(Number(e.target.value))}
+                      className="w-48"
+                    />
+                    <span>{(scanSpeed / 1000).toFixed(1)}s</span>
+                  </div>
+
+                  {/* First Item Delay */}
+                  <div className="flex items-center gap-2">
+                    <label htmlFor="firstItemDelay" className="font-semibold w-32">First Item:</label>
+                    <input
+                      id="firstItemDelay"
+                      type="range"
+                      min="500"
+                      max="5000"
+                      step="100"
+                      value={firstItemDelay}
+                      onChange={(e) => setFirstItemDelay(Number(e.target.value))}
+                      className="w-48"
+                    />
+                    <span>{(firstItemDelay / 1000).toFixed(1)}s</span>
+                  </div>
+                </>
               )}
 
               {/* Language Selection */}
@@ -408,14 +430,14 @@ const Controls: React.FC<ControlsProps> = ({
 
       {/* Main Control Bar - Only show if not hidden */}
       {!hideControlBar && (
-        <footer className="p-4 bg-gray-100 border-t-2 border-gray-300">
-          <div className="w-full flex items-center justify-between gap-4">
+        <footer className="p-2 sm:p-4 bg-gray-100 border-t-2 border-gray-300">
+          <div className="w-full flex items-center justify-between gap-2 sm:gap-4">
         {/* ---- LEFT SIDE ---- */}
         <div className="flex-1 flex justify-start">
           {scanMode === 'one-switch' && (
             <button
                 onClick={onSwitch1}
-                className="w-40 text-2xl font-bold py-4 px-6 bg-violet-300 text-violet-900 rounded-lg hover:bg-violet-400 transition-transform transform active:scale-95"
+                className="flex-1 max-w-[160px] text-lg sm:text-2xl font-bold py-3 sm:py-4 px-3 sm:px-6 bg-violet-300 text-violet-900 rounded-lg hover:bg-violet-400 transition-transform transform active:scale-95"
                 aria-label="Select"
             >
                 SELECT
@@ -424,7 +446,7 @@ const Controls: React.FC<ControlsProps> = ({
           {scanMode === 'two-switch' && (
             <button
                 onClick={onSwitch2}
-                className="w-40 text-2xl font-bold py-4 px-6 bg-violet-300 text-violet-900 rounded-lg hover:bg-violet-400 transition-transform transform active:scale-95"
+                className="flex-1 max-w-[160px] text-lg sm:text-2xl font-bold py-3 sm:py-4 px-3 sm:px-6 bg-violet-300 text-violet-900 rounded-lg hover:bg-violet-400 transition-transform transform active:scale-95"
                 aria-label="Select"
             >
                 SELECT
@@ -433,17 +455,17 @@ const Controls: React.FC<ControlsProps> = ({
         </div>
 
         {/* ---- MIDDLE ---- */}
-        <div className="flex justify-center items-center gap-4">
+        <div className="flex justify-center items-center gap-2 sm:gap-4">
           <button
               onClick={onUndo}
-              className="w-40 text-2xl font-bold py-4 px-6 bg-orange-300 text-orange-900 rounded-lg hover:bg-orange-400 transition-transform transform active:scale-95"
+              className="flex-1 min-w-[70px] max-w-[160px] text-lg sm:text-2xl font-bold py-3 sm:py-4 px-2 sm:px-6 bg-orange-300 text-orange-900 rounded-lg hover:bg-orange-400 transition-transform transform active:scale-95"
               aria-label="Undo Last Character"
           >
               UNDO
           </button>
           <button
               onClick={onClear}
-              className="w-40 text-2xl font-bold py-4 px-6 bg-yellow-300 text-yellow-900 rounded-lg hover:bg-yellow-400 transition-transform transform active:scale-95"
+              className="flex-1 min-w-[70px] max-w-[160px] text-lg sm:text-2xl font-bold py-3 sm:py-4 px-2 sm:px-6 bg-yellow-300 text-yellow-900 rounded-lg hover:bg-yellow-400 transition-transform transform active:scale-95"
               aria-label="Clear Message"
           >
               CLEAR
@@ -455,7 +477,7 @@ const Controls: React.FC<ControlsProps> = ({
           {scanMode === 'one-switch' && (
             <button
                 onClick={handleStartStop}
-                className={`w-40 text-2xl font-bold py-4 px-6 rounded-lg transition-transform transform active:scale-95 ${isScanning ? 'bg-red-300 text-red-900 hover:bg-red-400' : 'bg-green-300 text-green-900 hover:bg-green-400'}`}
+                className={`flex-1 max-w-[160px] text-lg sm:text-2xl font-bold py-3 sm:py-4 px-3 sm:px-6 rounded-lg transition-transform transform active:scale-95 ${isScanning ? 'bg-red-300 text-red-900 hover:bg-red-400' : 'bg-green-300 text-green-900 hover:bg-green-400'}`}
             >
                 {isScanning ? 'STOP' : 'START'}
             </button>
@@ -463,7 +485,7 @@ const Controls: React.FC<ControlsProps> = ({
           {scanMode === 'two-switch' && (
             <button
                 onClick={onSwitch1}
-                className="w-40 text-2xl font-bold py-4 px-6 bg-violet-300 text-violet-900 rounded-lg hover:bg-violet-400 transition-transform transform active:scale-95"
+                className="flex-1 max-w-[160px] text-lg sm:text-2xl font-bold py-3 sm:py-4 px-3 sm:px-6 bg-violet-300 text-violet-900 rounded-lg hover:bg-violet-400 transition-transform transform active:scale-95"
                 aria-label="Next"
             >
                 NEXT

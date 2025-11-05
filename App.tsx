@@ -21,6 +21,10 @@ const App: React.FC = () => {
   const [isScanning, setIsScanning] = useState<boolean>(false);
   const [scanMode, setScanMode] = useState<ScanMode>('one-switch');
   const [scanSpeed, setScanSpeed] = useState<number>(1000);
+  const [firstItemDelay, setFirstItemDelay] = useState<number>(() => {
+    const saved = localStorage.getItem('firstItemDelay');
+    return saved ? Number(saved) : 1500; // Default 1.5 seconds
+  });
   const [predictedLetters, setPredictedLetters] = useState<string[]>([]);
   const [predictedWords, setPredictedWords] = useState<string[]>([]);
   const [enablePrediction, setEnablePrediction] = useState<boolean>(true);
@@ -259,12 +263,15 @@ const App: React.FC = () => {
         let letters: string[];
         if (useUppercase) {
           letters = await getUppercase(selectedLanguage, selectedScript || undefined);
+          console.log(`Loaded uppercase alphabet for ${selectedLanguage}:`, letters.slice(0, 5));
         } else {
-          letters = await getLowercase(selectedLanguage);
+          letters = await getLowercase(selectedLanguage, selectedScript || undefined);
+          console.log(`Loaded lowercase alphabet for ${selectedLanguage}:`, letters.slice(0, 5));
         }
         setAlphabet(letters);
         // Update scan items with new alphabet
         setScanItems([...letters, ...SPECIAL_ACTIONS]);
+        console.log('✅ Alphabet set to:', letters.slice(0, 10), '(useUppercase:', useUppercase, ')');
       } catch (error) {
         console.error('Failed to load alphabet:', error);
         // Fallback to default English alphabet
@@ -287,6 +294,11 @@ const App: React.FC = () => {
     localStorage.setItem('useUppercase', useUppercase.toString());
   }, [selectedLanguage, selectedScript, useUppercase]);
 
+  // Effect to save first item delay to localStorage
+  useEffect(() => {
+    localStorage.setItem('firstItemDelay', firstItemDelay.toString());
+  }, [firstItemDelay]);
+
   // Debounced effect for running predictions as the user types
   useEffect(() => {
     if (!enablePrediction || !predictor) {
@@ -304,26 +316,31 @@ const App: React.FC = () => {
       predictor.addToContext(lowerCaseMessage);
       const charPredictions = predictor.predictNextCharacter();
 
-      // Filter for single alphabet characters, convert to uppercase for display, and ensure uniqueness.
+      // Filter for single alphabet characters and apply case based on useUppercase setting
+      const caseTransform = useUppercase ? (s: string) => s.toUpperCase() : (s: string) => s.toLowerCase();
+      const letterFilter = useUppercase
+        ? (c: string) => c.length === 1 && c >= 'A' && c <= 'Z'
+        : (c: string) => c.length === 1 && c >= 'a' && c <= 'z';
+
       const uniqueLetters = [...new Set(
           charPredictions
-              .map(p => p.text.toUpperCase())
-              .filter(c => c.length === 1 && c >= 'A' && c <= 'Z')
+              .map(p => caseTransform(p.text))
+              .filter(letterFilter)
       )];
       setPredictedLetters(uniqueLetters.slice(0, 8));
 
       // WORD PREDICTIONS (for current partial word)
       const words = message.split(' ');
       const currentPartialWord = words[words.length - 1];
-      
+
       if (currentPartialWord.trim().length > 0) {
         const precedingText = message.substring(0, message.length - currentPartialWord.length).toLowerCase();
         const wordPredictions = predictor.predictWordCompletion(
-          currentPartialWord.toLowerCase(), 
+          currentPartialWord.toLowerCase(),
           precedingText
         );
-        // Convert predictions to uppercase for UI consistency.
-        setPredictedWords(wordPredictions.slice(0, 5).map(p => p.text.toUpperCase()));
+        // Apply case transformation based on useUppercase setting
+        setPredictedWords(wordPredictions.slice(0, 5).map(p => caseTransform(p.text)));
       } else {
         setPredictedWords([]);
       }
@@ -332,7 +349,7 @@ const App: React.FC = () => {
     return () => {
       clearTimeout(handler);
     };
-  }, [message, enablePrediction, predictor]);
+  }, [message, enablePrediction, predictor, useUppercase]);
 
 
   useEffect(() => {
@@ -361,6 +378,8 @@ const App: React.FC = () => {
       newScanItems.push(...uniqueAlphabet, ...SPECIAL_ACTIONS);
     }
 
+    console.log('📊 Scan items updated. First 5 alphabet letters:', alphabet.slice(0, 5));
+    console.log('📊 First 5 scan items:', newScanItems.slice(0, 5));
     setScanItems(newScanItems);
     setScanIndex(0);
   }, [predictedLetters, predictedWords, message, showWordPrediction, enablePrediction, predictor, alphabet]);
@@ -491,13 +510,23 @@ const App: React.FC = () => {
 
   useEffect(() => {
     let scanInterval: number | undefined;
+    let initialTimeout: number | undefined;
+
     if (isScanning && scanMode === 'one-switch') {
+      // Use longer delay for first item (index 0), normal speed for others
+      const isFirstItem = scanIndex === 0;
+      const delay = isFirstItem ? firstItemDelay : scanSpeed;
+
       scanInterval = window.setInterval(() => {
         setScanIndex(prev => (prev + 1) % scanItems.length);
-      }, scanSpeed);
+      }, delay);
     }
-    return () => clearInterval(scanInterval);
-  }, [isScanning, scanMode, scanSpeed, scanItems.length]);
+
+    return () => {
+      clearInterval(scanInterval);
+      clearTimeout(initialTimeout);
+    };
+  }, [isScanning, scanMode, scanSpeed, scanItems.length, scanIndex, firstItemDelay]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -550,7 +579,7 @@ const App: React.FC = () => {
         </svg>
       </button>
 
-      <main className="flex-grow flex flex-col p-4 md:p-8 space-y-4">
+      <main className="flex-grow flex flex-col p-2 sm:p-4 md:p-8 gap-2 sm:gap-4 overflow-hidden">
         <Display message={message} fontSize={messageFontSize} isRTL={isRTL} />
         <Scanner currentItem={scanItems[scanIndex] ?? ''} fontSize={scannerFontSize} />
       </main>
@@ -565,6 +594,8 @@ const App: React.FC = () => {
         }}
         scanSpeed={scanSpeed}
         setScanSpeed={setScanSpeed}
+        firstItemDelay={firstItemDelay}
+        setFirstItemDelay={setFirstItemDelay}
         isScanning={isScanning}
         setIsScanning={setIsScanning}
         onSwitch1={handleSwitch1}

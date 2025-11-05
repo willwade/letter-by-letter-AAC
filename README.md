@@ -1,6 +1,6 @@
 
 
-# Spelling AAC with Prediction
+# Spelling AAC with Prediction (Aka Echo Lite.. )
 
 A simple spelling system with one or two switch scanning for accessibility. Features next-letter prediction powered by PPM (Prediction by Partial Matching) to speed up communication. Users can compose messages letter by letter, with options to add a space, undo the last character, or have the message spoken aloud.
 
@@ -25,9 +25,7 @@ https://willwade.github.io/letter-by-letter-AAC/
    npm install
    ```
 
-2. (Optional) Set the `GEMINI_API_KEY` in [.env.local](.env.local) if using Gemini features
-
-3. Run the development server:
+2. Run the development server:
    ```bash
    npm run dev
    ```
@@ -53,45 +51,6 @@ The built files will be in the `dist/` directory.
 ## Deploy to GitHub Pages
 
 This app is a **100% static site** - no server required! It runs entirely in the browser.
-
-### Automatic Deployment (Recommended)
-
-The repository is configured for automatic deployment to GitHub Pages:
-
-1. **Enable GitHub Pages** in your repository:
-   - Go to Settings > Pages
-   - Under "Source", select "GitHub Actions"
-
-2. **Push to main branch**:
-   ```bash
-   git add .
-   git commit -m "Deploy to GitHub Pages"
-   git push origin main
-   ```
-
-3. **Wait for deployment** (usually 1-2 minutes)
-   - Check the Actions tab to see deployment progress
-   - Your app will be available at: `https://willwade.github.io/letter-by-letter-AAC/`
-
-### Manual Deployment
-
-If you prefer to deploy manually:
-
-```bash
-# Build the app
-npm run build
-
-# Deploy the dist folder to gh-pages branch
-npx gh-pages -d dist
-```
-
-### Custom Domain (Optional)
-
-To use a custom domain:
-
-1. Add a `CNAME` file to the `public/` directory with your domain
-2. Configure DNS settings with your domain provider
-3. Enable custom domain in GitHub Pages settings
 
 ## Project Structure
 
@@ -125,33 +84,9 @@ To use a custom domain:
 - **Styling**: Tailwind CSS (via CDN)
 - **Deployment**: GitHub Pages (static hosting)
 
-## Why This is a Static Site
-
-This app requires **no server** because:
-
-- ✅ **Prediction runs client-side** using the PPM algorithm in `@willwade/ppmpredictor`
-- ✅ **Text-to-speech uses browser APIs** (Web Speech API)
-- ✅ **All data is static files** (lexicon and corpus are `.txt` files)
-- ✅ **No database needed** - everything runs in the browser
-- ✅ **No API calls** - completely self-contained
-
-This means:
-- 🚀 **Free hosting** on GitHub Pages
-- ⚡ **Fast loading** - no server round trips
-- 🔒 **Privacy** - all processing happens locally
-- 📱 **Works offline** - PWA with service worker
-- 🌍 **Works anywhere** - just HTML, CSS, and JavaScript
 
 ## Troubleshooting
 
-### GitHub Pages 404 Errors
-
-If you get 404 errors after deploying:
-
-1. Check that GitHub Pages is enabled in Settings > Pages
-2. Verify the `base` URL in `vite.config.ts` matches your repo name
-3. Wait a few minutes for GitHub Pages to update
-4. Clear browser cache
 
 ### Service Worker Issues
 
