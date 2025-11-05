@@ -50,7 +50,6 @@ interface ControlsProps {
   learnedWordsCount: number;
   onClearLearnedData: () => void;
   onExportLearnedData: () => void;
-  onImportLearnedData: (file: File) => void;
 }
 
 const Controls: React.FC<ControlsProps> = ({
@@ -101,7 +100,6 @@ const Controls: React.FC<ControlsProps> = ({
   learnedWordsCount,
   onClearLearnedData,
   onExportLearnedData,
-  onImportLearnedData,
 }) => {
 
   const handleStartStop = () => {
@@ -349,7 +347,7 @@ const Controls: React.FC<ControlsProps> = ({
 
               {/* Training File Upload */}
               <div className={`flex items-center gap-4 transition-opacity ${!enablePrediction ? 'opacity-50' : 'opacity-100'}`}>
-                <span className="font-semibold w-32"></span> {/* Spacer */}
+                <span className="font-semibold w-32">Training File:</span>
                 <div className="flex flex-col">
                   <input
                     type="file"
@@ -360,6 +358,9 @@ const Controls: React.FC<ControlsProps> = ({
                     className="text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-violet-50 file:text-violet-700 hover:file:bg-violet-100 disabled:opacity-50 disabled:cursor-not-allowed"
                   />
                   <span className="text-sm text-gray-600 mt-1">{trainingStatus}</span>
+                  <span className="text-xs text-gray-500 italic mt-1">
+                    Upload a .txt file to train the model. Your learned words will be automatically included.
+                  </span>
                 </div>
               </div>
 
@@ -386,52 +387,27 @@ const Controls: React.FC<ControlsProps> = ({
                     <span className="text-sm text-gray-600">
                       📚 Learned words: <strong>{learnedWordsCount}</strong>
                     </span>
+                    <button
+                      onClick={onExportLearnedData}
+                      disabled={!enablePrediction}
+                      className="text-xs py-1 px-3 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      title="Download complete training data (base + learned words)"
+                    >
+                      📥 Export Training Data
+                    </button>
                     {learnedWordsCount > 0 && (
-                      <>
-                        <button
-                          onClick={onExportLearnedData}
-                          disabled={!enablePrediction}
-                          className="text-xs py-1 px-3 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                          title="Download your learned words as a text file"
-                        >
-                          📥 Export
-                        </button>
-                        <button
-                          onClick={onClearLearnedData}
-                          disabled={!enablePrediction}
-                          className="text-xs py-1 px-3 bg-red-100 text-red-700 rounded hover:bg-red-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                          title="Clear all learned words and reset the model"
-                        >
-                          🗑️ Clear
-                        </button>
-                      </>
+                      <button
+                        onClick={onClearLearnedData}
+                        disabled={!enablePrediction}
+                        className="text-xs py-1 px-3 bg-red-100 text-red-700 rounded hover:bg-red-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        title="Clear all learned words and reset the model"
+                      >
+                        🗑️ Clear Learned
+                      </button>
                     )}
                   </div>
-                  <div className="flex items-center gap-2">
-                    <label
-                      htmlFor="import-learned-data"
-                      className="text-xs py-1 px-3 bg-green-100 text-green-700 rounded hover:bg-green-200 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                      title="Import previously exported learned words"
-                    >
-                      📤 Import Learned Data
-                    </label>
-                    <input
-                      id="import-learned-data"
-                      type="file"
-                      accept=".txt"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) {
-                          onImportLearnedData(file);
-                          e.target.value = ''; // Reset input
-                        }
-                      }}
-                      className="hidden"
-                      disabled={!enablePrediction}
-                    />
-                  </div>
                   <span className="text-xs text-gray-500 italic">
-                    The model learns from your word selections to improve predictions
+                    The model learns from your word selections. Learned data is automatically included when you upload training files.
                   </span>
                 </div>
               </div>

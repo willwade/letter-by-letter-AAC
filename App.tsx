@@ -441,82 +441,92 @@ const App: React.FC = () => {
     setTrainingStatus(`Training on ${file.name}...`);
     try {
       const text = await file.text();
-      
+
       // Load lexicon (optional but recommended)
       const lexiconResponse = await fetch('./data/aac_lexicon_en_gb.txt');
       const lexiconText = await lexiconResponse.text();
       const lexicon = lexiconText.split('\n').filter(w => w.trim());
-      
+
       // Use error-tolerant predictor
-      const newPredictor = createErrorTolerantPredictor({ 
-        maxOrder: 5, 
+      const newPredictor = createErrorTolerantPredictor({
+        maxOrder: 5,
         adaptive: true,
         lexicon: lexicon,
         maxEditDistance: 2,
         minSimilarity: 0.6,
         maxPredictions: 10
       });
-      
+
+      // Train on uploaded file
       newPredictor.train(text);
+
+      // Also load and train on any existing learned data for this language
+      const sessionKey = `ppm-session-${selectedLanguage}`;
+      const sessionData = localStorage.getItem(sessionKey);
+      if (sessionData) {
+        const learnedWords = sessionData.trim().split(/\s+/).filter(w => w.length > 0);
+        console.log(`📚 Also loading ${learnedWords.length} learned words from previous sessions`);
+        newPredictor.train(sessionData);
+        setLearnedWordsCount(learnedWords.length);
+      } else {
+        setLearnedWordsCount(0);
+      }
+
       setPredictor(newPredictor);
-      setTrainingStatus(`Model trained on: ${file.name} with ${lexicon.length} words`);
+      setTrainingStatus(`✅ Model trained on: ${file.name} with ${lexicon.length} words`);
     } catch (error) {
       console.error("Failed to train model:", error);
       setTrainingStatus("Error training model. Please try again.");
     }
-  }, []);
+  }, [selectedLanguage]);
   
-  const handleExportLearnedData = useCallback(() => {
+  const handleExportLearnedData = useCallback(async () => {
     const sessionKey = `ppm-session-${selectedLanguage}`;
-    const sessionData = localStorage.getItem(sessionKey);
+    const sessionData = localStorage.getItem(sessionKey) || '';
 
-    if (!sessionData) {
-      alert('No learned data to export');
+    // Get the base training data from the library
+    let baseTrainingData = '';
+    const trainingFileName = getTrainingFileName(selectedLanguage);
+
+    if (trainingFileName) {
+      try {
+        const cdnUrl = `https://unpkg.com/@willwade/ppmpredictor@0.0.4/data/training/${trainingFileName}`;
+        const response = await fetch(cdnUrl);
+        if (response.ok) {
+          baseTrainingData = await response.text();
+        }
+      } catch (error) {
+        console.warn(`⚠️ Could not load base training data for export:`, error);
+      }
+    }
+
+    // Combine base training data + learned data
+    const combinedData = baseTrainingData + (baseTrainingData && sessionData ? '\n' : '') + sessionData;
+
+    if (!combinedData.trim()) {
+      alert('No training data to export');
       return;
     }
 
-    // Create a blob with the learned data
-    const blob = new Blob([sessionData], { type: 'text/plain' });
+    // Create a blob with the combined data
+    const blob = new Blob([combinedData], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
 
     // Create a download link and trigger it
     const a = document.createElement('a');
     a.href = url;
-    a.download = `learned-data-${selectedLanguage}-${new Date().toISOString().split('T')[0]}.txt`;
+    a.download = `training-data-${selectedLanguage}-${new Date().toISOString().split('T')[0]}.txt`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
 
-    console.log('📥 Exported learned data for', selectedLanguage);
+    const baseWords = baseTrainingData.split(/\s+/).length;
+    const learnedWords = sessionData.split(/\s+/).filter(w => w.length > 0).length;
+    console.log(`📥 Exported complete training data for ${selectedLanguage}: ${baseWords} base words + ${learnedWords} learned words`);
   }, [selectedLanguage]);
 
-  const handleImportLearnedData = useCallback(async (file: File) => {
-    try {
-      const text = await file.text();
-      const sessionKey = `ppm-session-${selectedLanguage}`;
 
-      // Append to existing learned data
-      const currentSession = localStorage.getItem(sessionKey) || '';
-      const combinedData = currentSession + (currentSession ? ' ' : '') + text;
-      localStorage.setItem(sessionKey, combinedData);
-
-      // Update word count
-      const learnedWords = combinedData.trim().split(/\s+/).filter(w => w.length > 0);
-      setLearnedWordsCount(learnedWords.length);
-
-      // Train the predictor with the new data
-      if (predictor) {
-        predictor.train(text);
-      }
-
-      console.log('📤 Imported learned data for', selectedLanguage);
-      setTrainingStatus(`✅ Imported ${text.split(/\s+/).length} words from ${file.name}`);
-    } catch (error) {
-      console.error("❌ Failed to import learned data:", error);
-      alert('Failed to import learned data. Please check the file format.');
-    }
-  }, [selectedLanguage, predictor]);
 
   const handleClearLearnedData = useCallback(() => {
     const sessionKey = `ppm-session-${selectedLanguage}`;
@@ -733,7 +743,6 @@ const App: React.FC = () => {
         learnedWordsCount={learnedWordsCount}
         onClearLearnedData={handleClearLearnedData}
         onExportLearnedData={handleExportLearnedData}
-        onImportLearnedData={handleImportLearnedData}
       />
     </div>
   );
