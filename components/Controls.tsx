@@ -49,6 +49,8 @@ interface ControlsProps {
   theme: Theme;
   learnedWordsCount: number;
   onClearLearnedData: () => void;
+  onExportLearnedData: () => void;
+  onImportLearnedData: (file: File) => void;
 }
 
 const Controls: React.FC<ControlsProps> = ({
@@ -98,6 +100,8 @@ const Controls: React.FC<ControlsProps> = ({
   theme,
   learnedWordsCount,
   onClearLearnedData,
+  onExportLearnedData,
+  onImportLearnedData,
 }) => {
 
   const handleStartStop = () => {
@@ -383,15 +387,48 @@ const Controls: React.FC<ControlsProps> = ({
                       📚 Learned words: <strong>{learnedWordsCount}</strong>
                     </span>
                     {learnedWordsCount > 0 && (
-                      <button
-                        onClick={onClearLearnedData}
-                        disabled={!enablePrediction}
-                        className="text-xs py-1 px-3 bg-red-100 text-red-700 rounded hover:bg-red-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                        title="Clear all learned words and reset the model"
-                      >
-                        Clear Learned Data
-                      </button>
+                      <>
+                        <button
+                          onClick={onExportLearnedData}
+                          disabled={!enablePrediction}
+                          className="text-xs py-1 px-3 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          title="Download your learned words as a text file"
+                        >
+                          📥 Export
+                        </button>
+                        <button
+                          onClick={onClearLearnedData}
+                          disabled={!enablePrediction}
+                          className="text-xs py-1 px-3 bg-red-100 text-red-700 rounded hover:bg-red-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          title="Clear all learned words and reset the model"
+                        >
+                          🗑️ Clear
+                        </button>
+                      </>
                     )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <label
+                      htmlFor="import-learned-data"
+                      className="text-xs py-1 px-3 bg-green-100 text-green-700 rounded hover:bg-green-200 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                      title="Import previously exported learned words"
+                    >
+                      📤 Import Learned Data
+                    </label>
+                    <input
+                      id="import-learned-data"
+                      type="file"
+                      accept=".txt"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          onImportLearnedData(file);
+                          e.target.value = ''; // Reset input
+                        }
+                      }}
+                      className="hidden"
+                      disabled={!enablePrediction}
+                    />
                   </div>
                   <span className="text-xs text-gray-500 italic">
                     The model learns from your word selections to improve predictions

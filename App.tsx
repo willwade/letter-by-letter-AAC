@@ -466,6 +466,58 @@ const App: React.FC = () => {
     }
   }, []);
   
+  const handleExportLearnedData = useCallback(() => {
+    const sessionKey = `ppm-session-${selectedLanguage}`;
+    const sessionData = localStorage.getItem(sessionKey);
+
+    if (!sessionData) {
+      alert('No learned data to export');
+      return;
+    }
+
+    // Create a blob with the learned data
+    const blob = new Blob([sessionData], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+
+    // Create a download link and trigger it
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `learned-data-${selectedLanguage}-${new Date().toISOString().split('T')[0]}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    console.log('📥 Exported learned data for', selectedLanguage);
+  }, [selectedLanguage]);
+
+  const handleImportLearnedData = useCallback(async (file: File) => {
+    try {
+      const text = await file.text();
+      const sessionKey = `ppm-session-${selectedLanguage}`;
+
+      // Append to existing learned data
+      const currentSession = localStorage.getItem(sessionKey) || '';
+      const combinedData = currentSession + (currentSession ? ' ' : '') + text;
+      localStorage.setItem(sessionKey, combinedData);
+
+      // Update word count
+      const learnedWords = combinedData.trim().split(/\s+/).filter(w => w.length > 0);
+      setLearnedWordsCount(learnedWords.length);
+
+      // Train the predictor with the new data
+      if (predictor) {
+        predictor.train(text);
+      }
+
+      console.log('📤 Imported learned data for', selectedLanguage);
+      setTrainingStatus(`✅ Imported ${text.split(/\s+/).length} words from ${file.name}`);
+    } catch (error) {
+      console.error("❌ Failed to import learned data:", error);
+      alert('Failed to import learned data. Please check the file format.');
+    }
+  }, [selectedLanguage, predictor]);
+
   const handleClearLearnedData = useCallback(() => {
     const sessionKey = `ppm-session-${selectedLanguage}`;
     localStorage.removeItem(sessionKey);
@@ -680,6 +732,8 @@ const App: React.FC = () => {
         theme={theme}
         learnedWordsCount={learnedWordsCount}
         onClearLearnedData={handleClearLearnedData}
+        onExportLearnedData={handleExportLearnedData}
+        onImportLearnedData={handleImportLearnedData}
       />
     </div>
   );
