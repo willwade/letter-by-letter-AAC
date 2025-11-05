@@ -24,41 +24,83 @@ const Scanner: React.FC<ScannerProps> = ({ currentItem, fontSize, theme }) => {
     item.style.visibility = 'hidden';
 
     const calculateAndSetFontSize = () => {
-      // We always measure against the maximum possible font size.
-      item.style.fontSize = `${fontSize}px`;
+      // Reset styles for measurement
+      item.style.whiteSpace = 'nowrap';
 
       const containerWidth = container.offsetWidth;
-      // Use a padding factor to avoid text touching the edges
-      const maxWidth = containerWidth * 0.95; 
-      const itemWidth = item.scrollWidth;
-      
-      if (itemWidth > maxWidth) {
-        // If the item is too wide, reduce font size proportionally to fit.
-        const newSize = Math.floor(fontSize * (maxWidth / itemWidth));
-        item.style.fontSize = `${newSize}px`;
+      const containerHeight = container.offsetHeight;
+
+      // Use 98% of available space - very minimal margin
+      const maxWidth = containerWidth * 0.98;
+      const maxHeight = containerHeight * 0.98;
+
+      // console.log('📏 Scanner sizing:', {
+      //   fontSize,
+      //   containerWidth,
+      //   containerHeight,
+      //   maxWidth,
+      //   maxHeight,
+      //   currentItem
+      // });
+
+      // Binary search to find the largest font size that fits
+      let minSize = 12;
+      let maxSize = fontSize;
+      let bestSize = minSize;
+
+      // Try up to 20 iterations to find optimal size
+      for (let i = 0; i < 20; i++) {
+        const testSize = Math.floor((minSize + maxSize) / 2);
+        item.style.fontSize = `${testSize}px`;
+
+        const itemWidth = item.scrollWidth;
+        const itemHeight = item.scrollHeight;
+
+        // console.log(`🔍 Testing ${testSize}px: ${itemWidth}×${itemHeight} vs ${maxWidth}×${maxHeight}`);
+
+        if (itemWidth <= maxWidth && itemHeight <= maxHeight) {
+          // This size fits! Try larger
+          bestSize = testSize;
+          minSize = testSize + 1;
+        } else {
+          // Too big, try smaller
+          maxSize = testSize - 1;
+        }
+
+        if (minSize > maxSize) break;
       }
-      // If it fits, the font size is already correctly set to the max size.
+
+      // Apply the best size we found
+      item.style.fontSize = `${bestSize}px`;
+      console.log('✅ Final font size:', bestSize);
+
+      // Allow wrapping for long words if needed
+      if (currentItem.length > 10) {
+        item.style.whiteSpace = 'normal';
+      } else {
+        item.style.whiteSpace = 'nowrap';
+      }
     };
 
     calculateAndSetFontSize();
-    
+
     // Now that the size is correct, make it visible again.
     // This all happens before the browser's next paint.
     item.style.visibility = 'visible';
-    
+
     // Observe the container for resize events (e.g., window resize) to recalculate.
     const resizeObserver = new ResizeObserver(calculateAndSetFontSize);
     resizeObserver.observe(container);
 
     // Cleanup observer on unmount or when dependencies change.
     return () => resizeObserver.disconnect();
-    
+
   }, [currentItem, fontSize]);
 
   return (
     <div
       ref={containerRef}
-      className="w-full flex-grow flex items-center justify-center rounded-lg p-2 overflow-hidden"
+      className="w-full flex-grow flex items-center justify-center rounded-lg overflow-hidden"
       style={{
         backgroundColor: theme.colors.scannerBg,
         border: `4px solid ${theme.colors.border}`,
@@ -71,8 +113,9 @@ const Scanner: React.FC<ScannerProps> = ({ currentItem, fontSize, theme }) => {
           // We start with the max font size. The useLayoutEffect will correct it
           // before the user sees it, preventing the flicker.
           fontSize: `${fontSize}px`,
-          wordBreak: 'break-word',
           color: theme.colors.scannerText,
+          display: 'inline-block',
+          maxWidth: '100%',
         }}
       >
         {currentItem}

@@ -18,7 +18,7 @@ const Display: React.FC<DisplayProps> = ({ message, fontSize, isRTL = false, the
       style={{
         padding: `${padding}px`,
         minHeight: `${fontSize * 1.5}px`,
-        maxHeight: '25vh', // Limit to 25% of viewport height
+        maxHeight: '15vh', // Limit to 15% of viewport height to give more space to scanner
         backgroundColor: theme.colors.displayBg,
         border: `2px solid ${theme.colors.border}`,
       }}

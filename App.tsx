@@ -540,7 +540,7 @@ const App: React.FC = () => {
         </svg>
       </button>
 
-      <main className="flex-grow flex flex-col p-2 sm:p-4 md:p-8 gap-2 sm:gap-4 overflow-hidden">
+      <main className="flex-grow flex flex-col p-2 gap-2 overflow-hidden">
         <Display
           message={message}
           fontSize={messageFontSize}
