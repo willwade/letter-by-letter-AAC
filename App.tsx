@@ -41,6 +41,7 @@ const App: React.FC = () => {
   const [predictor, setPredictor] = useState<Predictor | null>(null);
   const [trainingStatus, setTrainingStatus] = useState<string>('No model loaded.');
   const [hasTrainingData, setHasTrainingData] = useState<boolean>(true); // Track if training data was loaded
+  const [learnedWordsCount, setLearnedWordsCount] = useState<number>(0); // Track learned words
 
   // Language and alphabet state
   const [selectedLanguage, setSelectedLanguage] = useState<string>(() => {
@@ -110,6 +111,18 @@ const App: React.FC = () => {
               setHasTrainingData(false);
               // Keep prediction enabled but warn user
               console.warn(`No training data available for ${selectedLanguage}`);
+            }
+
+            // Load and replay session data from localStorage for adaptive learning
+            const sessionKey = `ppm-session-${selectedLanguage}`;
+            const sessionData = localStorage.getItem(sessionKey);
+            if (sessionData) {
+              const learnedWords = sessionData.trim().split(/\s+/).filter(w => w.length > 0);
+              console.log(`📚 Loading ${learnedWords.length} words from previous sessions`);
+              newPredictor.train(sessionData);
+              setLearnedWordsCount(learnedWords.length);
+            } else {
+              setLearnedWordsCount(0);
             }
 
             setPredictor(newPredictor);
@@ -369,9 +382,24 @@ const App: React.FC = () => {
     if (showWordPrediction && predictedWords.includes(item)) {
       const lastSpaceIndex = message.lastIndexOf(' ');
       const messageBase = lastSpaceIndex === -1 ? '' : message.substring(0, lastSpaceIndex + 1);
-      setMessage(messageBase + item + ' ');
+      const newMessage = messageBase + item + ' ';
+      setMessage(newMessage);
+
+      // Train predictor on confirmed word selection
+      if (predictor) {
+        predictor.addToContext(item + ' ');
+        // Save to session buffer for persistence
+        const sessionKey = `ppm-session-${selectedLanguage}`;
+        const currentSession = localStorage.getItem(sessionKey) || '';
+        localStorage.setItem(sessionKey, currentSession + item + ' ');
+        setLearnedWordsCount(prev => prev + 1);
+      }
     } else if (item === '_') { // Corresponds to SPACE constant
       setMessage(prev => prev + ' ');
+      // Train on space (context boundary)
+      if (predictor) {
+        predictor.addToContext(' ');
+      }
     } else if (item === 'UNDO') { // Corresponds to UNDO constant
       setMessage(prev => prev.slice(0, -1));
     } else if (item === 'CLEAR') { // Corresponds to CLEAR constant
@@ -438,6 +466,52 @@ const App: React.FC = () => {
     }
   }, []);
   
+  const handleClearLearnedData = useCallback(() => {
+    const sessionKey = `ppm-session-${selectedLanguage}`;
+    localStorage.removeItem(sessionKey);
+    setLearnedWordsCount(0);
+    console.log('🗑️ Cleared learned data for', selectedLanguage);
+
+    // Reload the predictor to reset it
+    const loadLanguageModel = async () => {
+      try {
+        let corpusText = '';
+        const trainingFileName = getTrainingFileName(selectedLanguage);
+
+        if (trainingFileName) {
+          try {
+            const cdnUrl = `https://unpkg.com/@willwade/ppmpredictor@0.0.4/data/training/${trainingFileName}`;
+            const response = await fetch(cdnUrl);
+            if (response.ok) {
+              corpusText = await response.text();
+            }
+          } catch (error) {
+            console.warn(`⚠️ Could not load training data:`, error);
+          }
+        }
+
+        const newPredictor = createErrorTolerantPredictor({
+          maxOrder: 5,
+          adaptive: true,
+          maxEditDistance: 2,
+          minSimilarity: 0.6,
+          maxPredictions: 10
+        });
+
+        if (corpusText) {
+          newPredictor.train(corpusText);
+        }
+
+        setPredictor(newPredictor);
+        setTrainingStatus(`✅ Learned data cleared. Model reset.`);
+      } catch (error) {
+        console.error("❌ Failed to reload model:", error);
+      }
+    };
+
+    loadLanguageModel();
+  }, [selectedLanguage]);
+
   const handleSwitch1 = useCallback(() => {
     if (scanMode === 'one-switch') {
       if (isScanning) {
@@ -604,6 +678,8 @@ const App: React.FC = () => {
         themeName={themeName}
         setThemeName={setThemeName}
         theme={theme}
+        learnedWordsCount={learnedWordsCount}
+        onClearLearnedData={handleClearLearnedData}
       />
     </div>
   );

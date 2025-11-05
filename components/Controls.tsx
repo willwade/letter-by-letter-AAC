@@ -47,6 +47,8 @@ interface ControlsProps {
   themeName: ThemeName;
   setThemeName: (theme: ThemeName) => void;
   theme: Theme;
+  learnedWordsCount: number;
+  onClearLearnedData: () => void;
 }
 
 const Controls: React.FC<ControlsProps> = ({
@@ -94,6 +96,8 @@ const Controls: React.FC<ControlsProps> = ({
   themeName,
   setThemeName,
   theme,
+  learnedWordsCount,
+  onClearLearnedData,
 }) => {
 
   const handleStartStop = () => {
@@ -368,6 +372,31 @@ const Controls: React.FC<ControlsProps> = ({
                   />
                   Show Words
                 </label>
+              </div>
+
+              {/* Adaptive Learning Status */}
+              <div className={`flex items-center gap-4 transition-opacity ${!enablePrediction ? 'opacity-50' : 'opacity-100'}`}>
+                <span className="font-semibold w-32"></span> {/* Spacer */}
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-gray-600">
+                      📚 Learned words: <strong>{learnedWordsCount}</strong>
+                    </span>
+                    {learnedWordsCount > 0 && (
+                      <button
+                        onClick={onClearLearnedData}
+                        disabled={!enablePrediction}
+                        className="text-xs py-1 px-3 bg-red-100 text-red-700 rounded hover:bg-red-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        title="Clear all learned words and reset the model"
+                      >
+                        Clear Learned Data
+                      </button>
+                    )}
+                  </div>
+                  <span className="text-xs text-gray-500 italic">
+                    The model learns from your word selections to improve predictions
+                  </span>
+                </div>
               </div>
 
               {/* Appearance Section */}
