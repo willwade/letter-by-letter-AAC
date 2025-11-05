@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import type { ScanMode } from '../types';
+import type { ScanMode, ThemeName, Theme } from '../types';
+import { themes } from '../themes';
 
 interface ControlsProps {
   scanMode: ScanMode;
@@ -43,6 +44,9 @@ interface ControlsProps {
   availableScripts: string[];
   useUppercase: boolean;
   setUseUppercase: (uppercase: boolean) => void;
+  themeName: ThemeName;
+  setThemeName: (theme: ThemeName) => void;
+  theme: Theme;
 }
 
 const Controls: React.FC<ControlsProps> = ({
@@ -87,6 +91,9 @@ const Controls: React.FC<ControlsProps> = ({
   availableScripts,
   useUppercase,
   setUseUppercase,
+  themeName,
+  setThemeName,
+  theme,
 }) => {
 
   const handleStartStop = () => {
@@ -118,8 +125,18 @@ const Controls: React.FC<ControlsProps> = ({
       {/* Settings Modal - Always rendered regardless of hideControlBar */}
       {showSettingsModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50" onClick={() => setShowSettingsModal(false)}>
-          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto m-4" onClick={(e) => e.stopPropagation()}>
-            <div className="sticky top-0 bg-white border-b border-gray-200 p-4 flex justify-between items-center">
+          <div
+            className="rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto m-4"
+            style={{ backgroundColor: theme.colors.modalBg, color: theme.colors.modalText }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div
+              className="sticky top-0 p-4 flex justify-between items-center"
+              style={{
+                backgroundColor: theme.colors.modalBg,
+                borderBottom: `1px solid ${theme.colors.border}`
+              }}
+            >
               <h2 className="text-2xl font-bold">Settings</h2>
               <button
                 onClick={() => setShowSettingsModal(false)}
@@ -357,6 +374,28 @@ const Controls: React.FC<ControlsProps> = ({
               <div className="border-t pt-4">
                 <h3 className="font-bold text-lg mb-3">Appearance</h3>
 
+                {/* Color Theme */}
+                <div className="flex items-center gap-2 mb-3">
+                  <label htmlFor="theme" className="font-semibold w-32">Color Theme:</label>
+                  <select
+                    id="theme"
+                    value={themeName}
+                    onChange={(e) => setThemeName(e.target.value as ThemeName)}
+                    className="flex-1 p-2 border rounded"
+                    style={{
+                      backgroundColor: theme.colors.inputBg,
+                      color: theme.colors.inputText,
+                      borderColor: theme.colors.border,
+                    }}
+                  >
+                    {Object.values(themes).map((t) => (
+                      <option key={t.name} value={t.name}>
+                        {t.displayName}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
                 {/* Message Font Size */}
                 <div className="flex items-center gap-2 mb-3">
                   <label htmlFor="messageFontSize" className="font-semibold w-32">Msg Font:</label>
@@ -416,10 +455,22 @@ const Controls: React.FC<ControlsProps> = ({
               </div>
             </div>
 
-            <div className="sticky bottom-0 bg-white border-t border-gray-200 p-4 flex justify-end">
+            <div
+              className="sticky bottom-0 p-4 flex justify-end"
+              style={{
+                backgroundColor: theme.colors.modalBg,
+                borderTop: `1px solid ${theme.colors.border}`,
+              }}
+            >
               <button
                 onClick={() => setShowSettingsModal(false)}
-                className="text-lg font-bold py-2 px-6 bg-violet-500 text-white rounded-lg hover:bg-violet-600 transition-transform transform active:scale-95"
+                className="text-lg font-bold py-2 px-6 rounded-lg transition-transform transform active:scale-95"
+                style={{
+                  backgroundColor: theme.colors.buttonBg,
+                  color: theme.colors.buttonText,
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = theme.colors.buttonHover}
+                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = theme.colors.buttonBg}
               >
                 Close
               </button>
@@ -430,7 +481,13 @@ const Controls: React.FC<ControlsProps> = ({
 
       {/* Main Control Bar - Only show if not hidden */}
       {!hideControlBar && (
-        <footer className="p-2 sm:p-4 bg-gray-100 border-t-2 border-gray-300">
+        <footer
+          className="p-2 sm:p-4"
+          style={{
+            backgroundColor: theme.colors.background,
+            borderTop: `2px solid ${theme.colors.border}`,
+          }}
+        >
           <div className="w-full flex items-center justify-between gap-2 sm:gap-4">
         {/* ---- LEFT SIDE ---- */}
         <div className="flex-1 flex justify-start">

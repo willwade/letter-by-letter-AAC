@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { ALPHABET, SPECIAL_ACTIONS, SPEAK } from './constants';
-import type { ScanMode } from './types';
+import type { ScanMode, ThemeName } from './types';
 import Display from './components/Display';
 import Scanner from './components/Scanner';
 import Controls from './components/Controls';
@@ -11,8 +11,9 @@ import {
   getAvailableCodes,
   getScripts,
   getIndexData,
-  loadFrequencyList
 } from 'worldalphabets';
+import { getTheme } from './themes';
+import { getTrainingFileName, hasTrainingData as hasTrainingFile } from './trainingDataMap';
 
 const App: React.FC = () => {
   const [message, setMessage] = useState<string>('');
@@ -57,101 +58,43 @@ const App: React.FC = () => {
   const [languageNames, setLanguageNames] = useState<Record<string, string>>({});
   const [isRTL, setIsRTL] = useState<boolean>(false);
 
-  // Effect to load language-specific model and lexicon
+  // Theme state
+  const [themeName, setThemeName] = useState<ThemeName>(() => {
+    return (localStorage.getItem('theme') as ThemeName) || 'default';
+  });
+  const theme = getTheme(themeName);
+
+  // Effect to load language-specific model and training data
   useEffect(() => {
     const loadLanguageModel = async () => {
         setTrainingStatus(`Loading model for ${selectedLanguage}...`);
         try {
-            // Try to load training data from Dasher project
-            // Map language codes to Dasher training file names
-            const dasherLangMap: Record<string, string> = {
-              'sq': 'training_albanian_SQ.txt',
-              'eu': 'training_basque_ES.txt',
-              'bn': 'training_bengali_BD.txt',
-              'ja': 'training_canna_JP.txt',
-              'cs': 'training_czech_CS.txt',
-              'da': 'training_danish_DK.txt',
-              'nl': 'training_dutch_NL.txt',
-              'en': 'training_english_GB.txt',
-              'fi': 'training_finnish_FI.txt',
-              'fr': 'training_french_FR.txt',
-              'de': 'training_german_DE.txt',
-              'el': 'training_greek_GR.txt',
-              'he': 'training_hebrew_IL.txt',
-              'hu': 'training_hungarian_HU.txt',
-              'it': 'training_italian_IT.txt',
-              'mn': 'training_mongolian_MN.txt',
-              'fa': 'training_persian_IR.txt',
-              'pl': 'training_polish_PL.txt',
-              'pt': 'training_portuguese_BR.txt',
-              'ru': 'training_russian_RU.txt',
-              'es': 'training_spanish_ES.txt',
-              'sw': 'training_swahili_KE.txt',
-              'sv': 'training_swedish_SE.txt',
-              'tr': 'training_turkish_TR.txt',
-              'cy': 'training_welsh_GB.txt',
-            };
-
-            const dasherFile = dasherLangMap[selectedLanguage];
+            const trainingFileName = getTrainingFileName(selectedLanguage);
             let corpusText = '';
-            let lexicon: string[] = [];
 
-            // Try to fetch training data from Dasher project on GitHub
-            if (dasherFile) {
+            // Try to load training data from ppmpredictor package via unpkg CDN
+            if (trainingFileName) {
               try {
-                const dasherUrl = `https://raw.githubusercontent.com/dasher-project/dasher/master/Data/training/${dasherFile}`;
-                const response = await fetch(dasherUrl);
+                // Fetch from unpkg CDN
+                const cdnUrl = `https://unpkg.com/@willwade/ppmpredictor@0.0.4/data/training/${trainingFileName}`;
+                console.log(`📥 Fetching training data from: ${cdnUrl}`);
+
+                const response = await fetch(cdnUrl);
                 if (response.ok) {
                   corpusText = await response.text();
-                  console.log(`Loaded Dasher training data for ${selectedLanguage}`);
+                  console.log(`✅ Loaded training data for ${selectedLanguage} from ${trainingFileName}`);
+                } else {
+                  console.warn(`⚠️ Failed to fetch training data: ${response.status} ${response.statusText}`);
                 }
               } catch (error) {
-                console.warn(`Could not load Dasher training data for ${selectedLanguage}:`, error);
+                console.warn(`⚠️ Could not load training data for ${selectedLanguage}:`, error);
               }
             }
 
-            // Try to load frequency list from WorldAlphabets as lexicon
-            try {
-              const freqData = await loadFrequencyList(selectedLanguage);
-              if (freqData && freqData.tokens && freqData.tokens.length > 0) {
-                lexicon = freqData.tokens;
-                console.log(`Loaded ${lexicon.length} words from WorldAlphabets for ${selectedLanguage} (mode: ${freqData.mode})`);
-
-                // If no Dasher training data, use frequency list as basic training corpus
-                if (!corpusText && lexicon.length > 0) {
-                  corpusText = lexicon.join(' ');
-                  console.log(`Using frequency list as training corpus for ${selectedLanguage}`);
-                }
-              }
-            } catch (error) {
-              console.warn(`Could not load frequency data for ${selectedLanguage}:`, error);
-            }
-
-            // Fallback to local English data if nothing was loaded
-            if (!corpusText && selectedLanguage === 'en') {
-              try {
-                const [corpusResponse, lexiconResponse] = await Promise.all([
-                  fetch('./data/default_corpus.txt'),
-                  fetch('./data/aac_lexicon_en_gb.txt')
-                ]);
-
-                if (corpusResponse.ok) {
-                  corpusText = await corpusResponse.text();
-                }
-                if (lexiconResponse.ok) {
-                  const lexiconText = await lexiconResponse.text();
-                  lexicon = lexiconText.split('\n').filter(w => w.trim());
-                }
-              } catch (error) {
-                console.warn('Could not load local English data:', error);
-              }
-            }
-
-            // Create predictor with available data
+            // Create predictor with error tolerance
             const newPredictor = createErrorTolerantPredictor({
                 maxOrder: 5,
                 adaptive: true,
-                lexicon: lexicon.length > 0 ? lexicon : undefined,
                 maxEditDistance: 2,
                 minSimilarity: 0.6,
                 maxPredictions: 10
@@ -159,21 +102,21 @@ const App: React.FC = () => {
 
             if (corpusText) {
               newPredictor.train(corpusText);
-              setTrainingStatus(`Model loaded for ${selectedLanguage} with ${lexicon.length} words.`);
+              const wordCount = corpusText.split(/\s+/).length;
+              setTrainingStatus(`✅ Model loaded for ${selectedLanguage} (${wordCount.toLocaleString()} words).`);
               setHasTrainingData(true);
             } else {
-              setTrainingStatus(`Basic model for ${selectedLanguage} (no training data available).`);
+              setTrainingStatus(`⚠️ Basic model for ${selectedLanguage} (no training data available).`);
               setHasTrainingData(false);
-              // Disable prediction when no training data is available
-              setEnablePrediction(false);
+              // Keep prediction enabled but warn user
+              console.warn(`No training data available for ${selectedLanguage}`);
             }
 
             setPredictor(newPredictor);
         } catch (error) {
-            console.error("Failed to load language model:", error);
-            setTrainingStatus(`Error: Could not load model for ${selectedLanguage}.`);
+            console.error("❌ Failed to load language model:", error);
+            setTrainingStatus(`❌ Error: Could not load model for ${selectedLanguage}.`);
             setHasTrainingData(false);
-            setEnablePrediction(false);
 
             // Create a basic predictor as fallback
             const fallbackPredictor = createErrorTolerantPredictor({
@@ -298,6 +241,11 @@ const App: React.FC = () => {
   useEffect(() => {
     localStorage.setItem('firstItemDelay', firstItemDelay.toString());
   }, [firstItemDelay]);
+
+  // Effect to save theme to localStorage
+  useEffect(() => {
+    localStorage.setItem('theme', themeName);
+  }, [themeName]);
 
   // Debounced effect for running predictions as the user types
   useEffect(() => {
@@ -565,23 +513,45 @@ const App: React.FC = () => {
 
 
   return (
-    <div className="flex flex-col h-screen bg-white text-black font-sans">
+    <div
+      className="flex flex-col h-screen font-sans"
+      style={{
+        backgroundColor: theme.colors.background,
+        color: theme.colors.text
+      }}
+    >
       {/* Settings Cog Icon - Top Right */}
       <button
         onClick={() => setShowSettingsModal(true)}
-        className="fixed top-2 right-2 z-50 p-2 bg-gray-200 bg-opacity-70 hover:bg-opacity-100 rounded-full transition-all hover:scale-110"
+        className="fixed top-2 right-2 z-50 p-2 rounded-full transition-all hover:scale-110"
+        style={{
+          backgroundColor: theme.colors.buttonBg,
+          color: theme.colors.buttonText,
+          opacity: 0.7,
+        }}
+        onMouseEnter={(e) => e.currentTarget.style.opacity = '1'}
+        onMouseLeave={(e) => e.currentTarget.style.opacity = '0.7'}
         aria-label="Open Settings"
         title="Settings"
       >
-        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
         </svg>
       </button>
 
       <main className="flex-grow flex flex-col p-2 sm:p-4 md:p-8 gap-2 sm:gap-4 overflow-hidden">
-        <Display message={message} fontSize={messageFontSize} isRTL={isRTL} />
-        <Scanner currentItem={scanItems[scanIndex] ?? ''} fontSize={scannerFontSize} />
+        <Display
+          message={message}
+          fontSize={messageFontSize}
+          isRTL={isRTL}
+          theme={theme}
+        />
+        <Scanner
+          currentItem={scanItems[scanIndex] ?? ''}
+          fontSize={scannerFontSize}
+          theme={theme}
+        />
       </main>
 
       {/* Settings Modal - Always rendered so it's accessible even when control bar is hidden */}
@@ -631,6 +601,9 @@ const App: React.FC = () => {
         availableScripts={availableScripts}
         useUppercase={useUppercase}
         setUseUppercase={setUseUppercase}
+        themeName={themeName}
+        setThemeName={setThemeName}
+        theme={theme}
       />
     </div>
   );

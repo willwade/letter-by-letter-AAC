@@ -1,11 +1,13 @@
 import React, { useLayoutEffect, useRef } from 'react';
+import type { Theme } from '../types';
 
 interface ScannerProps {
   currentItem: string;
   fontSize: number;
+  theme: Theme;
 }
 
-const Scanner: React.FC<ScannerProps> = ({ currentItem, fontSize }) => {
+const Scanner: React.FC<ScannerProps> = ({ currentItem, fontSize, theme }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const itemRef = useRef<HTMLSpanElement>(null);
 
@@ -54,15 +56,23 @@ const Scanner: React.FC<ScannerProps> = ({ currentItem, fontSize }) => {
   }, [currentItem, fontSize]);
 
   return (
-    <div ref={containerRef} className="w-full flex-grow flex items-center justify-center bg-white border-4 border-black rounded-lg p-2 overflow-hidden">
-      <span 
+    <div
+      ref={containerRef}
+      className="w-full flex-grow flex items-center justify-center rounded-lg p-2 overflow-hidden"
+      style={{
+        backgroundColor: theme.colors.scannerBg,
+        border: `4px solid ${theme.colors.border}`,
+      }}
+    >
+      <span
         ref={itemRef}
-        className="font-bold text-black select-none text-center"
-        style={{ 
+        className="font-bold select-none text-center"
+        style={{
           // We start with the max font size. The useLayoutEffect will correct it
           // before the user sees it, preventing the flicker.
           fontSize: `${fontSize}px`,
           wordBreak: 'break-word',
+          color: theme.colors.scannerText,
         }}
       >
         {currentItem}
