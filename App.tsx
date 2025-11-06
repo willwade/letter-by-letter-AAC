@@ -432,24 +432,16 @@ const App: React.FC = () => {
 
     const predictionEnabledAndReady = enablePrediction && predictor;
 
-    console.log('🔍 DEBUG: Building scan items');
-    console.log('  - Message:', JSON.stringify(message));
-    console.log('  - Message length:', message.length);
-    console.log('  - Prediction enabled:', predictionEnabledAndReady);
-
     if (!predictionEnabledAndReady) {
       // Include alphabet first
       newScanItems.push(...alphabet);
 
       // Only include SPEAK and SPECIAL_ACTIONS if message has at least one character
       if (message.length > 0) {
-        console.log('  - Adding SPECIAL_ACTIONS (message.length > 0)');
         if (message.length > 1) {
           newScanItems.push(SPEAK);
         }
         newScanItems.push(...SPECIAL_ACTIONS);
-      } else {
-        console.log('  - NOT adding SPECIAL_ACTIONS (message is empty)');
       }
     } else {
       // Include predicted words at the start
@@ -470,15 +462,9 @@ const App: React.FC = () => {
 
       // Only include SPECIAL_ACTIONS if message has at least one character
       if (message.length > 0) {
-        console.log('  - Adding SPECIAL_ACTIONS (message.length > 0)');
         newScanItems.push(...SPECIAL_ACTIONS);
-      } else {
-        console.log('  - NOT adding SPECIAL_ACTIONS (message is empty)');
       }
     }
-
-    console.log('  - Final scan items:', newScanItems);
-    console.log('  - Total items:', newScanItems.length);
 
     setScanItems(newScanItems);
     setScanIndex(0);
