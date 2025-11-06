@@ -807,9 +807,14 @@ const App: React.FC = () => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.code === 'Space') {
         event.preventDefault();
+        // Allow key repeat for Space - useful for advancing through items
         handleSwitch1();
       } else if (event.code === 'Enter' && scanMode === 'two-switch') {
         event.preventDefault();
+        // Prevent key repeat for Enter to avoid repeated selection/speech
+        if (event.repeat) {
+          return;
+        }
         handleSwitch2();
       }
     };
