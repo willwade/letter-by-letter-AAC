@@ -437,19 +437,20 @@ const App: React.FC = () => {
       }
       newScanItems.push(...alphabet, ...SPECIAL_ACTIONS);
     } else {
-      const uniqueAlphabet = alphabet.filter(letter => !predictedLetters.includes(letter));
-
+      // Include predicted words at the start
       if (showWordPrediction && predictedWords.length > 0) {
         newScanItems.push(...predictedWords);
       }
 
+      // Include predicted letters at the start
       newScanItems.push(...predictedLetters);
 
       if (message.length > 1) {
           newScanItems.push(SPEAK);
       }
 
-      newScanItems.push(...uniqueAlphabet, ...SPECIAL_ACTIONS);
+      // Include full alphabet (predicted letters will appear again in their regular positions)
+      newScanItems.push(...alphabet, ...SPECIAL_ACTIONS);
     }
 
     console.log('📊 Scan items updated. First 5 alphabet letters:', alphabet.slice(0, 5));
