@@ -73,7 +73,8 @@ async function loadWordFrequencyList(languageCode: string): Promise<string[]> {
 const App: React.FC = () => {
   const [message, setMessage] = useState<string>('');
   const [scanIndex, setScanIndex] = useState<number>(0);
-  const [scanItems, setScanItems] = useState<string[]>([...ALPHABET, ...SPECIAL_ACTIONS]);
+  // Start with just alphabet - special actions will be added by useEffect when message has content
+  const [scanItems, setScanItems] = useState<string[]>([...ALPHABET]);
   const [isScanning, setIsScanning] = useState<boolean>(false);
   const [scanMode, setScanMode] = useState<ScanMode>('one-switch');
   const [scanSpeed, setScanSpeed] = useState<number>(1000);
@@ -431,11 +432,25 @@ const App: React.FC = () => {
 
     const predictionEnabledAndReady = enablePrediction && predictor;
 
+    console.log('🔍 DEBUG: Building scan items');
+    console.log('  - Message:', JSON.stringify(message));
+    console.log('  - Message length:', message.length);
+    console.log('  - Prediction enabled:', predictionEnabledAndReady);
+
     if (!predictionEnabledAndReady) {
-      if (message.length > 1) {
-        newScanItems.push(SPEAK);
+      // Include alphabet first
+      newScanItems.push(...alphabet);
+
+      // Only include SPEAK and SPECIAL_ACTIONS if message has at least one character
+      if (message.length > 0) {
+        console.log('  - Adding SPECIAL_ACTIONS (message.length > 0)');
+        if (message.length > 1) {
+          newScanItems.push(SPEAK);
+        }
+        newScanItems.push(...SPECIAL_ACTIONS);
+      } else {
+        console.log('  - NOT adding SPECIAL_ACTIONS (message is empty)');
       }
-      newScanItems.push(...alphabet, ...SPECIAL_ACTIONS);
     } else {
       // Include predicted words at the start
       if (showWordPrediction && predictedWords.length > 0) {
@@ -445,16 +460,26 @@ const App: React.FC = () => {
       // Include predicted letters at the start
       newScanItems.push(...predictedLetters);
 
+      // Only include SPEAK if message has at least 2 characters
       if (message.length > 1) {
           newScanItems.push(SPEAK);
       }
 
       // Include full alphabet (predicted letters will appear again in their regular positions)
-      newScanItems.push(...alphabet, ...SPECIAL_ACTIONS);
+      newScanItems.push(...alphabet);
+
+      // Only include SPECIAL_ACTIONS if message has at least one character
+      if (message.length > 0) {
+        console.log('  - Adding SPECIAL_ACTIONS (message.length > 0)');
+        newScanItems.push(...SPECIAL_ACTIONS);
+      } else {
+        console.log('  - NOT adding SPECIAL_ACTIONS (message is empty)');
+      }
     }
 
-    console.log('📊 Scan items updated. First 5 alphabet letters:', alphabet.slice(0, 5));
-    console.log('📊 First 5 scan items:', newScanItems.slice(0, 5));
+    console.log('  - Final scan items:', newScanItems);
+    console.log('  - Total items:', newScanItems.length);
+
     setScanItems(newScanItems);
     setScanIndex(0);
   }, [predictedLetters, predictedWords, message, showWordPrediction, enablePrediction, predictor, alphabet]);
