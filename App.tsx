@@ -665,9 +665,12 @@ const App: React.FC = () => {
         newScanItems.push(SPACE);
       }
 
-      // Add SPEAK if we've completed the word
-      if (message.length === currentGameTarget.length) {
-        newScanItems.push(SPEAK);
+      // Always include actions at the end (SPEAK, UNDO, CLEAR)
+      if (message.length > 0) {
+        if (message.length > 1) {
+          newScanItems.push(SPEAK);
+        }
+        newScanItems.push(...SPECIAL_ACTIONS);
       }
     } else if (!predictionEnabledAndReady) {
       // Include alphabet first
