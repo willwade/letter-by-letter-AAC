@@ -61,6 +61,8 @@ interface ControlsProps {
   gameWordList: string[];
   setGameWordList: (words: string[]) => void;
   gameTarget: string;
+  audioEffectsEnabled: boolean;
+  setAudioEffectsEnabled: (enabled: boolean) => void;
 }
 
 const Controls: React.FC<ControlsProps> = ({
@@ -122,6 +124,8 @@ const Controls: React.FC<ControlsProps> = ({
   gameWordList,
   setGameWordList,
   gameTarget,
+  audioEffectsEnabled,
+  setAudioEffectsEnabled,
 }) => {
 
   const handleStartStop = () => {
@@ -583,6 +587,20 @@ const Controls: React.FC<ControlsProps> = ({
                       className="form-checkbox h-5 w-5 text-black rounded"
                     />
                     Hide (use cog icon to access settings)
+                  </label>
+                </div>
+
+                {/* Audio Effects Toggle */}
+                <div className="flex items-center gap-4 mb-3">
+                  <span className="font-semibold w-32">Audio Effects:</span>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={audioEffectsEnabled}
+                      onChange={(e) => setAudioEffectsEnabled(e.target.checked)}
+                      className="form-checkbox h-5 w-5 text-black rounded"
+                    />
+                    Play click sounds
                   </label>
                 </div>
 

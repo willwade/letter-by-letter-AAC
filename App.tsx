@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { ALPHABET, SPECIAL_ACTIONS, SPEAK } from './constants';
 import type { ScanMode, ThemeName } from './types';
 import Display from './components/Display';
@@ -183,6 +183,70 @@ const App: React.FC = () => {
   const [audioEffectsEnabled, setAudioEffectsEnabled] = useState<boolean>(() => {
     return localStorage.getItem('audioEffectsEnabled') === 'true';
   });
+
+  // Web Audio API setup for high-performance audio playback
+  const audioContext = useMemo(() => {
+    if (typeof window !== 'undefined' && 'AudioContext' in window) {
+      return new AudioContext();
+    }
+    return null;
+  }, []);
+
+  const [audioBuffers, setAudioBuffers] = useState<{
+    click: AudioBuffer | null;
+    select: AudioBuffer | null;
+  }>({ click: null, select: null });
+
+  // Load audio files into buffers
+  useEffect(() => {
+    if (!audioContext) return;
+
+    const loadAudio = async (url: string): Promise<AudioBuffer | null> => {
+      try {
+        const response = await fetch(url);
+        const arrayBuffer = await response.arrayBuffer();
+        const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+        return audioBuffer;
+      } catch (error) {
+        console.error('Failed to load audio:', url, error);
+        return null;
+      }
+    };
+
+    const loadAllAudio = async () => {
+      const [clickBuffer, selectBuffer] = await Promise.all([
+        loadAudio('/letter-by-letter-AAC/click.mp3'),
+        loadAudio('/letter-by-letter-AAC/click-select.mp3')
+      ]);
+
+      setAudioBuffers({
+        click: clickBuffer,
+        select: selectBuffer
+      });
+    };
+
+    loadAllAudio();
+  }, [audioContext]);
+
+  // Helper function to play audio with Web Audio API (ultra-fast, no lag)
+  const playSound = useCallback((type: 'click' | 'select') => {
+    if (!audioEffectsEnabled || !audioContext || !audioBuffers[type]) return;
+
+    // Create a new buffer source (very lightweight)
+    const source = audioContext.createBufferSource();
+    source.buffer = audioBuffers[type];
+
+    // Create gain node for volume control
+    const gainNode = audioContext.createGain();
+    gainNode.gain.value = 0.3; // Reduce volume to 30%
+
+    // Connect: source -> gain -> destination
+    source.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+
+    // Play immediately
+    source.start(0);
+  }, [audioEffectsEnabled, audioContext, audioBuffers]);
 
   // Effect to load language-specific model and training data
   useEffect(() => {
@@ -510,6 +574,11 @@ const App: React.FC = () => {
     localStorage.setItem('borderWidth', borderWidth.toString());
   }, [borderWidth]);
 
+  // Effect to save audio effects enabled to localStorage
+  useEffect(() => {
+    localStorage.setItem('audioEffectsEnabled', audioEffectsEnabled.toString());
+  }, [audioEffectsEnabled]);
+
   // Debounced effect for running predictions as the user types
   useEffect(() => {
     if (!enablePrediction || !predictor) {
@@ -693,6 +762,9 @@ const App: React.FC = () => {
   }, [selectedLanguage, selectedVoiceURI]);
 
   const handleSelect = useCallback((item: string) => {
+    // Play select sound
+    playSound('select');
+
     // Game Mode: handle letter selection and word completion
     if (gameMode && currentGameTarget) {
       if (item === 'SPEAK' && message.length === currentGameTarget.length) {
@@ -818,7 +890,7 @@ const App: React.FC = () => {
       setMessage(prev => prev + item);
     }
     setScanIndex(0);
-  }, [message, showWordPrediction, predictedWords, availableVoices, selectedVoiceURI, gameMode, currentGameTarget, gameWordList, predictor, selectedLanguage]);
+  }, [message, showWordPrediction, predictedWords, availableVoices, selectedVoiceURI, gameMode, currentGameTarget, gameWordList, predictor, selectedLanguage, playSound]);
 
   const handleClear = useCallback(() => {
     setMessage('');
@@ -1038,9 +1110,11 @@ const App: React.FC = () => {
         setIsScanning(true);
       }
     } else { // two-switch
+      // Play click sound when advancing in two-switch mode
+      playSound('click');
       setScanIndex(prev => (prev + 1) % scanItems.length);
     }
-  }, [scanMode, isScanning, scanItems, scanIndex, handleSelect]);
+  }, [scanMode, isScanning, scanItems, scanIndex, handleSelect, playSound]);
 
   const handleSwitch2 = useCallback(() => {
     if (scanMode === 'two-switch') {
@@ -1058,7 +1132,11 @@ const App: React.FC = () => {
       const delay = isFirstItem ? firstItemDelay : scanSpeed;
 
       scanInterval = window.setInterval(() => {
-        setScanIndex(prev => (prev + 1) % scanItems.length);
+        setScanIndex(prev => {
+          // Play click sound when advancing
+          playSound('click');
+          return (prev + 1) % scanItems.length;
+        });
       }, delay);
     }
 
@@ -1066,7 +1144,7 @@ const App: React.FC = () => {
       clearInterval(scanInterval);
       clearTimeout(initialTimeout);
     };
-  }, [isScanning, scanMode, scanSpeed, scanItems.length, scanIndex, firstItemDelay]);
+  }, [isScanning, scanMode, scanSpeed, scanItems.length, scanIndex, firstItemDelay, playSound]);
 
   // Handle keyboard input with custom hold-down behavior for two-switch mode
   useEffect(() => {
@@ -1258,6 +1336,8 @@ const App: React.FC = () => {
         gameWordList={gameWordList}
         setGameWordList={setGameWordList}
         gameTarget={currentGameTarget}
+        audioEffectsEnabled={audioEffectsEnabled}
+        setAudioEffectsEnabled={setAudioEffectsEnabled}
       />
     </div>
   );
