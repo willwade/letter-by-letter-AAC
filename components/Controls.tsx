@@ -299,11 +299,17 @@ const Controls: React.FC<ControlsProps> = ({
                       borderColor: theme.colors.border,
                     }}
                   >
-                    {availableLanguages.map((lang) => (
-                      <option key={lang} value={lang}>
-                        {languageNames[lang] || lang.toUpperCase()}
-                      </option>
-                    ))}
+                    {availableLanguages
+                      .sort((a, b) => {
+                        const nameA = languageNames[a] || a.toUpperCase();
+                        const nameB = languageNames[b] || b.toUpperCase();
+                        return nameA.localeCompare(nameB);
+                      })
+                      .map((lang) => (
+                        <option key={lang} value={lang}>
+                          {languageNames[lang] || lang.toUpperCase()}
+                        </option>
+                      ))}
                   </select>
                 </div>
 
