@@ -85,23 +85,43 @@ const App: React.FC = () => {
   // Start with just alphabet - special actions will be added by useEffect when message has content
   const [scanItems, setScanItems] = useState<string[]>([...ALPHABET]);
   const [isScanning, setIsScanning] = useState<boolean>(false);
-  const [scanMode, setScanMode] = useState<ScanMode>('one-switch');
-  const [scanSpeed, setScanSpeed] = useState<number>(1000);
+  const [scanMode, setScanMode] = useState<ScanMode>(() => {
+    return (localStorage.getItem('scanMode') as ScanMode) || 'one-switch';
+  });
+  const [scanSpeed, setScanSpeed] = useState<number>(() => {
+    const saved = localStorage.getItem('scanSpeed');
+    return saved ? Number(saved) : 1000;
+  });
   const [firstItemDelay, setFirstItemDelay] = useState<number>(() => {
     const saved = localStorage.getItem('firstItemDelay');
     return saved ? Number(saved) : 1500; // Default 1.5 seconds
   });
   const [predictedLetters, setPredictedLetters] = useState<string[]>([]);
   const [predictedWords, setPredictedWords] = useState<string[]>([]);
-  const [enablePrediction, setEnablePrediction] = useState<boolean>(true);
-  const [showWordPrediction, setShowWordPrediction] = useState<boolean>(false);
-  const [messageFontSize, setMessageFontSize] = useState<number>(48);
-  const [scannerFontSize, setScannerFontSize] = useState<number>(300);
+  const [enablePrediction, setEnablePrediction] = useState<boolean>(() => {
+    const saved = localStorage.getItem('enablePrediction');
+    return saved !== null ? saved === 'true' : true;
+  });
+  const [showWordPrediction, setShowWordPrediction] = useState<boolean>(() => {
+    return localStorage.getItem('showWordPrediction') === 'true';
+  });
+  const [messageFontSize, setMessageFontSize] = useState<number>(() => {
+    const saved = localStorage.getItem('messageFontSize');
+    return saved ? Number(saved) : 48;
+  });
+  const [scannerFontSize, setScannerFontSize] = useState<number>(() => {
+    const saved = localStorage.getItem('scannerFontSize');
+    return saved ? Number(saved) : 300;
+  });
   const [isFullscreen, setIsFullscreen] = useState<boolean>(!!document.fullscreenElement);
   const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
-  const [selectedVoiceURI, setSelectedVoiceURI] = useState<string | null>(null);
+  const [selectedVoiceURI, setSelectedVoiceURI] = useState<string | null>(() => {
+    return localStorage.getItem('selectedVoiceURI') || null;
+  });
   const [showSettingsModal, setShowSettingsModal] = useState<boolean>(false);
-  const [hideControlBar, setHideControlBar] = useState<boolean>(false);
+  const [hideControlBar, setHideControlBar] = useState<boolean>(() => {
+    return localStorage.getItem('hideControlBar') === 'true';
+  });
 
   const [predictor, setPredictor] = useState<Predictor | null>(null);
   const [trainingStatus, setTrainingStatus] = useState<string>('No model loaded.');
@@ -387,10 +407,52 @@ const App: React.FC = () => {
     localStorage.setItem('useUppercase', useUppercase.toString());
   }, [selectedLanguage, selectedScript, useUppercase]);
 
+  // Effect to save scan mode to localStorage
+  useEffect(() => {
+    localStorage.setItem('scanMode', scanMode);
+  }, [scanMode]);
+
+  // Effect to save scan speed to localStorage
+  useEffect(() => {
+    localStorage.setItem('scanSpeed', scanSpeed.toString());
+  }, [scanSpeed]);
+
   // Effect to save first item delay to localStorage
   useEffect(() => {
     localStorage.setItem('firstItemDelay', firstItemDelay.toString());
   }, [firstItemDelay]);
+
+  // Effect to save prediction settings to localStorage
+  useEffect(() => {
+    localStorage.setItem('enablePrediction', enablePrediction.toString());
+  }, [enablePrediction]);
+
+  useEffect(() => {
+    localStorage.setItem('showWordPrediction', showWordPrediction.toString());
+  }, [showWordPrediction]);
+
+  // Effect to save font sizes to localStorage
+  useEffect(() => {
+    localStorage.setItem('messageFontSize', messageFontSize.toString());
+  }, [messageFontSize]);
+
+  useEffect(() => {
+    localStorage.setItem('scannerFontSize', scannerFontSize.toString());
+  }, [scannerFontSize]);
+
+  // Effect to save selected voice to localStorage
+  useEffect(() => {
+    if (selectedVoiceURI) {
+      localStorage.setItem('selectedVoiceURI', selectedVoiceURI);
+    } else {
+      localStorage.removeItem('selectedVoiceURI');
+    }
+  }, [selectedVoiceURI]);
+
+  // Effect to save hide control bar setting to localStorage
+  useEffect(() => {
+    localStorage.setItem('hideControlBar', hideControlBar.toString());
+  }, [hideControlBar]);
 
   // Effect to save theme to localStorage
   useEffect(() => {
