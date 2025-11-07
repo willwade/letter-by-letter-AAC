@@ -15,6 +15,7 @@ import {
 } from 'worldalphabets';
 import { getTheme } from './themes';
 import { getTrainingFileName, hasTrainingData as hasTrainingFile } from './trainingDataMap';
+import confetti from 'canvas-confetti';
 
 /**
  * Build a keyboard adjacency map from an alphabetical list.
@@ -127,6 +128,19 @@ const App: React.FC = () => {
     return localStorage.getItem('hideControlBar') === 'true';
   });
 
+  // Game Mode state
+  const [gameMode, setGameMode] = useState<boolean>(() => {
+    return localStorage.getItem('gameMode') === 'true';
+  });
+  const [gameWordList, setGameWordList] = useState<string[]>(() => {
+    const saved = localStorage.getItem('gameWordList');
+    return saved ? JSON.parse(saved) : ['hi', 'hello', 'cold', 'hot', 'tea please'];
+  });
+  const [currentGameWordIndex, setCurrentGameWordIndex] = useState<number>(() => {
+    const saved = localStorage.getItem('currentGameWordIndex');
+    return saved ? Number(saved) : 0;
+  });
+
   const [predictor, setPredictor] = useState<Predictor | null>(null);
   const [trainingStatus, setTrainingStatus] = useState<string>('No model loaded.');
   const [hasTrainingData, setHasTrainingData] = useState<boolean>(true); // Track if training data was loaded
@@ -163,6 +177,11 @@ const App: React.FC = () => {
   const [borderWidth, setBorderWidth] = useState<number>(() => {
     const saved = localStorage.getItem('borderWidth');
     return saved ? Number(saved) : 0;
+  });
+
+  // Audio effects state
+  const [audioEffectsEnabled, setAudioEffectsEnabled] = useState<boolean>(() => {
+    return localStorage.getItem('audioEffectsEnabled') === 'true';
   });
 
   // Effect to load language-specific model and training data
@@ -463,6 +482,19 @@ const App: React.FC = () => {
     localStorage.setItem('hideControlBar', hideControlBar.toString());
   }, [hideControlBar]);
 
+  // Effect to save game mode settings to localStorage
+  useEffect(() => {
+    localStorage.setItem('gameMode', gameMode.toString());
+  }, [gameMode]);
+
+  useEffect(() => {
+    localStorage.setItem('gameWordList', JSON.stringify(gameWordList));
+  }, [gameWordList]);
+
+  useEffect(() => {
+    localStorage.setItem('currentGameWordIndex', currentGameWordIndex.toString());
+  }, [currentGameWordIndex]);
+
   // Effect to save theme to localStorage
   useEffect(() => {
     localStorage.setItem('theme', themeName);
@@ -538,12 +570,37 @@ const App: React.FC = () => {
   }, [message, enablePrediction, predictor, useUppercase]);
 
 
+  // Compute current game target word
+  const currentGameTarget = gameMode && gameWordList.length > 0
+    ? gameWordList[currentGameWordIndex % gameWordList.length]
+    : '';
+
+  // Compute next correct letter for game mode
+  const nextCorrectLetter = gameMode && currentGameTarget
+    ? currentGameTarget[message.length]?.toLowerCase()
+    : null;
+
   useEffect(() => {
     let newScanItems: string[] = [];
 
     const predictionEnabledAndReady = enablePrediction && predictor;
 
-    if (!predictionEnabledAndReady) {
+    // Game Mode: show full alphabet but only next correct letter is selectable
+    if (gameMode && currentGameTarget) {
+      // Include full alphabet
+      newScanItems.push(...alphabet);
+
+      // If next character is a space, include SPACE action
+      const nextChar = currentGameTarget[message.length];
+      if (nextChar === ' ') {
+        newScanItems.push(SPACE);
+      }
+
+      // Add SPEAK if we've completed the word
+      if (message.length === currentGameTarget.length) {
+        newScanItems.push(SPEAK);
+      }
+    } else if (!predictionEnabledAndReady) {
       // Include alphabet first
       newScanItems.push(...alphabet);
 
@@ -579,7 +636,7 @@ const App: React.FC = () => {
 
     setScanItems(newScanItems);
     setScanIndex(0);
-  }, [predictedLetters, predictedWords, message, showWordPrediction, enablePrediction, predictor, alphabet]);
+  }, [predictedLetters, predictedWords, message, showWordPrediction, enablePrediction, predictor, alphabet, gameMode, nextCorrectLetter, currentGameTarget, useUppercase]);
 
   // Effect to update keyboard adjacency map when scan items change
   useEffect(() => {
@@ -636,6 +693,88 @@ const App: React.FC = () => {
   }, [selectedLanguage, selectedVoiceURI]);
 
   const handleSelect = useCallback((item: string) => {
+    // Game Mode: handle letter selection and word completion
+    if (gameMode && currentGameTarget) {
+      if (item === 'SPEAK' && message.length === currentGameTarget.length) {
+        // Word completed - speak it and move to next word
+        if ('speechSynthesis' in window && message) {
+          const utterance = new SpeechSynthesisUtterance(message);
+          const selectedVoice = availableVoices.find(v => v.voiceURI === selectedVoiceURI);
+          if (selectedVoice) {
+            utterance.voice = selectedVoice;
+          }
+          window.speechSynthesis.speak(utterance);
+        }
+
+        // Move to next word and clear message
+        setCurrentGameWordIndex(prev => (prev + 1) % gameWordList.length);
+        setMessage('');
+        return;
+      } else if (item.length === 1 || item === '_') {
+        // Handle both letters and spaces
+        const expectedChar = currentGameTarget[message.length];
+
+        if (expectedChar === ' ' && item === '_') {
+          // Correct space! Add it to the message
+          setMessage(prev => {
+            const newMessage = prev + ' ';
+            // Confetti for correct space
+            confetti({
+              particleCount: 30,
+              spread: 50,
+              origin: { y: 0.6 }
+            });
+            return newMessage;
+          });
+        } else if (expectedChar && expectedChar !== ' ' && item.toLowerCase() === expectedChar.toLowerCase()) {
+          // Correct letter! Add it to the message
+          setMessage(prev => {
+            const newMessage = prev + item;
+
+            // Confetti for correct letter
+            confetti({
+              particleCount: 30,
+              spread: 50,
+              origin: { y: 0.6 }
+            });
+
+            // Check if word is complete after adding this letter
+            if (newMessage.length === currentGameTarget.length) {
+              // Word complete! Big confetti and auto-advance after a delay
+              setTimeout(() => {
+                confetti({
+                  particleCount: 100,
+                  spread: 70,
+                  origin: { y: 0.6 }
+                });
+
+                // Speak the word
+                if ('speechSynthesis' in window) {
+                  const utterance = new SpeechSynthesisUtterance(newMessage);
+                  const selectedVoice = availableVoices.find(v => v.voiceURI === selectedVoiceURI);
+                  if (selectedVoice) {
+                    utterance.voice = selectedVoice;
+                  }
+                  window.speechSynthesis.speak(utterance);
+                }
+
+                // Move to next word after 1.5 seconds
+                setTimeout(() => {
+                  setCurrentGameWordIndex(prev => (prev + 1) % gameWordList.length);
+                  setMessage('');
+                }, 1500);
+              }, 300);
+            }
+
+            return newMessage;
+          });
+        }
+        // Ignore incorrect letters/spaces (do nothing)
+        return;
+      }
+    }
+
+    // Normal mode (non-game)
     if (showWordPrediction && predictedWords.includes(item)) {
       const lastSpaceIndex = message.lastIndexOf(' ');
       const messageBase = lastSpaceIndex === -1 ? '' : message.substring(0, lastSpaceIndex + 1);
@@ -679,7 +818,7 @@ const App: React.FC = () => {
       setMessage(prev => prev + item);
     }
     setScanIndex(0);
-  }, [message, showWordPrediction, predictedWords, availableVoices, selectedVoiceURI]);
+  }, [message, showWordPrediction, predictedWords, availableVoices, selectedVoiceURI, gameMode, currentGameTarget, gameWordList, predictor, selectedLanguage]);
 
   const handleClear = useCallback(() => {
     setMessage('');
@@ -943,15 +1082,12 @@ const App: React.FC = () => {
           if (event.repeat) {
             // Key is being held - check if we should advance based on holdSpeed
             if (!holdInterval) {
-              console.log(`🔄 Space held down, starting interval at ${holdSpeed}ms`);
               holdInterval = window.setInterval(() => {
-                console.log('⚡ Interval tick - advancing');
                 handleSwitch1();
               }, holdSpeed);
             }
           } else {
             // First press
-            console.log('🔵 Space pressed (first time), advancing once');
             handleSwitch1();
           }
         } else {
@@ -970,10 +1106,8 @@ const App: React.FC = () => {
 
     const handleKeyUp = (event: KeyboardEvent) => {
       if (event.code === 'Space' && scanMode === 'two-switch') {
-        console.log('🛑 Space released, clearing interval');
         // Clear the hold interval when key is released
         if (holdInterval !== undefined) {
-          console.log('  - Cleared interval');
           clearInterval(holdInterval);
           holdInterval = undefined;
         }
@@ -1119,6 +1253,11 @@ const App: React.FC = () => {
         learnedWordsCount={learnedWordsCount}
         onClearLearnedData={handleClearLearnedData}
         onExportLearnedData={handleExportLearnedData}
+        gameMode={gameMode}
+        setGameMode={setGameMode}
+        gameWordList={gameWordList}
+        setGameWordList={setGameWordList}
+        gameTarget={currentGameTarget}
       />
     </div>
   );

@@ -56,6 +56,11 @@ interface ControlsProps {
   learnedWordsCount: number;
   onClearLearnedData: () => void;
   onExportLearnedData: () => void;
+  gameMode: boolean;
+  setGameMode: (enabled: boolean) => void;
+  gameWordList: string[];
+  setGameWordList: (words: string[]) => void;
+  gameTarget: string;
 }
 
 const Controls: React.FC<ControlsProps> = ({
@@ -112,6 +117,11 @@ const Controls: React.FC<ControlsProps> = ({
   learnedWordsCount,
   onClearLearnedData,
   onExportLearnedData,
+  gameMode,
+  setGameMode,
+  gameWordList,
+  setGameWordList,
+  gameTarget,
 }) => {
 
   const handleStartStop = () => {
@@ -492,9 +502,7 @@ const Controls: React.FC<ControlsProps> = ({
                   >
                     <option value="system-ui">System Default</option>
                     <option value="'Atkinson Hyperlegible', sans-serif">Atkinson Hyperlegible</option>
-                    <option value="'Manrope', sans-serif">Manrope</option>
                     <option value="'Chewy', system-ui">Chewy</option>
-                    <option value="'Bungee Spice', sans-serif">Bungee Spice</option>
                     <option value="Arial, sans-serif">Arial</option>
                   </select>
                 </div>
@@ -565,7 +573,7 @@ const Controls: React.FC<ControlsProps> = ({
                 </div>
 
                 {/* Hide Control Bar Toggle */}
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-4 mb-3">
                   <span className="font-semibold w-32">Control Bar:</span>
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input
@@ -576,6 +584,50 @@ const Controls: React.FC<ControlsProps> = ({
                     />
                     Hide (use cog icon to access settings)
                   </label>
+                </div>
+
+                {/* Game Mode Toggle */}
+                <div className="flex items-center gap-4 mb-3">
+                  <span className="font-semibold w-32">Game Mode:</span>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={gameMode}
+                      onChange={(e) => setGameMode(e.target.checked)}
+                      className="form-checkbox h-5 w-5 text-black rounded"
+                    />
+                    Enable
+                  </label>
+                </div>
+
+                {/* Game Word List */}
+                <div className="flex flex-col gap-2 mb-3">
+                  <div className="flex items-center gap-2">
+                    <label htmlFor="gameWordList" className="font-semibold w-32">Word List:</label>
+                    <input
+                      id="gameWordList"
+                      type="text"
+                      value={gameWordList.join(', ')}
+                      onChange={(e) => {
+                        const words = e.target.value.split(',').map(w => w.trim()).filter(w => w.length > 0);
+                        setGameWordList(words);
+                      }}
+                      disabled={!gameMode}
+                      className="flex-1 p-2 border rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                      style={{
+                        backgroundColor: theme.colors.inputBg,
+                        color: theme.colors.inputText,
+                        borderColor: theme.colors.border,
+                      }}
+                      placeholder="hi, hello, cold, hot, tea please"
+                    />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="w-32"></span>
+                    <span className="text-sm text-gray-600 italic">
+                      Comma-separated words to practice typing
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -638,20 +690,30 @@ const Controls: React.FC<ControlsProps> = ({
 
         {/* ---- MIDDLE ---- */}
         <div className="flex justify-center items-center gap-2 sm:gap-4">
-          <button
-              onClick={onUndo}
-              className="flex-1 min-w-[70px] max-w-[160px] text-lg sm:text-2xl font-bold py-3 sm:py-4 px-2 sm:px-6 bg-orange-300 text-orange-900 rounded-lg hover:bg-orange-400 transition-transform transform active:scale-95"
-              aria-label="Undo Last Character"
-          >
-              UNDO
-          </button>
-          <button
-              onClick={onClear}
-              className="flex-1 min-w-[70px] max-w-[160px] text-lg sm:text-2xl font-bold py-3 sm:py-4 px-2 sm:px-6 bg-yellow-300 text-yellow-900 rounded-lg hover:bg-yellow-400 transition-transform transform active:scale-95"
-              aria-label="Clear Message"
-          >
-              CLEAR
-          </button>
+          {gameMode && gameTarget ? (
+            <div className="flex items-center justify-center px-4 py-2 bg-blue-100 rounded-lg border-2 border-blue-400">
+              <span className="text-xl sm:text-3xl font-bold text-blue-900">
+                Type: {gameTarget}
+              </span>
+            </div>
+          ) : (
+            <>
+              <button
+                  onClick={onUndo}
+                  className="flex-1 min-w-[70px] max-w-[160px] text-lg sm:text-2xl font-bold py-3 sm:py-4 px-2 sm:px-6 bg-orange-300 text-orange-900 rounded-lg hover:bg-orange-400 transition-transform transform active:scale-95"
+                  aria-label="Undo Last Character"
+              >
+                  UNDO
+              </button>
+              <button
+                  onClick={onClear}
+                  className="flex-1 min-w-[70px] max-w-[160px] text-lg sm:text-2xl font-bold py-3 sm:py-4 px-2 sm:px-6 bg-yellow-300 text-yellow-900 rounded-lg hover:bg-yellow-400 transition-transform transform active:scale-95"
+                  aria-label="Clear Message"
+              >
+                  CLEAR
+              </button>
+            </>
+          )}
         </div>
 
         {/* ---- RIGHT SIDE ---- */}
