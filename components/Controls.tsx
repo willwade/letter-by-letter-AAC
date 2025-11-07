@@ -292,7 +292,12 @@ const Controls: React.FC<ControlsProps> = ({
                     id="languagePicker"
                     value={selectedLanguage}
                     onChange={(e) => setSelectedLanguage(e.target.value)}
-                    className="form-select w-64 rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+                    className="w-64 p-2 border rounded-md"
+                    style={{
+                      backgroundColor: theme.colors.inputBg,
+                      color: theme.colors.inputText,
+                      borderColor: theme.colors.border,
+                    }}
                   >
                     {availableLanguages.map((lang) => (
                       <option key={lang} value={lang}>
@@ -310,7 +315,12 @@ const Controls: React.FC<ControlsProps> = ({
                       id="scriptPicker"
                       value={selectedScript || ''}
                       onChange={(e) => setSelectedScript(e.target.value || null)}
-                      className="form-select w-64 rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+                      className="w-64 p-2 border rounded-md"
+                      style={{
+                        backgroundColor: theme.colors.inputBg,
+                        color: theme.colors.inputText,
+                        borderColor: theme.colors.border,
+                      }}
                     >
                       {availableScripts.map((script) => (
                         <option key={script} value={script}>
@@ -355,7 +365,12 @@ const Controls: React.FC<ControlsProps> = ({
                     id="voicePicker"
                     value={selectedVoiceURI || ''}
                     onChange={(e) => setSelectedVoiceURI(e.target.value)}
-                    className="form-select w-64 rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+                    className="w-64 p-2 border rounded-md"
+                    style={{
+                      backgroundColor: theme.colors.inputBg,
+                      color: theme.colors.inputText,
+                      borderColor: theme.colors.border,
+                    }}
                   >
                     {availableVoices.map((voice, index) => (
                       <option key={`${voice.voiceURI}-${index}`} value={voice.voiceURI}>
