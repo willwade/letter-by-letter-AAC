@@ -1,14 +1,26 @@
 import React, { useLayoutEffect, useRef } from 'react';
 import type { Theme } from '../types';
+import { SPEAK, UNDO, CLEAR, SPACE } from '../constants';
 
 interface ScannerProps {
   currentItem: string;
   fontSize: number;
   theme: Theme;
   fontFamily: string;
+  borderWidth: number;
+  predictedLetters: string[];
+  predictedWords: string[];
 }
 
-const Scanner: React.FC<ScannerProps> = ({ currentItem, fontSize, theme, fontFamily }) => {
+const Scanner: React.FC<ScannerProps> = ({
+  currentItem,
+  fontSize,
+  theme,
+  fontFamily,
+  borderWidth,
+  predictedLetters,
+  predictedWords
+}) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const itemRef = useRef<HTMLSpanElement>(null);
 
@@ -98,6 +110,20 @@ const Scanner: React.FC<ScannerProps> = ({ currentItem, fontSize, theme, fontFam
 
   }, [currentItem, fontSize]);
 
+  // Determine if current item is an action or prediction
+  const isAction = currentItem === SPEAK || currentItem === UNDO || currentItem === CLEAR || currentItem === SPACE;
+  const isPrediction = predictedLetters.includes(currentItem) || predictedWords.includes(currentItem);
+
+  // Determine text stroke (outline) style for the letter itself
+  let textStroke = '';
+  if (borderWidth > 0) {
+    if (isAction) {
+      textStroke = `${borderWidth}px ${theme.colors.actionBorder}`;
+    } else if (isPrediction) {
+      textStroke = `${borderWidth}px ${theme.colors.predictionBorder}`;
+    }
+  }
+
   return (
     <div
       ref={containerRef}
@@ -118,6 +144,8 @@ const Scanner: React.FC<ScannerProps> = ({ currentItem, fontSize, theme, fontFam
           display: 'inline-block',
           maxWidth: '100%',
           fontFamily: fontFamily,
+          WebkitTextStroke: textStroke,
+          textStroke: textStroke,
         }}
       >
         {currentItem}

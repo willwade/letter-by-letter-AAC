@@ -21,5 +21,7 @@ export interface Theme {
     inputBg: string;
     inputText: string;
     border: string;
+    actionBorder: string;      // Border color for SPEAK, UNDO, CLEAR, SPACE
+    predictionBorder: string;  // Border color for letter and word predictions
   };
 }

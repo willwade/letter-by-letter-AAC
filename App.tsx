@@ -59,7 +59,16 @@ async function loadWordFrequencyList(languageCode: string): Promise<string[]> {
 
     if (freqData && freqData.tokens && freqData.tokens.length > 0) {
       console.log(`✅ Loaded ${freqData.tokens.length} words from worldalphabets frequency list (mode: ${freqData.mode})`);
-      return freqData.tokens;
+
+      // Strip frequency counts from tokens (format: "word\tcount" or just "word")
+      const cleanedTokens = freqData.tokens.map((token: string) => {
+        // Split on tab character and take only the word part
+        const parts = token.split('\t');
+        return parts[0].trim();
+      }).filter((word: string) => word.length > 0);
+
+      console.log(`✅ Cleaned ${cleanedTokens.length} words (removed frequency counts)`);
+      return cleanedTokens;
     } else {
       console.warn(`⚠️ No frequency list found for ${languageCode}`);
       return [];
@@ -126,6 +135,12 @@ const App: React.FC = () => {
     return localStorage.getItem('fontFamily') || 'system-ui';
   });
 
+  // Border width state for scanner items
+  const [borderWidth, setBorderWidth] = useState<number>(() => {
+    const saved = localStorage.getItem('borderWidth');
+    return saved ? Number(saved) : 0;
+  });
+
   // Effect to load language-specific model and training data
   useEffect(() => {
     const loadLanguageModel = async () => {
@@ -166,7 +181,10 @@ const App: React.FC = () => {
                   const aacResponse = await fetch(aacLexiconUrl);
                   if (aacResponse.ok) {
                     const aacText = await aacResponse.text();
-                    const aacWords = aacText.split('\n').filter(w => w.trim().length > 0);
+                    // Strip frequency counts from AAC lexicon (format: "word\tcount")
+                    const aacWords = aacText.split('\n')
+                      .map(line => line.split('\t')[0].trim())
+                      .filter(w => w.length > 0);
                     // Merge AAC words with frequency list, removing duplicates
                     const combined = new Set([...lexicon, ...aacWords]);
                     lexicon = Array.from(combined);
@@ -384,6 +402,11 @@ const App: React.FC = () => {
     localStorage.setItem('fontFamily', fontFamily);
   }, [fontFamily]);
 
+  // Effect to save border width to localStorage
+  useEffect(() => {
+    localStorage.setItem('borderWidth', borderWidth.toString());
+  }, [borderWidth]);
+
   // Debounced effect for running predictions as the user types
   useEffect(() => {
     if (!enablePrediction || !predictor) {
@@ -424,8 +447,15 @@ const App: React.FC = () => {
           currentPartialWord.toLowerCase(),
           precedingText
         );
+
         // Apply case transformation based on useUppercase setting
-        setPredictedWords(wordPredictions.slice(0, 5).map(p => caseTransform(p.text)));
+        // Extract text property from prediction objects
+        const wordTexts = wordPredictions.slice(0, 5).map(p => {
+          const text = typeof p === 'string' ? p : p.text;
+          return caseTransform(text);
+        });
+
+        setPredictedWords(wordTexts);
       } else {
         setPredictedWords([]);
       }
@@ -734,7 +764,10 @@ const App: React.FC = () => {
               const aacResponse = await fetch(aacLexiconUrl);
               if (aacResponse.ok) {
                 const aacText = await aacResponse.text();
-                const aacWords = aacText.split('\n').filter(w => w.trim().length > 0);
+                // Strip frequency counts from AAC lexicon (format: "word\tcount")
+                const aacWords = aacText.split('\n')
+                  .map(line => line.split('\t')[0].trim())
+                  .filter(w => w.length > 0);
                 const combined = new Set([...lexicon, ...aacWords]);
                 lexicon = Array.from(combined);
               }
@@ -907,6 +940,9 @@ const App: React.FC = () => {
           fontSize={scannerFontSize}
           theme={theme}
           fontFamily={fontFamily}
+          borderWidth={borderWidth}
+          predictedLetters={predictedLetters}
+          predictedWords={predictedWords}
         />
       </main>
 
@@ -962,6 +998,8 @@ const App: React.FC = () => {
         theme={theme}
         fontFamily={fontFamily}
         setFontFamily={setFontFamily}
+        borderWidth={borderWidth}
+        setBorderWidth={setBorderWidth}
         learnedWordsCount={learnedWordsCount}
         onClearLearnedData={handleClearLearnedData}
         onExportLearnedData={handleExportLearnedData}

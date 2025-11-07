@@ -49,6 +49,8 @@ interface ControlsProps {
   theme: Theme;
   fontFamily: string;
   setFontFamily: (font: string) => void;
+  borderWidth: number;
+  setBorderWidth: (width: number) => void;
   learnedWordsCount: number;
   onClearLearnedData: () => void;
   onExportLearnedData: () => void;
@@ -101,6 +103,8 @@ const Controls: React.FC<ControlsProps> = ({
   theme,
   fontFamily,
   setFontFamily,
+  borderWidth,
+  setBorderWidth,
   learnedWordsCount,
   onClearLearnedData,
   onExportLearnedData,
@@ -495,6 +499,28 @@ const Controls: React.FC<ControlsProps> = ({
                     className="w-48"
                   />
                   <span>{scannerFontSize}px</span>
+                </div>
+
+                {/* Border Width */}
+                <div className="flex items-center gap-2 mb-3">
+                  <label htmlFor="borderWidth" className="font-semibold w-32">Border Width:</label>
+                  <input
+                    id="borderWidth"
+                    type="range"
+                    min="0"
+                    max="20"
+                    step="1"
+                    value={borderWidth}
+                    onChange={(e) => setBorderWidth(Number(e.target.value))}
+                    className="w-48"
+                  />
+                  <span>{borderWidth}px</span>
+                </div>
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="font-semibold w-32"></span>
+                  <span className="text-sm text-gray-600 italic">
+                    Actions (SPEAK, UNDO, CLEAR, SPACE) and predictions get colored borders
+                  </span>
                 </div>
 
                 {/* Fullscreen Toggle */}
