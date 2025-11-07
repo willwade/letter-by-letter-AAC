@@ -9,6 +9,8 @@ interface ControlsProps {
   setScanSpeed: (speed: number) => void;
   firstItemDelay: number;
   setFirstItemDelay: (delay: number) => void;
+  holdSpeed: number;
+  setHoldSpeed: (speed: number) => void;
   isScanning: boolean;
   setIsScanning: (isScanning: boolean) => void;
   onSwitch1: () => void;
@@ -63,6 +65,8 @@ const Controls: React.FC<ControlsProps> = ({
   setScanSpeed,
   firstItemDelay,
   setFirstItemDelay,
+  holdSpeed,
+  setHoldSpeed,
   isScanning,
   setIsScanning,
   onSwitch1,
@@ -235,6 +239,32 @@ const Controls: React.FC<ControlsProps> = ({
                     <span>{(firstItemDelay / 1000).toFixed(1)}s</span>
                   </div>
                 </>
+              )}
+
+              {/* Hold Speed for Two-Switch Mode */}
+              {scanMode === 'two-switch' && (
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center gap-2">
+                    <label htmlFor="holdSpeed" className="font-semibold w-32">Hold Speed:</label>
+                    <input
+                      id="holdSpeed"
+                      type="range"
+                      min="50"
+                      max="500"
+                      step="25"
+                      value={holdSpeed}
+                      onChange={(e) => setHoldSpeed(Number(e.target.value))}
+                      className="w-48"
+                    />
+                    <span>{holdSpeed}ms</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="w-32"></span>
+                    <span className="text-sm text-gray-600 italic">
+                      Speed when holding down NEXT button
+                    </span>
+                  </div>
+                </div>
               )}
 
               {/* Language Selection */}

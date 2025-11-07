@@ -96,6 +96,10 @@ const App: React.FC = () => {
     const saved = localStorage.getItem('firstItemDelay');
     return saved ? Number(saved) : 1500; // Default 1.5 seconds
   });
+  const [holdSpeed, setHoldSpeed] = useState<number>(() => {
+    const saved = localStorage.getItem('holdSpeed');
+    return saved ? Number(saved) : 100; // Default 100ms (fast)
+  });
   const [predictedLetters, setPredictedLetters] = useState<string[]>([]);
   const [predictedWords, setPredictedWords] = useState<string[]>([]);
   const [enablePrediction, setEnablePrediction] = useState<boolean>(() => {
@@ -421,6 +425,11 @@ const App: React.FC = () => {
   useEffect(() => {
     localStorage.setItem('firstItemDelay', firstItemDelay.toString());
   }, [firstItemDelay]);
+
+  // Effect to save hold speed to localStorage
+  useEffect(() => {
+    localStorage.setItem('holdSpeed', holdSpeed.toString());
+  }, [holdSpeed]);
 
   // Effect to save prediction settings to localStorage
   useEffect(() => {
@@ -920,12 +929,35 @@ const App: React.FC = () => {
     };
   }, [isScanning, scanMode, scanSpeed, scanItems.length, scanIndex, firstItemDelay]);
 
+  // Handle keyboard input with custom hold-down behavior for two-switch mode
   useEffect(() => {
+    let holdInterval: number | undefined;
+
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.code === 'Space') {
         event.preventDefault();
-        // Allow key repeat for Space - useful for advancing through items
-        handleSwitch1();
+
+        // In two-switch mode, implement custom hold-down behavior with configurable speed
+        if (scanMode === 'two-switch') {
+          // Detect if this is a repeat event (key is being held)
+          if (event.repeat) {
+            // Key is being held - check if we should advance based on holdSpeed
+            if (!holdInterval) {
+              console.log(`🔄 Space held down, starting interval at ${holdSpeed}ms`);
+              holdInterval = window.setInterval(() => {
+                console.log('⚡ Interval tick - advancing');
+                handleSwitch1();
+              }, holdSpeed);
+            }
+          } else {
+            // First press
+            console.log('🔵 Space pressed (first time), advancing once');
+            handleSwitch1();
+          }
+        } else {
+          // One-switch mode: allow browser's native key repeat
+          handleSwitch1();
+        }
       } else if (event.code === 'Enter' && scanMode === 'two-switch') {
         event.preventDefault();
         // Prevent key repeat for Enter to avoid repeated selection/speech
@@ -936,9 +968,29 @@ const App: React.FC = () => {
       }
     };
 
+    const handleKeyUp = (event: KeyboardEvent) => {
+      if (event.code === 'Space' && scanMode === 'two-switch') {
+        console.log('🛑 Space released, clearing interval');
+        // Clear the hold interval when key is released
+        if (holdInterval !== undefined) {
+          console.log('  - Cleared interval');
+          clearInterval(holdInterval);
+          holdInterval = undefined;
+        }
+      }
+    };
+
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleSwitch1, handleSwitch2, scanMode]);
+    window.addEventListener('keyup', handleKeyUp);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+      if (holdInterval !== undefined) {
+        clearInterval(holdInterval);
+      }
+    };
+  }, [handleSwitch1, handleSwitch2, scanMode, holdSpeed]);
   
   const handleToggleFullscreen = useCallback(() => {
     if (!document.fullscreenElement) {
@@ -1020,6 +1072,8 @@ const App: React.FC = () => {
         setScanSpeed={setScanSpeed}
         firstItemDelay={firstItemDelay}
         setFirstItemDelay={setFirstItemDelay}
+        holdSpeed={holdSpeed}
+        setHoldSpeed={setHoldSpeed}
         isScanning={isScanning}
         setIsScanning={setIsScanning}
         onSwitch1={handleSwitch1}
