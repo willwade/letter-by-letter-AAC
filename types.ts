@@ -1,7 +1,12 @@
-
 export type ScanMode = 'one-switch' | 'two-switch';
 
-export type ThemeName = 'default' | 'dark' | 'yellow-black' | 'white-black' | 'black-yellow' | 'cyan-black';
+export type ThemeName =
+  | 'default'
+  | 'dark'
+  | 'yellow-black'
+  | 'white-black'
+  | 'black-yellow'
+  | 'cyan-black';
 
 export interface Theme {
   name: ThemeName;
@@ -21,7 +26,7 @@ export interface Theme {
     inputBg: string;
     inputText: string;
     border: string;
-    actionBorder: string;      // Border color for SPEAK, UNDO, CLEAR, SPACE
-    predictionBorder: string;  // Border color for letter and word predictions
+    actionBorder: string; // Border color for SPEAK, UNDO, CLEAR, SPACE
+    predictionBorder: string; // Border color for letter and word predictions
   };
 }

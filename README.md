@@ -1,5 +1,3 @@
-
-
 # Spelling AAC with Prediction (Aka Echo Lite.. )
 
 A simple spelling system with one or two switch scanning for accessibility. Features next-letter prediction powered by PPM (Prediction by Partial Matching) to speed up communication. Users can compose messages letter by letter, with options to add a space, undo the last character, or have the message spoken aloud.
@@ -26,16 +24,18 @@ https://willwade.github.io/letter-by-letter-AAC/
 **Prerequisites:** Node.js 18+
 
 1. Install dependencies:
+
    ```bash
    npm install
    ```
 
 2. Run the development server:
+
    ```bash
    npm run dev
    ```
 
-4. Open http://localhost:3000 in your browser
+3. Open http://localhost:3000 in your browser
 
 ## Build for Production
 
@@ -73,11 +73,13 @@ This app is a **100% static site** - no server required! It runs entirely in the
 ### Scanning Modes
 
 **One-Switch Mode:**
+
 - Press **Space** to start/stop scanning
 - When scanning stops on a letter, press **Space** again to select it
 - Scanning automatically cycles through all available letters and actions
 
 **Two-Switch Mode:**
+
 - Press **Space** to advance to the next letter
 - Press **Enter** to select the current letter
 - Hold **Space** to rapidly advance (speed configurable in settings)
@@ -88,48 +90,48 @@ Access settings by clicking the **⚙️ Settings** button in the control bar.
 
 #### **Scanning Settings**
 
-| Setting | Description | Default |
-|---------|-------------|---------|
-| **Scan Mode** | Choose between one-switch or two-switch | One-switch |
-| **Scan Speed** | How fast the scanner moves (100-2000ms) | 1000ms |
-| **First Item Delay** | Extra pause on first item (100-5000ms) | 2000ms |
-| **Hold Speed** | How fast letters advance when holding Space in two-switch mode (50-500ms) | 100ms |
+| Setting              | Description                                                               | Default    |
+| -------------------- | ------------------------------------------------------------------------- | ---------- |
+| **Scan Mode**        | Choose between one-switch or two-switch                                   | One-switch |
+| **Scan Speed**       | How fast the scanner moves (100-2000ms)                                   | 1000ms     |
+| **First Item Delay** | Extra pause on first item (100-5000ms)                                    | 2000ms     |
+| **Hold Speed**       | How fast letters advance when holding Space in two-switch mode (50-500ms) | 100ms      |
 
 #### **Prediction Settings**
 
-| Setting | Description | Default |
-|---------|-------------|---------|
-| **Enable Prediction** | Turn next-letter prediction on/off | On |
-| **Show Word Prediction** | Display word completion suggestions | On |
-| **Upload Training Data** | Upload a text file to personalize predictions | - |
-| **Export Learned Data** | Download your learned vocabulary | - |
-| **Clear Learned Data** | Reset the prediction model | - |
+| Setting                  | Description                                   | Default |
+| ------------------------ | --------------------------------------------- | ------- |
+| **Enable Prediction**    | Turn next-letter prediction on/off            | On      |
+| **Show Word Prediction** | Display word completion suggestions           | On      |
+| **Upload Training Data** | Upload a text file to personalize predictions | -       |
+| **Export Learned Data**  | Download your learned vocabulary              | -       |
+| **Clear Learned Data**   | Reset the prediction model                    | -       |
 
 #### **Appearance Settings**
 
-| Setting | Description | Default |
-|---------|-------------|---------|
-| **Theme** | Color scheme (Default, High Contrast, Yellow on Black, etc.) | Default |
-| **Font Family** | Choose from accessible fonts | System Default |
-| **Border Width** | Add colored borders to letters (0-20px) | 0px |
-| **Message Font Size** | Size of typed message (16-72px) | 32px |
-| **Scanner Font Size** | Size of letters in scanner (16-72px) | 48px |
-| **Hide Control Bar** | Minimize controls for more screen space | Off |
-| **Audio Effects** | Play click sounds during scanning | Off |
-| **Game Mode** | Practice mode with target words | Off |
+| Setting               | Description                                                  | Default        |
+| --------------------- | ------------------------------------------------------------ | -------------- |
+| **Theme**             | Color scheme (Default, High Contrast, Yellow on Black, etc.) | Default        |
+| **Font Family**       | Choose from accessible fonts                                 | System Default |
+| **Border Width**      | Add colored borders to letters (0-20px)                      | 0px            |
+| **Message Font Size** | Size of typed message (16-72px)                              | 32px           |
+| **Scanner Font Size** | Size of letters in scanner (16-72px)                         | 48px           |
+| **Hide Control Bar**  | Minimize controls for more screen space                      | Off            |
+| **Audio Effects**     | Play click sounds during scanning                            | Off            |
+| **Game Mode**         | Practice mode with target words                              | Off            |
 
 #### **Language Settings**
 
-| Setting | Description | Default |
-|---------|-------------|---------|
-| **Language** | Choose from 100+ languages | English |
-| **Script** | Writing system (Latin, Arabic, Cyrillic, etc.) | Latin |
-| **Case** | Uppercase or lowercase letters | Lowercase |
+| Setting      | Description                                    | Default   |
+| ------------ | ---------------------------------------------- | --------- |
+| **Language** | Choose from 100+ languages                     | English   |
+| **Script**   | Writing system (Latin, Arabic, Cyrillic, etc.) | Latin     |
+| **Case**     | Uppercase or lowercase letters                 | Lowercase |
 
 #### **Voice Settings**
 
-| Setting | Description | Default |
-|---------|-------------|---------|
+| Setting   | Description                    | Default        |
+| --------- | ------------------------------ | -------------- |
 | **Voice** | Text-to-speech voice selection | System default |
 
 ### Game Mode
@@ -144,6 +146,7 @@ Game mode helps users practice typing specific words or phrases:
 6. Auto-advance to the next word when complete
 
 Perfect for:
+
 - Learning to use the scanner
 - Practicing common phrases
 - Building typing confidence
@@ -181,7 +184,6 @@ Perfect for:
 - **Styling**: Tailwind CSS (via CDN)
 - **Deployment**: GitHub Pages (static hosting)
 
-
 ## Creating Custom Training Data
 
 **🎯 The most important way to improve predictions is to create personalized training data!**
@@ -191,6 +193,7 @@ The prediction engine learns from example text. The better your training data ma
 ### What is Training Data?
 
 Training data is simply a text file containing realistic examples of what the user might want to say. The PPM algorithm analyzes this text to learn:
+
 - Common letter sequences
 - Frequently used words
 - Personal vocabulary (names, places, phrases)
@@ -201,6 +204,7 @@ Training data is simply a text file containing realistic examples of what the us
 **✅ DO Include:**
 
 1. **Family & Friend Names**
+
    ```
    Hi Sarah, how are you today?
    Can you tell Mom I need help?
@@ -209,6 +213,7 @@ Training data is simply a text file containing realistic examples of what the us
    ```
 
 2. **Common Phrases the User Says**
+
    ```
    I'm hungry
    I need the bathroom
@@ -218,6 +223,7 @@ Training data is simply a text file containing realistic examples of what the us
    ```
 
 3. **Favorite Topics & Interests**
+
    ```
    I love playing Minecraft
    Can we go to the park?
@@ -226,6 +232,7 @@ Training data is simply a text file containing realistic examples of what the us
    ```
 
 4. **Daily Routine Vocabulary**
+
    ```
    Good morning
    Time for breakfast
@@ -235,6 +242,7 @@ Training data is simply a text file containing realistic examples of what the us
    ```
 
 5. **Questions They Ask**
+
    ```
    What time is it?
    Where are we going?
@@ -307,6 +315,7 @@ No thank you
 6. The model will immediately retrain with your data!
 
 **💡 Tips:**
+
 - Start with 50-100 realistic sentences
 - Add more over time as you learn what the user says most
 - Include variations of common phrases
@@ -316,12 +325,14 @@ No thank you
 ### Exporting & Sharing Training Data
 
 **Export Learned Data:**
+
 - The app learns from everything the user types
 - Click **Export Learned Data** to download what it has learned
 - Share this file with other devices or therapists
 - Keep backups for safety
 
 **Import on Another Device:**
+
 - Upload the exported file as training data
 - The user's personalized vocabulary transfers instantly
 - Perfect for using the app on multiple devices
@@ -329,6 +340,7 @@ No thank you
 ### Privacy Note
 
 **🔒 All training happens in your browser!**
+
 - Training files are processed locally
 - No data is uploaded to any server
 - Learned data stays in your browser's storage

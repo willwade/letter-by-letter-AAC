@@ -19,8 +19,8 @@ export const themes: Record<string, Theme> = {
       inputBg: '#ffffff',
       inputText: '#000000',
       border: '#d1d5db',
-      actionBorder: '#ef4444',      // Red for actions
-      predictionBorder: '#3b82f6',  // Blue for predictions
+      actionBorder: '#ef4444', // Red for actions
+      predictionBorder: '#3b82f6', // Blue for predictions
     },
   },
   dark: {
@@ -41,8 +41,8 @@ export const themes: Record<string, Theme> = {
       inputBg: '#374151',
       inputText: '#f9fafb',
       border: '#4b5563',
-      actionBorder: '#f87171',      // Light red for actions
-      predictionBorder: '#60a5fa',  // Light blue for predictions
+      actionBorder: '#f87171', // Light red for actions
+      predictionBorder: '#60a5fa', // Light blue for predictions
     },
   },
   'yellow-black': {
@@ -63,8 +63,8 @@ export const themes: Record<string, Theme> = {
       inputBg: '#1a1a1a',
       inputText: '#ffff00',
       border: '#ffff00',
-      actionBorder: '#ff0000',      // Red for actions
-      predictionBorder: '#00ff00',  // Green for predictions
+      actionBorder: '#ff0000', // Red for actions
+      predictionBorder: '#00ff00', // Green for predictions
     },
   },
   'white-black': {
@@ -85,8 +85,8 @@ export const themes: Record<string, Theme> = {
       inputBg: '#1a1a1a',
       inputText: '#ffffff',
       border: '#ffffff',
-      actionBorder: '#ff0000',      // Red for actions
-      predictionBorder: '#00ff00',  // Green for predictions
+      actionBorder: '#ff0000', // Red for actions
+      predictionBorder: '#00ff00', // Green for predictions
     },
   },
   'black-yellow': {
@@ -107,8 +107,8 @@ export const themes: Record<string, Theme> = {
       inputBg: '#ffffcc',
       inputText: '#000000',
       border: '#000000',
-      actionBorder: '#ff0000',      // Red for actions
-      predictionBorder: '#0000ff',  // Blue for predictions
+      actionBorder: '#ff0000', // Red for actions
+      predictionBorder: '#0000ff', // Blue for predictions
     },
   },
   'cyan-black': {
@@ -129,8 +129,8 @@ export const themes: Record<string, Theme> = {
       inputBg: '#1a1a1a',
       inputText: '#00ffff',
       border: '#00ffff',
-      actionBorder: '#ff00ff',      // Magenta for actions
-      predictionBorder: '#ffff00',  // Yellow for predictions
+      actionBorder: '#ff00ff', // Magenta for actions
+      predictionBorder: '#ffff00', // Yellow for predictions
     },
   },
 };
@@ -138,4 +138,3 @@ export const themes: Record<string, Theme> = {
 export const getTheme = (themeName: string): Theme => {
   return themes[themeName] || themes.default;
 };
-

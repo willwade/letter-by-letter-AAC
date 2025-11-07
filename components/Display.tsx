@@ -9,7 +9,13 @@ interface DisplayProps {
   fontFamily: string;
 }
 
-const Display: React.FC<DisplayProps> = ({ message, fontSize, isRTL = false, theme, fontFamily }) => {
+const Display: React.FC<DisplayProps> = ({
+  message,
+  fontSize,
+  isRTL = false,
+  theme,
+  fontFamily,
+}) => {
   // Calculate responsive padding based on font size
   const padding = Math.max(8, Math.min(16, fontSize * 0.2));
 

@@ -127,7 +127,6 @@ const Controls: React.FC<ControlsProps> = ({
   audioEffectsEnabled,
   setAudioEffectsEnabled,
 }) => {
-
   const handleStartStop = () => {
     setIsScanning(!isScanning);
   };
@@ -135,15 +134,15 @@ const Controls: React.FC<ControlsProps> = ({
   const handlePreviewVoice = () => {
     if (!selectedVoiceURI || !window.speechSynthesis) return;
 
-    const selectedVoice = availableVoices.find(v => v.voiceURI === selectedVoiceURI);
+    const selectedVoice = availableVoices.find((v) => v.voiceURI === selectedVoiceURI);
     if (!selectedVoice) return;
 
     window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance("This is a test of the selected voice.");
+    const utterance = new SpeechSynthesisUtterance('This is a test of the selected voice.');
     utterance.voice = selectedVoice;
     window.speechSynthesis.speak(utterance);
   };
-  
+
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
@@ -151,12 +150,14 @@ const Controls: React.FC<ControlsProps> = ({
     }
   };
 
-
   return (
     <>
       {/* Settings Modal - Always rendered regardless of hideControlBar */}
       {showSettingsModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50" onClick={() => setShowSettingsModal(false)}>
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
+          onClick={() => setShowSettingsModal(false)}
+        >
           <div
             className="rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto m-4"
             style={{ backgroundColor: theme.colors.modalBg, color: theme.colors.modalText }}
@@ -166,7 +167,7 @@ const Controls: React.FC<ControlsProps> = ({
               className="sticky top-0 p-4 flex justify-between items-center"
               style={{
                 backgroundColor: theme.colors.modalBg,
-                borderBottom: `1px solid ${theme.colors.border}`
+                borderBottom: `1px solid ${theme.colors.border}`,
               }}
             >
               <h2 className="text-2xl font-bold">Settings</h2>
@@ -175,8 +176,19 @@ const Controls: React.FC<ControlsProps> = ({
                 className="p-2 hover:bg-gray-100 rounded-full transition-colors"
                 aria-label="Close Settings"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-6 w-6"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
                 </svg>
               </button>
             </div>
@@ -223,7 +235,9 @@ const Controls: React.FC<ControlsProps> = ({
               {scanMode === 'one-switch' && (
                 <>
                   <div className="flex items-center gap-2">
-                    <label htmlFor="scanSpeed" className="font-semibold w-32">Speed:</label>
+                    <label htmlFor="scanSpeed" className="font-semibold w-32">
+                      Speed:
+                    </label>
                     <input
                       id="scanSpeed"
                       type="range"
@@ -239,7 +253,9 @@ const Controls: React.FC<ControlsProps> = ({
 
                   {/* First Item Delay */}
                   <div className="flex items-center gap-2">
-                    <label htmlFor="firstItemDelay" className="font-semibold w-32">First Item:</label>
+                    <label htmlFor="firstItemDelay" className="font-semibold w-32">
+                      First Item:
+                    </label>
                     <input
                       id="firstItemDelay"
                       type="range"
@@ -259,7 +275,9 @@ const Controls: React.FC<ControlsProps> = ({
               {scanMode === 'two-switch' && (
                 <div className="flex flex-col gap-2">
                   <div className="flex items-center gap-2">
-                    <label htmlFor="holdSpeed" className="font-semibold w-32">Hold Speed:</label>
+                    <label htmlFor="holdSpeed" className="font-semibold w-32">
+                      Hold Speed:
+                    </label>
                     <input
                       id="holdSpeed"
                       type="range"
@@ -287,7 +305,9 @@ const Controls: React.FC<ControlsProps> = ({
 
                 {/* Language Picker */}
                 <div className="flex items-center gap-2 mb-3">
-                  <label htmlFor="languagePicker" className="font-semibold w-32">Language:</label>
+                  <label htmlFor="languagePicker" className="font-semibold w-32">
+                    Language:
+                  </label>
                   <select
                     id="languagePicker"
                     value={selectedLanguage}
@@ -316,7 +336,9 @@ const Controls: React.FC<ControlsProps> = ({
                 {/* Script Picker (only show if language has multiple scripts) */}
                 {availableScripts.length > 0 && (
                   <div className="flex items-center gap-2 mb-3">
-                    <label htmlFor="scriptPicker" className="font-semibold w-32">Script:</label>
+                    <label htmlFor="scriptPicker" className="font-semibold w-32">
+                      Script:
+                    </label>
                     <select
                       id="scriptPicker"
                       value={selectedScript || ''}
@@ -366,7 +388,9 @@ const Controls: React.FC<ControlsProps> = ({
               {/* Voice Picker */}
               {availableVoices.length > 0 && (
                 <div className="flex items-center gap-2">
-                  <label htmlFor="voicePicker" className="font-semibold w-32">Voice:</label>
+                  <label htmlFor="voicePicker" className="font-semibold w-32">
+                    Voice:
+                  </label>
                   <select
                     id="voicePicker"
                     value={selectedVoiceURI || ''}
@@ -390,8 +414,17 @@ const Controls: React.FC<ControlsProps> = ({
                     aria-label="Preview selected voice"
                     title="Preview Voice"
                   >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className="h-5 w-5"
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z"
+                        clipRule="evenodd"
+                      />
                     </svg>
                   </button>
                 </div>
@@ -400,7 +433,9 @@ const Controls: React.FC<ControlsProps> = ({
               {/* Prediction Master Toggle */}
               <div className="flex items-center gap-4">
                 <span className="font-semibold w-32">Prediction:</span>
-                <label className={`flex items-center gap-2 ${hasTrainingData ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'}`}>
+                <label
+                  className={`flex items-center gap-2 ${hasTrainingData ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'}`}
+                >
                   <input
                     type="checkbox"
                     checked={enablePrediction}
@@ -412,14 +447,14 @@ const Controls: React.FC<ControlsProps> = ({
                   Enable
                 </label>
                 {!hasTrainingData && (
-                  <span className="text-sm text-gray-500 italic">
-                    (No training data available)
-                  </span>
+                  <span className="text-sm text-gray-500 italic">(No training data available)</span>
                 )}
               </div>
 
               {/* Training File Upload */}
-              <div className={`flex items-center gap-4 transition-opacity ${!enablePrediction ? 'opacity-50' : 'opacity-100'}`}>
+              <div
+                className={`flex items-center gap-4 transition-opacity ${!enablePrediction ? 'opacity-50' : 'opacity-100'}`}
+              >
                 <span className="font-semibold w-32">Training File:</span>
                 <div className="flex flex-col">
                   <input
@@ -432,15 +467,20 @@ const Controls: React.FC<ControlsProps> = ({
                   />
                   <span className="text-sm text-gray-600 mt-1">{trainingStatus}</span>
                   <span className="text-xs text-gray-500 italic mt-1">
-                    Upload a .txt file to train the model. Your learned words will be automatically included.
+                    Upload a .txt file to train the model. Your learned words will be automatically
+                    included.
                   </span>
                 </div>
               </div>
 
               {/* Word Prediction Toggle */}
-              <div className={`flex items-center gap-4 transition-opacity ${!enablePrediction ? 'opacity-50' : 'opacity-100'}`}>
+              <div
+                className={`flex items-center gap-4 transition-opacity ${!enablePrediction ? 'opacity-50' : 'opacity-100'}`}
+              >
                 <span className="font-semibold w-32"></span> {/* Spacer */}
-                <label className={`flex items-center gap-2 ${!enablePrediction ? 'cursor-not-allowed' : 'cursor-pointer'}`}>
+                <label
+                  className={`flex items-center gap-2 ${!enablePrediction ? 'cursor-not-allowed' : 'cursor-pointer'}`}
+                >
                   <input
                     type="checkbox"
                     checked={showWordPrediction}
@@ -453,7 +493,9 @@ const Controls: React.FC<ControlsProps> = ({
               </div>
 
               {/* Adaptive Learning Status */}
-              <div className={`flex items-center gap-4 transition-opacity ${!enablePrediction ? 'opacity-50' : 'opacity-100'}`}>
+              <div
+                className={`flex items-center gap-4 transition-opacity ${!enablePrediction ? 'opacity-50' : 'opacity-100'}`}
+              >
                 <span className="font-semibold w-32"></span> {/* Spacer */}
                 <div className="flex flex-col gap-2">
                   <div className="flex items-center gap-2">
@@ -480,7 +522,8 @@ const Controls: React.FC<ControlsProps> = ({
                     )}
                   </div>
                   <span className="text-xs text-gray-500 italic">
-                    The model learns from your word selections. Learned data is automatically included when you upload training files.
+                    The model learns from your word selections. Learned data is automatically
+                    included when you upload training files.
                   </span>
                 </div>
               </div>
@@ -491,7 +534,9 @@ const Controls: React.FC<ControlsProps> = ({
 
                 {/* Color Theme */}
                 <div className="flex items-center gap-2 mb-3">
-                  <label htmlFor="theme" className="font-semibold w-32">Color Theme:</label>
+                  <label htmlFor="theme" className="font-semibold w-32">
+                    Color Theme:
+                  </label>
                   <select
                     id="theme"
                     value={themeName}
@@ -513,7 +558,9 @@ const Controls: React.FC<ControlsProps> = ({
 
                 {/* Font Family */}
                 <div className="flex items-center gap-2 mb-3">
-                  <label htmlFor="fontFamily" className="font-semibold w-32">Font:</label>
+                  <label htmlFor="fontFamily" className="font-semibold w-32">
+                    Font:
+                  </label>
                   <select
                     id="fontFamily"
                     value={fontFamily}
@@ -526,7 +573,9 @@ const Controls: React.FC<ControlsProps> = ({
                     }}
                   >
                     <option value="system-ui">System Default</option>
-                    <option value="'Atkinson Hyperlegible', sans-serif">Atkinson Hyperlegible</option>
+                    <option value="'Atkinson Hyperlegible', sans-serif">
+                      Atkinson Hyperlegible
+                    </option>
                     <option value="'Chewy', system-ui">Chewy</option>
                     <option value="Arial, sans-serif">Arial</option>
                   </select>
@@ -534,7 +583,9 @@ const Controls: React.FC<ControlsProps> = ({
 
                 {/* Message Font Size */}
                 <div className="flex items-center gap-2 mb-3">
-                  <label htmlFor="messageFontSize" className="font-semibold w-32">Msg Font:</label>
+                  <label htmlFor="messageFontSize" className="font-semibold w-32">
+                    Msg Font:
+                  </label>
                   <input
                     id="messageFontSize"
                     type="range"
@@ -550,7 +601,9 @@ const Controls: React.FC<ControlsProps> = ({
 
                 {/* Scanner Font Size */}
                 <div className="flex items-center gap-2 mb-3">
-                  <label htmlFor="scannerFontSize" className="font-semibold w-32">Ltr Font:</label>
+                  <label htmlFor="scannerFontSize" className="font-semibold w-32">
+                    Ltr Font:
+                  </label>
                   <input
                     id="scannerFontSize"
                     type="range"
@@ -566,7 +619,9 @@ const Controls: React.FC<ControlsProps> = ({
 
                 {/* Border Width */}
                 <div className="flex items-center gap-2 mb-3">
-                  <label htmlFor="borderWidth" className="font-semibold w-32">Border Width:</label>
+                  <label htmlFor="borderWidth" className="font-semibold w-32">
+                    Border Width:
+                  </label>
                   <input
                     id="borderWidth"
                     type="range"
@@ -642,13 +697,18 @@ const Controls: React.FC<ControlsProps> = ({
                 {/* Game Word List */}
                 <div className="flex flex-col gap-2 mb-3">
                   <div className="flex items-center gap-2">
-                    <label htmlFor="gameWordList" className="font-semibold w-32">Word List:</label>
+                    <label htmlFor="gameWordList" className="font-semibold w-32">
+                      Word List:
+                    </label>
                     <input
                       id="gameWordList"
                       type="text"
                       value={gameWordList.join(', ')}
                       onChange={(e) => {
-                        const words = e.target.value.split(',').map(w => w.trim()).filter(w => w.length > 0);
+                        const words = e.target.value
+                          .split(',')
+                          .map((w) => w.trim())
+                          .filter((w) => w.length > 0);
                         setGameWordList(words);
                       }}
                       disabled={!gameMode}
@@ -685,8 +745,12 @@ const Controls: React.FC<ControlsProps> = ({
                   backgroundColor: theme.colors.buttonBg,
                   color: theme.colors.buttonText,
                 }}
-                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = theme.colors.buttonHover}
-                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = theme.colors.buttonBg}
+                onMouseEnter={(e) =>
+                  (e.currentTarget.style.backgroundColor = theme.colors.buttonHover)
+                }
+                onMouseLeave={(e) =>
+                  (e.currentTarget.style.backgroundColor = theme.colors.buttonBg)
+                }
               >
                 Close
               </button>
@@ -705,76 +769,76 @@ const Controls: React.FC<ControlsProps> = ({
           }}
         >
           <div className="w-full flex items-center justify-between gap-2 sm:gap-4">
-        {/* ---- LEFT SIDE ---- */}
-        <div className="flex-1 flex justify-start">
-          {scanMode === 'one-switch' && (
-            <button
-                onClick={onSwitch1}
-                className="flex-1 max-w-[160px] text-lg sm:text-2xl font-bold py-3 sm:py-4 px-3 sm:px-6 bg-violet-300 text-violet-900 rounded-lg hover:bg-violet-400 transition-transform transform active:scale-95"
-                aria-label="Select"
-            >
-                SELECT
-            </button>
-          )}
-          {scanMode === 'two-switch' && (
-            <button
-                onClick={onSwitch2}
-                className="flex-1 max-w-[160px] text-lg sm:text-2xl font-bold py-3 sm:py-4 px-3 sm:px-6 bg-violet-300 text-violet-900 rounded-lg hover:bg-violet-400 transition-transform transform active:scale-95"
-                aria-label="Select"
-            >
-                SELECT
-            </button>
-          )}
-        </div>
-
-        {/* ---- MIDDLE ---- */}
-        <div className="flex justify-center items-center gap-2 sm:gap-4">
-          {gameMode && gameTarget ? (
-            <div className="flex items-center justify-center px-4 py-2 bg-blue-100 rounded-lg border-2 border-blue-400">
-              <span className="text-xl sm:text-3xl font-bold text-blue-900">
-                Type: {gameTarget}
-              </span>
+            {/* ---- LEFT SIDE ---- */}
+            <div className="flex-1 flex justify-start">
+              {scanMode === 'one-switch' && (
+                <button
+                  onClick={onSwitch1}
+                  className="flex-1 max-w-[160px] text-lg sm:text-2xl font-bold py-3 sm:py-4 px-3 sm:px-6 bg-violet-300 text-violet-900 rounded-lg hover:bg-violet-400 transition-transform transform active:scale-95"
+                  aria-label="Select"
+                >
+                  SELECT
+                </button>
+              )}
+              {scanMode === 'two-switch' && (
+                <button
+                  onClick={onSwitch2}
+                  className="flex-1 max-w-[160px] text-lg sm:text-2xl font-bold py-3 sm:py-4 px-3 sm:px-6 bg-violet-300 text-violet-900 rounded-lg hover:bg-violet-400 transition-transform transform active:scale-95"
+                  aria-label="Select"
+                >
+                  SELECT
+                </button>
+              )}
             </div>
-          ) : (
-            <>
-              <button
-                  onClick={onUndo}
-                  className="flex-1 min-w-[70px] max-w-[160px] text-lg sm:text-2xl font-bold py-3 sm:py-4 px-2 sm:px-6 bg-orange-300 text-orange-900 rounded-lg hover:bg-orange-400 transition-transform transform active:scale-95"
-                  aria-label="Undo Last Character"
-              >
-                  UNDO
-              </button>
-              <button
-                  onClick={onClear}
-                  className="flex-1 min-w-[70px] max-w-[160px] text-lg sm:text-2xl font-bold py-3 sm:py-4 px-2 sm:px-6 bg-yellow-300 text-yellow-900 rounded-lg hover:bg-yellow-400 transition-transform transform active:scale-95"
-                  aria-label="Clear Message"
-              >
-                  CLEAR
-              </button>
-            </>
-          )}
-        </div>
 
-        {/* ---- RIGHT SIDE ---- */}
-        <div className="flex-1 flex justify-end">
-          {scanMode === 'one-switch' && (
-            <button
-                onClick={handleStartStop}
-                className={`flex-1 max-w-[160px] text-lg sm:text-2xl font-bold py-3 sm:py-4 px-3 sm:px-6 rounded-lg transition-transform transform active:scale-95 ${isScanning ? 'bg-red-300 text-red-900 hover:bg-red-400' : 'bg-green-300 text-green-900 hover:bg-green-400'}`}
-            >
-                {isScanning ? 'STOP' : 'START'}
-            </button>
-          )}
-          {scanMode === 'two-switch' && (
-            <button
-                onClick={onSwitch1}
-                className="flex-1 max-w-[160px] text-lg sm:text-2xl font-bold py-3 sm:py-4 px-3 sm:px-6 bg-violet-300 text-violet-900 rounded-lg hover:bg-violet-400 transition-transform transform active:scale-95"
-                aria-label="Next"
-            >
-                NEXT
-            </button>
-          )}
-        </div>
+            {/* ---- MIDDLE ---- */}
+            <div className="flex justify-center items-center gap-2 sm:gap-4">
+              {gameMode && gameTarget ? (
+                <div className="flex items-center justify-center px-4 py-2 bg-blue-100 rounded-lg border-2 border-blue-400">
+                  <span className="text-xl sm:text-3xl font-bold text-blue-900">
+                    Type: {gameTarget}
+                  </span>
+                </div>
+              ) : (
+                <>
+                  <button
+                    onClick={onUndo}
+                    className="flex-1 min-w-[70px] max-w-[160px] text-lg sm:text-2xl font-bold py-3 sm:py-4 px-2 sm:px-6 bg-orange-300 text-orange-900 rounded-lg hover:bg-orange-400 transition-transform transform active:scale-95"
+                    aria-label="Undo Last Character"
+                  >
+                    UNDO
+                  </button>
+                  <button
+                    onClick={onClear}
+                    className="flex-1 min-w-[70px] max-w-[160px] text-lg sm:text-2xl font-bold py-3 sm:py-4 px-2 sm:px-6 bg-yellow-300 text-yellow-900 rounded-lg hover:bg-yellow-400 transition-transform transform active:scale-95"
+                    aria-label="Clear Message"
+                  >
+                    CLEAR
+                  </button>
+                </>
+              )}
+            </div>
+
+            {/* ---- RIGHT SIDE ---- */}
+            <div className="flex-1 flex justify-end">
+              {scanMode === 'one-switch' && (
+                <button
+                  onClick={handleStartStop}
+                  className={`flex-1 max-w-[160px] text-lg sm:text-2xl font-bold py-3 sm:py-4 px-3 sm:px-6 rounded-lg transition-transform transform active:scale-95 ${isScanning ? 'bg-red-300 text-red-900 hover:bg-red-400' : 'bg-green-300 text-green-900 hover:bg-green-400'}`}
+                >
+                  {isScanning ? 'STOP' : 'START'}
+                </button>
+              )}
+              {scanMode === 'two-switch' && (
+                <button
+                  onClick={onSwitch1}
+                  className="flex-1 max-w-[160px] text-lg sm:text-2xl font-bold py-3 sm:py-4 px-3 sm:px-6 bg-violet-300 text-violet-900 rounded-lg hover:bg-violet-400 transition-transform transform active:scale-95"
+                  aria-label="Next"
+                >
+                  NEXT
+                </button>
+              )}
+            </div>
           </div>
         </footer>
       )}

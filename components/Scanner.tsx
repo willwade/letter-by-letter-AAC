@@ -19,7 +19,7 @@ const Scanner: React.FC<ScannerProps> = ({
   fontFamily,
   borderWidth,
   predictedLetters,
-  predictedWords
+  predictedWords,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const itemRef = useRef<HTMLSpanElement>(null);
@@ -107,12 +107,13 @@ const Scanner: React.FC<ScannerProps> = ({
 
     // Cleanup observer on unmount or when dependencies change.
     return () => resizeObserver.disconnect();
-
   }, [currentItem, fontSize]);
 
   // Determine if current item is an action or prediction
-  const isAction = currentItem === SPEAK || currentItem === UNDO || currentItem === CLEAR || currentItem === SPACE;
-  const isPrediction = predictedLetters.includes(currentItem) || predictedWords.includes(currentItem);
+  const isAction =
+    currentItem === SPEAK || currentItem === UNDO || currentItem === CLEAR || currentItem === SPACE;
+  const isPrediction =
+    predictedLetters.includes(currentItem) || predictedWords.includes(currentItem);
 
   // Determine text stroke (outline) style for the letter itself
   let textStroke = '';

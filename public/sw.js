@@ -9,17 +9,18 @@ const urlsToCache = [
   '/data/default_corpus.txt',
 
   // Third-party CDN resources
-  'https://cdn.tailwindcss.com'
+  'https://cdn.tailwindcss.com',
 ];
 
 // Install a service worker
-self.addEventListener('install', event => {
+self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then(cache => {
+    caches
+      .open(CACHE_NAME)
+      .then((cache) => {
         console.log('Opened cache');
         // Cache core files, but don't fail if some are missing
-        return cache.addAll(urlsToCache).catch(err => {
+        return cache.addAll(urlsToCache).catch((err) => {
           console.warn('Failed to cache some resources during install:', err);
         });
       })
@@ -29,24 +30,27 @@ self.addEventListener('install', event => {
 });
 
 // Update a service worker
-self.addEventListener('activate', event => {
+self.addEventListener('activate', (event) => {
   const cacheWhitelist = [CACHE_NAME];
   event.waitUntil(
-    caches.keys().then(cacheNames => {
-      return Promise.all(
-        cacheNames.map(cacheName => {
-          if (cacheWhitelist.indexOf(cacheName) === -1) {
-            return caches.delete(cacheName);
-          }
-        })
-      );
-    // Tell the active service worker to take control of the page immediately.
-    }).then(() => self.clients.claim())
+    caches
+      .keys()
+      .then((cacheNames) => {
+        return Promise.all(
+          cacheNames.map((cacheName) => {
+            if (cacheWhitelist.indexOf(cacheName) === -1) {
+              return caches.delete(cacheName);
+            }
+          })
+        );
+        // Tell the active service worker to take control of the page immediately.
+      })
+      .then(() => self.clients.claim())
   );
 });
 
 // Cache and return requests
-self.addEventListener('fetch', event => {
+self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
@@ -54,7 +58,7 @@ self.addEventListener('fetch', event => {
   // This ensures we always get the latest version when online
   event.respondWith(
     fetch(request)
-      .then(response => {
+      .then((response) => {
         // Check if we received a valid response
         if (!response || response.status !== 200 || response.type === 'error') {
           return response;
@@ -70,7 +74,7 @@ self.addEventListener('fetch', event => {
           // Clone the response for caching
           const responseToCache = response.clone();
 
-          caches.open(CACHE_NAME).then(cache => {
+          caches.open(CACHE_NAME).then((cache) => {
             cache.put(request, responseToCache);
           });
         }
@@ -79,7 +83,7 @@ self.addEventListener('fetch', event => {
       })
       .catch(() => {
         // If network fails, try to serve from cache
-        return caches.match(request).then(cachedResponse => {
+        return caches.match(request).then((cachedResponse) => {
           if (cachedResponse) {
             return cachedResponse;
           }
@@ -91,7 +95,7 @@ self.addEventListener('fetch', event => {
 
           return new Response('Offline - resource not available', {
             status: 503,
-            statusText: 'Service Unavailable'
+            statusText: 'Service Unavailable',
           });
         });
       })
