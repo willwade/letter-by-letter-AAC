@@ -8,7 +8,10 @@
     "build": "vite build",
     "preview": "vite preview",
     "type-check": "tsc --noEmit",
-    "lint": "tsc --noEmit",
+    "lint": "npm run lint:eslint && npm run lint:tsc",
+    "lint:eslint": "eslint . --max-warnings 0",
+    "lint:tsc": "tsc --noEmit",
+    "lint:fix": "eslint . --fix",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,css,md}\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,css,md}\""
   },
@@ -20,11 +23,19 @@
     "worldalphabets": "^0.0.24"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.1",
     "@types/node": "^22.14.0",
+    "@typescript-eslint/eslint-plugin": "^8.46.3",
+    "@typescript-eslint/parser": "^8.46.3",
     "@vitejs/plugin-react": "^5.0.0",
+    "eslint": "^9.39.1",
+    "eslint-plugin-jsx-a11y": "^6.10.2",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^7.0.1",
     "patch-package": "^8.0.0",
     "prettier": "^3.6.2",
     "typescript": "~5.8.2",
+    "typescript-eslint": "^8.46.3",
     "vite": "^6.2.0"
   }
 }

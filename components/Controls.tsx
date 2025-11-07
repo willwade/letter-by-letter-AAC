@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import type { ScanMode, ThemeName, Theme } from '../types';
 import { themes } from '../themes';
 
@@ -154,14 +154,16 @@ const Controls: React.FC<ControlsProps> = ({
     <>
       {/* Settings Modal - Always rendered regardless of hideControlBar */}
       {showSettingsModal && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
+        <button
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 border-0 p-0 w-full h-full cursor-default"
           onClick={() => setShowSettingsModal(false)}
+          aria-label="Close settings modal"
         >
           <div
-            className="rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto m-4"
+            className="rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto m-4 pointer-events-auto"
             style={{ backgroundColor: theme.colors.modalBg, color: theme.colors.modalText }}
-            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
           >
             <div
               className="sticky top-0 p-4 flex justify-between items-center"
@@ -756,7 +758,7 @@ const Controls: React.FC<ControlsProps> = ({
               </button>
             </div>
           </div>
-        </div>
+        </button>
       )}
 
       {/* Main Control Bar - Only show if not hidden */}

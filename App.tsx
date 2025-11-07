@@ -8,13 +8,12 @@ import { createErrorTolerantPredictor, type Predictor } from '@willwade/ppmpredi
 import {
   getUppercase,
   getLowercase,
-  getAvailableCodes,
   getScripts,
   getIndexData,
   loadFrequencyList,
 } from 'worldalphabets';
 import { getTheme } from './themes';
-import { getTrainingFileName, hasTrainingData as hasTrainingFile } from './trainingDataMap';
+import { getTrainingFileName } from './trainingDataMap';
 import confetti from 'canvas-confetti';
 
 /**
@@ -415,7 +414,7 @@ const App: React.FC = () => {
     };
 
     loadLanguageModel();
-  }, [selectedLanguage]); // Reload when language changes
+  }, [selectedLanguage, alphabet]); // Reload when language changes
 
   // Effect to load available languages and their names on startup
   useEffect(() => {
@@ -483,7 +482,7 @@ const App: React.FC = () => {
       }
     };
     loadScripts();
-  }, [selectedLanguage]);
+  }, [selectedLanguage, selectedScript]);
 
   // Effect to update alphabet when language, script, or case changes
   useEffect(() => {
@@ -686,7 +685,7 @@ const App: React.FC = () => {
     gameMode && currentGameTarget ? currentGameTarget[message.length]?.toLowerCase() : null;
 
   useEffect(() => {
-    let newScanItems: string[] = [];
+    const newScanItems: string[] = [];
 
     const predictionEnabledAndReady = enablePrediction && predictor;
 
@@ -1047,7 +1046,7 @@ const App: React.FC = () => {
         setTrainingStatus('Error training model. Please try again.');
       }
     },
-    [selectedLanguage]
+    [selectedLanguage, alphabet]
   );
 
   const handleExportLearnedData = useCallback(async () => {
@@ -1192,7 +1191,7 @@ const App: React.FC = () => {
     };
 
     loadLanguageModel();
-  }, [selectedLanguage]);
+  }, [selectedLanguage, alphabet]);
 
   const handleSwitch1 = useCallback(() => {
     if (scanMode === 'one-switch') {

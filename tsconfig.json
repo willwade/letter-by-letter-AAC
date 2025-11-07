@@ -16,6 +16,10 @@
       "@/*": ["./*"]
     },
     "allowImportingTsExtensions": true,
-    "noEmit": true
+    "noEmit": true,
+
+    /* Linting Options - Catch unused code without being too strict */
+    "noUnusedLocals": true,
+    "noUnusedParameters": true
   }
 }
