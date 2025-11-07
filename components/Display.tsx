@@ -6,9 +6,10 @@ interface DisplayProps {
   fontSize: number;
   isRTL?: boolean;
   theme: Theme;
+  fontFamily: string;
 }
 
-const Display: React.FC<DisplayProps> = ({ message, fontSize, isRTL = false, theme }) => {
+const Display: React.FC<DisplayProps> = ({ message, fontSize, isRTL = false, theme, fontFamily }) => {
   // Calculate responsive padding based on font size
   const padding = Math.max(8, Math.min(16, fontSize * 0.2));
 
@@ -31,6 +32,7 @@ const Display: React.FC<DisplayProps> = ({ message, fontSize, isRTL = false, the
           direction: isRTL ? 'rtl' : 'ltr',
           textAlign: isRTL ? 'right' : 'left',
           color: theme.colors.displayText,
+          fontFamily: fontFamily,
         }}
       >
         {message}

@@ -121,6 +121,11 @@ const App: React.FC = () => {
   });
   const theme = getTheme(themeName);
 
+  // Font family state
+  const [fontFamily, setFontFamily] = useState<string>(() => {
+    return localStorage.getItem('fontFamily') || 'system-ui';
+  });
+
   // Effect to load language-specific model and training data
   useEffect(() => {
     const loadLanguageModel = async () => {
@@ -373,6 +378,11 @@ const App: React.FC = () => {
   useEffect(() => {
     localStorage.setItem('theme', themeName);
   }, [themeName]);
+
+  // Effect to save font family to localStorage
+  useEffect(() => {
+    localStorage.setItem('fontFamily', fontFamily);
+  }, [fontFamily]);
 
   // Debounced effect for running predictions as the user types
   useEffect(() => {
@@ -890,11 +900,13 @@ const App: React.FC = () => {
           fontSize={messageFontSize}
           isRTL={isRTL}
           theme={theme}
+          fontFamily={fontFamily}
         />
         <Scanner
           currentItem={scanItems[scanIndex] ?? ''}
           fontSize={scannerFontSize}
           theme={theme}
+          fontFamily={fontFamily}
         />
       </main>
 
@@ -948,6 +960,8 @@ const App: React.FC = () => {
         themeName={themeName}
         setThemeName={setThemeName}
         theme={theme}
+        fontFamily={fontFamily}
+        setFontFamily={setFontFamily}
         learnedWordsCount={learnedWordsCount}
         onClearLearnedData={handleClearLearnedData}
         onExportLearnedData={handleExportLearnedData}

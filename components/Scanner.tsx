@@ -5,9 +5,10 @@ interface ScannerProps {
   currentItem: string;
   fontSize: number;
   theme: Theme;
+  fontFamily: string;
 }
 
-const Scanner: React.FC<ScannerProps> = ({ currentItem, fontSize, theme }) => {
+const Scanner: React.FC<ScannerProps> = ({ currentItem, fontSize, theme, fontFamily }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const itemRef = useRef<HTMLSpanElement>(null);
 
@@ -116,6 +117,7 @@ const Scanner: React.FC<ScannerProps> = ({ currentItem, fontSize, theme }) => {
           color: theme.colors.scannerText,
           display: 'inline-block',
           maxWidth: '100%',
+          fontFamily: fontFamily,
         }}
       >
         {currentItem}

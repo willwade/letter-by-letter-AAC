@@ -47,6 +47,8 @@ interface ControlsProps {
   themeName: ThemeName;
   setThemeName: (theme: ThemeName) => void;
   theme: Theme;
+  fontFamily: string;
+  setFontFamily: (font: string) => void;
   learnedWordsCount: number;
   onClearLearnedData: () => void;
   onExportLearnedData: () => void;
@@ -97,6 +99,8 @@ const Controls: React.FC<ControlsProps> = ({
   themeName,
   setThemeName,
   theme,
+  fontFamily,
+  setFontFamily,
   learnedWordsCount,
   onClearLearnedData,
   onExportLearnedData,
@@ -435,6 +439,29 @@ const Controls: React.FC<ControlsProps> = ({
                         {t.displayName}
                       </option>
                     ))}
+                  </select>
+                </div>
+
+                {/* Font Family */}
+                <div className="flex items-center gap-2 mb-3">
+                  <label htmlFor="fontFamily" className="font-semibold w-32">Font:</label>
+                  <select
+                    id="fontFamily"
+                    value={fontFamily}
+                    onChange={(e) => setFontFamily(e.target.value)}
+                    className="flex-1 p-2 border rounded"
+                    style={{
+                      backgroundColor: theme.colors.inputBg,
+                      color: theme.colors.inputText,
+                      borderColor: theme.colors.border,
+                    }}
+                  >
+                    <option value="system-ui">System Default</option>
+                    <option value="'Atkinson Hyperlegible', sans-serif">Atkinson Hyperlegible</option>
+                    <option value="'Manrope', sans-serif">Manrope</option>
+                    <option value="'Chewy', system-ui">Chewy</option>
+                    <option value="'Bungee Spice', sans-serif">Bungee Spice</option>
+                    <option value="Arial, sans-serif">Arial</option>
                   </select>
                 </div>
 
