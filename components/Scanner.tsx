@@ -43,33 +43,24 @@ const Scanner: React.FC<ScannerProps> = ({
       const containerWidth = container.offsetWidth;
       const containerHeight = container.offsetHeight;
 
-      // Use 98% of available space - very minimal margin
-      const maxWidth = containerWidth * 0.98;
-      const maxHeight = containerHeight * 0.98;
-
-      // console.log('📏 Scanner sizing:', {
-      //   fontSize,
-      //   containerWidth,
-      //   containerHeight,
-      //   maxWidth,
-      //   maxHeight,
-      //   currentItem
-      // });
+      // Use 95% of available space - very minimal margin
+      const maxWidth = containerWidth * 0.95;
+      const maxHeight = containerHeight * 0.95;
 
       // Binary search to find the largest font size that fits
       let minSize = 12;
       let maxSize = fontSize;
       let bestSize = minSize;
 
-      // Try up to 20 iterations to find optimal size
-      for (let i = 0; i < 20; i++) {
+      // Try up to 25 iterations to find optimal size
+      for (let i = 0; i < 25; i++) {
         const testSize = Math.floor((minSize + maxSize) / 2);
         item.style.fontSize = `${testSize}px`;
+        // Set line-height to match container height to help fill vertical space
+        item.style.lineHeight = `${containerHeight}px`;
 
         const itemWidth = item.scrollWidth;
-        const itemHeight = item.scrollHeight;
-
-        // console.log(`🔍 Testing ${testSize}px: ${itemWidth}×${itemHeight} vs ${maxWidth}×${maxHeight}`);
+        const itemHeight = containerHeight;
 
         if (itemWidth <= maxWidth && itemHeight <= maxHeight) {
           // This size fits! Try larger
@@ -85,7 +76,7 @@ const Scanner: React.FC<ScannerProps> = ({
 
       // Apply the best size we found
       item.style.fontSize = `${bestSize}px`;
-      // console.log('✅ Final font size:', bestSize);
+      item.style.lineHeight = `${containerHeight}px`;
 
       // Allow wrapping for long words if needed
       if (currentItem.length > 10) {
