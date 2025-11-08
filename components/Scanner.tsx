@@ -127,20 +127,15 @@ const Scanner: React.FC<ScannerProps> = ({
     >
       <span
         ref={itemRef}
-        className="font-bold select-none text-center"
+        className="font-bold select-none"
         style={{
-          // We start with the max font size. The useLayoutEffect will correct it
-          // before the user sees it, preventing the flicker.
           fontSize: `${fontSize}px`,
           color: theme.colors.scannerText,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          maxWidth: '100%',
-          height: '100%',
           fontFamily: fontFamily,
           WebkitTextStroke: textStroke,
           textStroke: textStroke,
+          lineHeight: '1',
+          display: 'inline-block',
         }}
       >
         {currentItem}
