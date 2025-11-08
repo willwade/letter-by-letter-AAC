@@ -36,6 +36,8 @@ const Scanner: React.FC<ScannerProps> = ({
     // This happens synchronously before the browser has a chance to paint.
     item.style.visibility = 'hidden';
 
+    let resizeTimeoutId: number | null = null;
+
     const calculateAndSetFontSize = () => {
       // Reset styles for measurement
       item.style.whiteSpace = 'nowrap';
@@ -91,6 +93,17 @@ const Scanner: React.FC<ScannerProps> = ({
       }
     };
 
+    const handleResize = () => {
+      // Debounce resize observer callback to prevent loop errors
+      if (resizeTimeoutId !== null) {
+        clearTimeout(resizeTimeoutId);
+      }
+      resizeTimeoutId = window.setTimeout(() => {
+        calculateAndSetFontSize();
+        resizeTimeoutId = null;
+      }, 100);
+    };
+
     calculateAndSetFontSize();
 
     // Now that the size is correct, make it visible again.
@@ -98,11 +111,16 @@ const Scanner: React.FC<ScannerProps> = ({
     item.style.visibility = 'visible';
 
     // Observe the container for resize events (e.g., window resize) to recalculate.
-    const resizeObserver = new ResizeObserver(calculateAndSetFontSize);
+    const resizeObserver = new ResizeObserver(handleResize);
     resizeObserver.observe(container);
 
     // Cleanup observer on unmount or when dependencies change.
-    return () => resizeObserver.disconnect();
+    return () => {
+      resizeObserver.disconnect();
+      if (resizeTimeoutId !== null) {
+        clearTimeout(resizeTimeoutId);
+      }
+    };
   }, [currentItem, fontSize]);
 
   // Determine if current item is an action or prediction
