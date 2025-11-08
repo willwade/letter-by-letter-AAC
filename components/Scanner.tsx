@@ -130,8 +130,11 @@ const Scanner: React.FC<ScannerProps> = ({
           // before the user sees it, preventing the flicker.
           fontSize: `${fontSize}px`,
           color: theme.colors.scannerText,
-          display: 'inline-block',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
           maxWidth: '100%',
+          height: '100%',
           fontFamily: fontFamily,
           WebkitTextStroke: textStroke,
           textStroke: textStroke,
