@@ -164,6 +164,7 @@ const Controls: React.FC<ControlsProps> = ({
             style={{ backgroundColor: theme.colors.modalBg, color: theme.colors.modalText }}
             role="dialog"
             aria-modal="true"
+            onClick={(e) => e.stopPropagation()}
           >
             <div
               className="sticky top-0 p-4 flex justify-between items-center"
