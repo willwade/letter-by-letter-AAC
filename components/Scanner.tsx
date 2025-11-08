@@ -57,9 +57,16 @@ const Scanner: React.FC<ScannerProps> = ({
         const testSize = Math.floor((minSize + maxSize) / 2);
         item.style.fontSize = `${testSize}px`;
 
-        // Get actual rendered dimensions (not scroll dimensions)
-        const itemWidth = item.offsetWidth;
-        const itemHeight = item.offsetHeight;
+        // Temporarily remove height constraint to measure actual text dimensions
+        const originalHeight = item.style.height;
+        item.style.height = 'auto';
+
+        // Get actual text dimensions
+        const itemWidth = item.scrollWidth;
+        const itemHeight = item.scrollHeight;
+
+        // Restore height constraint
+        item.style.height = originalHeight;
 
         if (itemWidth <= maxWidth && itemHeight <= maxHeight) {
           // This size fits! Try larger
