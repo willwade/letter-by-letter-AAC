@@ -32,60 +32,39 @@ const Scanner: React.FC<ScannerProps> = ({
     const container = containerRef.current;
     const item = itemRef.current;
 
-    // Make the element invisible to prevent a flicker while we adjust the size.
-    // This happens synchronously before the browser has a chance to paint.
-    item.style.visibility = 'hidden';
+    let resizeTimeoutId: number | null = null;
 
     const calculateAndSetFontSize = () => {
-      // Reset styles for measurement
-      item.style.whiteSpace = 'nowrap';
-
       const containerWidth = container.offsetWidth;
       const containerHeight = container.offsetHeight;
 
-      // Use 98% of available space - very minimal margin
-      const maxWidth = containerWidth * 0.98;
-      const maxHeight = containerHeight * 0.98;
+      if (containerWidth <= 0 || containerHeight <= 0) return;
 
-      // console.log('📏 Scanner sizing:', {
-      //   fontSize,
-      //   containerWidth,
-      //   containerHeight,
-      //   maxWidth,
-      //   maxHeight,
-      //   currentItem
-      // });
+      // Try font size starting from 20% larger than requested, then work down if needed
+      let currentSize = Math.floor(fontSize * 1.2);
 
-      // Binary search to find the largest font size that fits
-      let minSize = 12;
-      let maxSize = fontSize;
-      let bestSize = minSize;
+      // Allow up to 5% margin
+      const maxWidth = containerWidth * 0.95;
+      const maxHeight = containerHeight * 0.95;
 
-      // Try up to 20 iterations to find optimal size
-      for (let i = 0; i < 20; i++) {
-        const testSize = Math.floor((minSize + maxSize) / 2);
-        item.style.fontSize = `${testSize}px`;
+      // Start with the requested size and reduce if needed
+      while (currentSize > 12) {
+        item.style.fontSize = `${currentSize}px`;
+        item.style.whiteSpace = 'nowrap';
 
         const itemWidth = item.scrollWidth;
         const itemHeight = item.scrollHeight;
 
-        // console.log(`🔍 Testing ${testSize}px: ${itemWidth}×${itemHeight} vs ${maxWidth}×${maxHeight}`);
-
         if (itemWidth <= maxWidth && itemHeight <= maxHeight) {
-          // This size fits! Try larger
-          bestSize = testSize;
-          minSize = testSize + 1;
-        } else {
-          // Too big, try smaller
-          maxSize = testSize - 1;
+          // This size fits!
+          break;
         }
 
-        if (minSize > maxSize) break;
+        // Too big, reduce by 10% and try again
+        currentSize = Math.max(12, Math.floor(currentSize * 0.9));
       }
 
-      // Apply the best size we found
-      item.style.fontSize = `${bestSize}px`;
-      // console.log('✅ Final font size:', bestSize);
+      item.style.fontSize = `${currentSize}px`;
 
       // Allow wrapping for long words if needed
       if (currentItem.length > 10) {
@@ -95,18 +74,30 @@ const Scanner: React.FC<ScannerProps> = ({
       }
     };
 
+    const handleResize = () => {
+      // Debounce resize observer callback
+      if (resizeTimeoutId !== null) {
+        clearTimeout(resizeTimeoutId);
+      }
+      resizeTimeoutId = window.setTimeout(() => {
+        calculateAndSetFontSize();
+        resizeTimeoutId = null;
+      }, 100);
+    };
+
     calculateAndSetFontSize();
 
-    // Now that the size is correct, make it visible again.
-    // This all happens before the browser's next paint.
-    item.style.visibility = 'visible';
-
-    // Observe the container for resize events (e.g., window resize) to recalculate.
-    const resizeObserver = new ResizeObserver(calculateAndSetFontSize);
+    // Observe the container for resize events
+    const resizeObserver = new ResizeObserver(handleResize);
     resizeObserver.observe(container);
 
-    // Cleanup observer on unmount or when dependencies change.
-    return () => resizeObserver.disconnect();
+    // Cleanup observer on unmount or when dependencies change
+    return () => {
+      resizeObserver.disconnect();
+      if (resizeTimeoutId !== null) {
+        clearTimeout(resizeTimeoutId);
+      }
+    };
   }, [currentItem, fontSize]);
 
   // Determine if current item is an action or prediction
@@ -136,17 +127,15 @@ const Scanner: React.FC<ScannerProps> = ({
     >
       <span
         ref={itemRef}
-        className="font-bold select-none text-center"
+        className="font-bold select-none"
         style={{
-          // We start with the max font size. The useLayoutEffect will correct it
-          // before the user sees it, preventing the flicker.
           fontSize: `${fontSize}px`,
           color: theme.colors.scannerText,
-          display: 'inline-block',
-          maxWidth: '100%',
           fontFamily: fontFamily,
           WebkitTextStroke: textStroke,
           textStroke: textStroke,
+          lineHeight: '1',
+          display: 'inline-block',
         }}
       >
         {currentItem}

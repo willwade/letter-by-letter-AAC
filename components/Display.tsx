@@ -24,8 +24,7 @@ const Display: React.FC<DisplayProps> = ({
       className="w-full rounded-lg flex items-center overflow-hidden"
       style={{
         padding: `${padding}px`,
-        minHeight: `${fontSize * 1.5}px`,
-        maxHeight: '15vh', // Limit to 15% of viewport height to give more space to scanner
+        height: `${Math.max(fontSize * 1.5, 60)}px`,
         backgroundColor: theme.colors.displayBg,
         border: `2px solid ${theme.colors.border}`,
       }}

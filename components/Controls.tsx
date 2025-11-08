@@ -154,10 +154,9 @@ const Controls: React.FC<ControlsProps> = ({
     <>
       {/* Settings Modal - Always rendered regardless of hideControlBar */}
       {showSettingsModal && (
-        <button
+        <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 border-0 p-0 w-full h-full cursor-default"
           onClick={() => setShowSettingsModal(false)}
-          aria-label="Close settings modal"
         >
           <div
             className="rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto m-4 pointer-events-auto"
@@ -759,7 +758,7 @@ const Controls: React.FC<ControlsProps> = ({
               </button>
             </div>
           </div>
-        </button>
+        </div>
       )}
 
       {/* Main Control Bar - Only show if not hidden */}
