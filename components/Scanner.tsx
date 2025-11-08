@@ -41,7 +41,7 @@ const Scanner: React.FC<ScannerProps> = ({
       if (containerWidth <= 0 || containerHeight <= 0) return;
 
       // Try font size starting from 20% larger than requested, then work down if needed
-      let currentSize = Math.floor(fontSize * 1.2);
+      let currentSize = fontSize;
 
       // Allow up to 5% margin
       const maxWidth = containerWidth * 0.95;
