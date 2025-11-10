@@ -7,7 +7,7 @@ import jsxA11yPlugin from 'eslint-plugin-jsx-a11y';
 export default tseslint.config(
   // Ignore build output and dependencies
   {
-    ignores: ['dist/**', 'node_modules/**', 'public/sw.js'],
+    ignores: ['dist/**', 'node_modules/**', 'public/sw.js', 'vite-browser-demo/**'],
   },
 
   // Base JavaScript recommended rules

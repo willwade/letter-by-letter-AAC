@@ -165,14 +165,28 @@ const Controls: React.FC<ControlsProps> = ({
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 border-0 p-0 w-full h-full cursor-default"
           onClick={() => setShowSettingsModal(false)}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') {
+              setShowSettingsModal(false);
+            }
+          }}
+          role="button"
+          tabIndex={0}
+          aria-label="Close settings modal"
         >
+          {/* Wrapper div to stop propagation without role conflict */}
           <div
             className="rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto m-4 pointer-events-auto"
-            style={{ backgroundColor: theme.colors.modalBg, color: theme.colors.modalText }}
-            role="dialog"
-            aria-modal="true"
             onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => e.stopPropagation()}
+            role="presentation"
           >
+            {/* Actual dialog container */}
+            <div
+              style={{ backgroundColor: theme.colors.modalBg, color: theme.colors.modalText }}
+              role="dialog"
+              aria-modal="true"
+            >
             <div
               className="sticky top-0 p-4 flex justify-between items-center"
               style={{
@@ -761,6 +775,7 @@ const Controls: React.FC<ControlsProps> = ({
               >
                 Close
               </button>
+            </div>
             </div>
           </div>
         </div>
