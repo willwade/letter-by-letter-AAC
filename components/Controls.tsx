@@ -11,6 +11,8 @@ interface ControlsProps {
   setFirstItemDelay: (delay: number) => void;
   holdSpeed: number;
   setHoldSpeed: (speed: number) => void;
+  debounceTime: number;
+  setDebounceTime: (time: number) => void;
   isScanning: boolean;
   setIsScanning: (isScanning: boolean) => void;
   onSwitch1: () => void;
@@ -73,6 +75,8 @@ const Controls: React.FC<ControlsProps> = ({
   setFirstItemDelay,
   holdSpeed,
   setHoldSpeed,
+  debounceTime,
+  setDebounceTime,
   isScanning,
   setIsScanning,
   onSwitch1,
@@ -322,6 +326,32 @@ const Controls: React.FC<ControlsProps> = ({
                   </div>
                 </div>
               )}
+
+              {/* Switch Debounce Time */}
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center gap-2">
+                  <label htmlFor="debounceTime" className="font-semibold w-32">
+                    Debounce:
+                  </label>
+                  <input
+                    id="debounceTime"
+                    type="range"
+                    min="0"
+                    max="500"
+                    step="50"
+                    value={debounceTime}
+                    onChange={(e) => setDebounceTime(Number(e.target.value))}
+                    className="w-48"
+                  />
+                  <span>{debounceTime}ms</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="w-32"></span>
+                  <span className="text-sm text-gray-600 italic">
+                    Ignore accidental double-presses within this time
+                  </span>
+                </div>
+              </div>
 
               {/* Language Selection */}
               <div className="border-t pt-4">

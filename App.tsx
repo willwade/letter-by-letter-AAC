@@ -104,6 +104,10 @@ const App: React.FC = () => {
     const saved = localStorage.getItem('holdSpeed');
     return saved ? Number(saved) : 100; // Default 100ms (fast)
   });
+  const [debounceTime, setDebounceTime] = useState<number>(() => {
+    const saved = localStorage.getItem('debounceTime');
+    return saved ? Number(saved) : 0; // Default 0ms (disabled)
+  });
   const [predictedLetters, setPredictedLetters] = useState<string[]>([]);
   const [predictedWords, setPredictedWords] = useState<string[]>([]);
   const [enablePrediction, setEnablePrediction] = useState<boolean>(() => {
@@ -503,6 +507,11 @@ const App: React.FC = () => {
   useEffect(() => {
     localStorage.setItem('holdSpeed', holdSpeed.toString());
   }, [holdSpeed]);
+
+  // Effect to save debounce time to localStorage
+  useEffect(() => {
+    localStorage.setItem('debounceTime', debounceTime.toString());
+  }, [debounceTime]);
 
   // Effect to save prediction settings to localStorage
   useEffect(() => {
@@ -1161,10 +1170,25 @@ const App: React.FC = () => {
     }
 
     let holdInterval: number | undefined;
+    let lastKeyUpTime: { [key: string]: number } = {};
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.code === 'Space') {
         event.preventDefault();
+
+        // Check for debounce - ignore if this is a bounce/double-press
+        // Only apply debounce to the FIRST press (not repeats from holding)
+        if (!event.repeat && debounceTime > 0) {
+          const now = Date.now();
+          const lastUp = lastKeyUpTime['Space'] || 0;
+          const timeSinceLastUp = now - lastUp;
+
+          if (timeSinceLastUp < debounceTime) {
+            // This is a bounce/double-press - ignore it
+            console.log(`🚫 Ignored bounce: ${timeSinceLastUp}ms since last release`);
+            return;
+          }
+        }
 
         // In two-switch mode, implement custom hold-down behavior with configurable speed
         if (scanMode === 'two-switch') {
@@ -1186,6 +1210,20 @@ const App: React.FC = () => {
         }
       } else if (event.code === 'Enter' && scanMode === 'two-switch') {
         event.preventDefault();
+
+        // Check for debounce on Enter key too
+        if (!event.repeat && debounceTime > 0) {
+          const now = Date.now();
+          const lastUp = lastKeyUpTime['Enter'] || 0;
+          const timeSinceLastUp = now - lastUp;
+
+          if (timeSinceLastUp < debounceTime) {
+            // This is a bounce/double-press - ignore it
+            console.log(`🚫 Ignored bounce: ${timeSinceLastUp}ms since last release`);
+            return;
+          }
+        }
+
         // Prevent key repeat for Enter to avoid repeated selection/speech
         if (event.repeat) {
           return;
@@ -1195,12 +1233,20 @@ const App: React.FC = () => {
     };
 
     const handleKeyUp = (event: KeyboardEvent) => {
-      if (event.code === 'Space' && scanMode === 'two-switch') {
-        // Clear the hold interval when key is released
-        if (holdInterval !== undefined) {
-          clearInterval(holdInterval);
-          holdInterval = undefined;
+      if (event.code === 'Space') {
+        // Record the time of this keyup for debounce checking
+        lastKeyUpTime['Space'] = Date.now();
+
+        if (scanMode === 'two-switch') {
+          // Clear the hold interval when key is released
+          if (holdInterval !== undefined) {
+            clearInterval(holdInterval);
+            holdInterval = undefined;
+          }
         }
+      } else if (event.code === 'Enter') {
+        // Record the time of this keyup for debounce checking
+        lastKeyUpTime['Enter'] = Date.now();
       }
     };
 
@@ -1214,7 +1260,7 @@ const App: React.FC = () => {
         clearInterval(holdInterval);
       }
     };
-  }, [handleSwitch1, handleSwitch2, scanMode, holdSpeed, showSettingsModal]);
+  }, [handleSwitch1, handleSwitch2, scanMode, holdSpeed, debounceTime, showSettingsModal]);
 
   const handleToggleFullscreen = useCallback(() => {
     if (!document.fullscreenElement) {
@@ -1313,6 +1359,8 @@ const App: React.FC = () => {
         setFirstItemDelay={setFirstItemDelay}
         holdSpeed={holdSpeed}
         setHoldSpeed={setHoldSpeed}
+        debounceTime={debounceTime}
+        setDebounceTime={setDebounceTime}
         isScanning={isScanning}
         setIsScanning={setIsScanning}
         onSwitch1={handleSwitch1}
