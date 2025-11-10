@@ -184,11 +184,45 @@ Perfect for:
 - **Styling**: Tailwind CSS (via CDN)
 - **Deployment**: GitHub Pages (static hosting)
 
+## Prediction & Learning
+
+**🎯 The app uses high-quality training data and adaptive learning for excellent predictions!**
+
+The prediction engine uses multiple data sources:
+
+1. **Built-in Training Data** - Automatically loaded for 35+ languages
+   - Contains realistic example text for each language
+   - Provides excellent predictions from the first use
+   - No setup required!
+
+2. **Worldalphabets Frequency Lists** - Common words for each language (1000+ words)
+   - Used for word completion and error-tolerant matching
+   - Helps catch typos and suggest corrections
+
+3. **Adaptive Learning** - Learns from everything you type
+   - Personalizes to your vocabulary and writing style
+   - Stored locally in your browser
+   - Can be exported/imported
+
+4. **Custom Training Data** - Upload your own text files for even better personalization
+   - Add names, phrases, and vocabulary specific to the user
+   - See "Creating Custom Training Data" below
+
+### How Adaptive Learning Works
+
+As you type, the app automatically learns:
+- Your common letter sequences
+- Your frequently used words
+- Your personal vocabulary (names, places, phrases)
+- Your writing style and patterns
+
+All learned data is stored locally in your browser and can be exported/imported.
+
 ## Creating Custom Training Data
 
-**🎯 The most important way to improve predictions is to create personalized training data!**
+**🎯 Upload personalized training data to improve predictions even more!**
 
-The prediction engine learns from example text. The better your training data matches how the user actually communicates, the better the predictions will be.
+Training data is simply a text file containing realistic examples of what the user might want to say.
 
 ### What is Training Data?
 

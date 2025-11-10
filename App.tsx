@@ -13,8 +13,8 @@ import {
   loadFrequencyList,
 } from 'worldalphabets';
 import { getTheme } from './themes';
-import { getTrainingFileName } from './trainingDataMap';
 import confetti from 'canvas-confetti';
+import { getTrainingFileName } from './trainingDataMap';
 
 /**
  * Build a keyboard adjacency map from an alphabetical list.
@@ -146,8 +146,8 @@ const App: React.FC = () => {
 
   const [predictor, setPredictor] = useState<Predictor | null>(null);
   const [trainingStatus, setTrainingStatus] = useState<string>('No model loaded.');
-  const [hasTrainingData, setHasTrainingData] = useState<boolean>(true); // Track if training data was loaded
   const [learnedWordsCount, setLearnedWordsCount] = useState<number>(0); // Track learned words
+  const [loadedTrainingData, setLoadedTrainingData] = useState<string>(''); // Store the loaded training corpus
 
   // Language and alphabet state
   const [selectedLanguage, setSelectedLanguage] = useState<string>(() => {
@@ -263,26 +263,19 @@ const App: React.FC = () => {
         let corpusText = '';
         let lexicon: string[] = [];
 
-        // Try to load training data from ppmpredictor package via unpkg CDN
+        // Try to load training data from local files
         if (trainingFileName) {
           try {
-            // Fetch from unpkg CDN
-            const cdnUrl = `https://unpkg.com/@willwade/ppmpredictor@0.0.6/data/training/${trainingFileName}`;
-            console.log(`📥 Fetching training data from: ${cdnUrl}`);
-
-            const response = await fetch(cdnUrl);
+            const basePath = import.meta.env.BASE_URL || '/';
+            const response = await fetch(`${basePath}data/training/${trainingFileName}`);
             if (response.ok) {
               corpusText = await response.text();
-              console.log(
-                `✅ Loaded training data for ${selectedLanguage} from ${trainingFileName}`
-              );
+              console.log(`✅ Loaded training data from ${trainingFileName}`);
             } else {
-              console.warn(
-                `⚠️ Failed to fetch training data: ${response.status} ${response.statusText}`
-              );
+              console.warn(`⚠️ Could not load training file: ${trainingFileName}`);
             }
           } catch (error) {
-            console.warn(`⚠️ Could not load training data for ${selectedLanguage}:`, error);
+            console.warn(`⚠️ Error loading training file:`, error);
           }
         }
 
@@ -290,50 +283,7 @@ const App: React.FC = () => {
         try {
           // First try worldalphabets frequency list (top 1000 words)
           lexicon = await loadWordFrequencyList(selectedLanguage);
-
-          // If English and we got the frequency list, also add AAC-specific words
-          if (selectedLanguage === 'en' && lexicon.length > 0) {
-            try {
-              const aacLexiconUrl = `https://unpkg.com/@willwade/ppmpredictor@0.0.6/data/aac_lexicon_en_gb.txt`;
-              const aacResponse = await fetch(aacLexiconUrl);
-              if (aacResponse.ok) {
-                const aacText = await aacResponse.text();
-                // Strip frequency counts from AAC lexicon (format: "word\tcount")
-                const aacWords = aacText
-                  .split('\n')
-                  .map((line) => line.split('\t')[0].trim())
-                  .filter((w) => w.length > 0);
-                // Merge AAC words with frequency list, removing duplicates
-                const combined = new Set([...lexicon, ...aacWords]);
-                lexicon = Array.from(combined);
-                console.log(
-                  `✅ Combined frequency list with AAC lexicon: ${lexicon.length} total words`
-                );
-              }
-            } catch (error) {
-              console.warn(`⚠️ Could not load AAC lexicon:`, error);
-            }
-          }
-
-          // Fallback: if no frequency list, extract from training data
-          if (lexicon.length === 0 && corpusText) {
-            console.log(`⚠️ No frequency list available, extracting from training data`);
-            const words = corpusText
-              .toLowerCase()
-              .split(/\s+/)
-              .filter((w) => w.length > 0);
-            const wordFreq = new Map<string, number>();
-            words.forEach((word) => {
-              const count = wordFreq.get(word) || 0;
-              wordFreq.set(word, count + 1);
-            });
-            // Sort by frequency and take top 5000 words
-            lexicon = Array.from(wordFreq.entries())
-              .sort((a, b) => b[1] - a[1])
-              .slice(0, 5000)
-              .map(([word]) => word);
-            console.log(`✅ Extracted ${lexicon.length} words from training data as lexicon`);
-          }
+          console.log(`✅ Using ${lexicon.length} words from worldalphabets frequency list`);
         } catch (error) {
           console.warn(`⚠️ Could not load lexicon:`, error);
         }
@@ -363,18 +313,25 @@ const App: React.FC = () => {
           );
         }
 
+        // Train on corpus text if available
         if (corpusText) {
+          console.log(`📚 Training on corpus text (${corpusText.length} characters)...`);
           newPredictor.train(corpusText);
-          const wordCount = corpusText.split(/\s+/).length;
+
+          // Store the training data for export
+          setLoadedTrainingData(corpusText);
+
+          // Count words in training corpus
+          const corpusWords = corpusText.trim().split(/\s+/).filter((w) => w.length > 0).length;
           setTrainingStatus(
-            `✅ Model loaded for ${selectedLanguage} (${wordCount.toLocaleString()} words).`
+            `✅ Trained on ${trainingFileName} (${corpusWords.toLocaleString()} words) + lexicon (${lexicon.length} words)`
           );
-          setHasTrainingData(true);
         } else {
-          setTrainingStatus(`⚠️ Basic model for ${selectedLanguage} (no training data available).`);
-          setHasTrainingData(false);
-          // Keep prediction enabled but warn user
-          console.warn(`No training data available for ${selectedLanguage}`);
+          // No training data loaded
+          setLoadedTrainingData('');
+          setTrainingStatus(
+            `✅ Model ready with lexicon (${lexicon.length} words). Will learn from your input.`
+          );
         }
 
         // Load and replay session data from localStorage for adaptive learning
@@ -385,7 +342,7 @@ const App: React.FC = () => {
             .trim()
             .split(/\s+/)
             .filter((w) => w.length > 0);
-          console.log(`📚 Loading ${learnedWords.length} words from previous sessions`);
+          console.log(`📚 Also loading ${learnedWords.length} learned words from previous sessions`);
           newPredictor.train(sessionData);
           setLearnedWordsCount(learnedWords.length);
         } else {
@@ -396,7 +353,6 @@ const App: React.FC = () => {
       } catch (error) {
         console.error('❌ Failed to load language model:', error);
         setTrainingStatus(`❌ Error: Could not load model for ${selectedLanguage}.`);
-        setHasTrainingData(false);
 
         // Create a basic predictor as fallback with keyboard awareness
         const adjacencyMap = buildKeyboardAdjacencyMap(alphabet);
@@ -1022,6 +978,9 @@ const App: React.FC = () => {
         // Train on uploaded file
         newPredictor.train(text);
 
+        // Store the uploaded training data for export
+        setLoadedTrainingData(text);
+
         // Also load and train on any existing learned data for this language
         const sessionKey = `ppm-session-${selectedLanguage}`;
         const sessionData = localStorage.getItem(sessionKey);
@@ -1040,7 +999,12 @@ const App: React.FC = () => {
         }
 
         setPredictor(newPredictor);
-        setTrainingStatus(`✅ Model trained on: ${file.name} with ${lexicon.length} words`);
+
+        // Count words in uploaded file
+        const uploadedWords = text.trim().split(/\s+/).filter((w) => w.length > 0).length;
+        setTrainingStatus(
+          `✅ Trained on ${file.name} (${uploadedWords.toLocaleString()} words) + lexicon (${lexicon.length} words)`
+        );
       } catch (error) {
         console.error('Failed to train model:', error);
         setTrainingStatus('Error training model. Please try again.');
@@ -1053,33 +1017,36 @@ const App: React.FC = () => {
     const sessionKey = `ppm-session-${selectedLanguage}`;
     const sessionData = localStorage.getItem(sessionKey) || '';
 
-    // Get the base training data from the library
-    let baseTrainingData = '';
-    const trainingFileName = getTrainingFileName(selectedLanguage);
+    // Combine training data (if any) with learned data
+    let exportData = '';
+    let trainingWords = 0;
+    let learnedWords = 0;
 
-    if (trainingFileName) {
-      try {
-        const cdnUrl = `https://unpkg.com/@willwade/ppmpredictor@0.0.6/data/training/${trainingFileName}`;
-        const response = await fetch(cdnUrl);
-        if (response.ok) {
-          baseTrainingData = await response.text();
-        }
-      } catch (error) {
-        console.warn(`⚠️ Could not load base training data for export:`, error);
+    // Add loaded training data first (from repo or uploaded file)
+    if (loadedTrainingData.trim()) {
+      exportData += loadedTrainingData;
+      trainingWords = loadedTrainingData.trim().split(/\s+/).filter((w) => w.length > 0).length;
+
+      // Add separator if we have both training data and learned data
+      if (sessionData.trim()) {
+        exportData += '\n\n';
       }
     }
 
-    // Combine base training data + learned data
-    const combinedData =
-      baseTrainingData + (baseTrainingData && sessionData ? '\n' : '') + sessionData;
+    // Add learned data from user sessions
+    if (sessionData.trim()) {
+      exportData += sessionData;
+      learnedWords = sessionData.split(/\s+/).filter((w) => w.length > 0).length;
+    }
 
-    if (!combinedData.trim()) {
-      alert('No training data to export');
+    // Check if we have any data to export
+    if (!exportData.trim()) {
+      alert('No training data to export. Upload a training file or start typing to build your personalized training data!');
       return;
     }
 
     // Create a blob with the combined data
-    const blob = new Blob([combinedData], { type: 'text/plain' });
+    const blob = new Blob([exportData], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
 
     // Create a download link and trigger it
@@ -1091,12 +1058,9 @@ const App: React.FC = () => {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
 
-    const baseWords = baseTrainingData.split(/\s+/).length;
-    const learnedWords = sessionData.split(/\s+/).filter((w) => w.length > 0).length;
-    console.log(
-      `📥 Exported complete training data for ${selectedLanguage}: ${baseWords} base words + ${learnedWords} learned words`
-    );
-  }, [selectedLanguage]);
+    const totalWords = trainingWords + learnedWords;
+    console.log(`📥 Exported training data for ${selectedLanguage}: ${trainingWords.toLocaleString()} training words + ${learnedWords.toLocaleString()} learned words = ${totalWords.toLocaleString()} total words`);
+  }, [selectedLanguage, loadedTrainingData]);
 
   const handleClearLearnedData = useCallback(() => {
     const sessionKey = `ppm-session-${selectedLanguage}`;
@@ -1107,60 +1071,12 @@ const App: React.FC = () => {
     // Reload the predictor to reset it
     const loadLanguageModel = async () => {
       try {
-        let corpusText = '';
         let lexicon: string[] = [];
-        const trainingFileName = getTrainingFileName(selectedLanguage);
-
-        if (trainingFileName) {
-          try {
-            const cdnUrl = `https://unpkg.com/@willwade/ppmpredictor@0.0.6/data/training/${trainingFileName}`;
-            const response = await fetch(cdnUrl);
-            if (response.ok) {
-              corpusText = await response.text();
-            }
-          } catch (error) {
-            console.warn(`⚠️ Could not load training data:`, error);
-          }
-        }
 
         // Try to load lexicon from worldalphabets frequency lists
         try {
           lexicon = await loadWordFrequencyList(selectedLanguage);
-
-          if (selectedLanguage === 'en' && lexicon.length > 0) {
-            try {
-              const aacLexiconUrl = `https://unpkg.com/@willwade/ppmpredictor@0.0.6/data/aac_lexicon_en_gb.txt`;
-              const aacResponse = await fetch(aacLexiconUrl);
-              if (aacResponse.ok) {
-                const aacText = await aacResponse.text();
-                // Strip frequency counts from AAC lexicon (format: "word\tcount")
-                const aacWords = aacText
-                  .split('\n')
-                  .map((line) => line.split('\t')[0].trim())
-                  .filter((w) => w.length > 0);
-                const combined = new Set([...lexicon, ...aacWords]);
-                lexicon = Array.from(combined);
-              }
-            } catch (error) {
-              console.warn(`⚠️ Could not load AAC lexicon:`, error);
-            }
-          }
-
-          if (lexicon.length === 0 && corpusText) {
-            const words = corpusText
-              .toLowerCase()
-              .split(/\s+/)
-              .filter((w) => w.length > 0);
-            const wordFreq = new Map<string, number>();
-            words.forEach((word) => {
-              const count = wordFreq.get(word) || 0;
-              wordFreq.set(word, count + 1);
-            });
-            lexicon = Array.from(wordFreq.entries())
-              .sort((a, b) => b[1] - a[1])
-              .slice(0, 5000)
-              .map(([word]) => word);
-          }
+          console.log(`✅ Using ${lexicon.length} words from worldalphabets frequency list`);
         } catch (error) {
           console.warn(`⚠️ Could not load lexicon:`, error);
         }
@@ -1179,12 +1095,10 @@ const App: React.FC = () => {
           lexicon: lexicon.length > 0 ? lexicon : undefined,
         });
 
-        if (corpusText) {
-          newPredictor.train(corpusText);
-        }
-
         setPredictor(newPredictor);
-        setTrainingStatus(`✅ Learned data cleared. Model reset.`);
+        setTrainingStatus(
+          `✅ Learned data cleared. Model reset with ${lexicon.length} words.`
+        );
       } catch (error) {
         console.error('❌ Failed to reload model:', error);
       }
@@ -1218,7 +1132,8 @@ const App: React.FC = () => {
     let scanInterval: number | undefined;
     let initialTimeout: number | undefined;
 
-    if (isScanning && scanMode === 'one-switch') {
+    // Pause scanning when settings modal is open
+    if (isScanning && scanMode === 'one-switch' && !showSettingsModal) {
       // Use longer delay for first item (index 0), normal speed for others
       const isFirstItem = scanIndex === 0;
       const delay = isFirstItem ? firstItemDelay : scanSpeed;
@@ -1236,10 +1151,15 @@ const App: React.FC = () => {
       clearInterval(scanInterval);
       clearTimeout(initialTimeout);
     };
-  }, [isScanning, scanMode, scanSpeed, scanItems.length, scanIndex, firstItemDelay, playSound]);
+  }, [isScanning, scanMode, scanSpeed, scanItems.length, scanIndex, firstItemDelay, playSound, showSettingsModal]);
 
   // Handle keyboard input with custom hold-down behavior for two-switch mode
   useEffect(() => {
+    // Don't attach keyboard listeners when settings modal is open
+    if (showSettingsModal) {
+      return;
+    }
+
     let holdInterval: number | undefined;
 
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -1294,7 +1214,7 @@ const App: React.FC = () => {
         clearInterval(holdInterval);
       }
     };
-  }, [handleSwitch1, handleSwitch2, scanMode, holdSpeed]);
+  }, [handleSwitch1, handleSwitch2, scanMode, holdSpeed, showSettingsModal]);
 
   const handleToggleFullscreen = useCallback(() => {
     if (!document.fullscreenElement) {
@@ -1414,7 +1334,6 @@ const App: React.FC = () => {
         setSelectedVoiceURI={setSelectedVoiceURI}
         onFileUpload={handleFileUpload}
         trainingStatus={trainingStatus}
-        hasTrainingData={hasTrainingData}
         showSettingsModal={showSettingsModal}
         setShowSettingsModal={setShowSettingsModal}
         hideControlBar={hideControlBar}

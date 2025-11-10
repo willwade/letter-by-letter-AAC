@@ -32,7 +32,6 @@ interface ControlsProps {
   setSelectedVoiceURI: (uri: string) => void;
   onFileUpload: (file: File) => void;
   trainingStatus: string;
-  hasTrainingData: boolean;
   showSettingsModal: boolean;
   setShowSettingsModal: (show: boolean) => void;
   hideControlBar: boolean;
@@ -95,7 +94,6 @@ const Controls: React.FC<ControlsProps> = ({
   setSelectedVoiceURI,
   onFileUpload,
   trainingStatus,
-  hasTrainingData,
   showSettingsModal,
   setShowSettingsModal,
   hideControlBar,
@@ -127,6 +125,16 @@ const Controls: React.FC<ControlsProps> = ({
   audioEffectsEnabled,
   setAudioEffectsEnabled,
 }) => {
+  // Local state for game word list input to allow typing commas
+  const [gameWordListInput, setGameWordListInput] = React.useState<string>(
+    gameWordList.join(', ')
+  );
+
+  // Update local input when gameWordList changes externally
+  React.useEffect(() => {
+    setGameWordListInput(gameWordList.join(', '));
+  }, [gameWordList]);
+
   const handleStartStop = () => {
     setIsScanning(!isScanning);
   };
@@ -435,22 +443,15 @@ const Controls: React.FC<ControlsProps> = ({
               {/* Prediction Master Toggle */}
               <div className="flex items-center gap-4">
                 <span className="font-semibold w-32">Prediction:</span>
-                <label
-                  className={`flex items-center gap-2 ${hasTrainingData ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'}`}
-                >
+                <label className="flex items-center gap-2 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={enablePrediction}
                     onChange={(e) => setEnablePrediction(e.target.checked)}
-                    disabled={!hasTrainingData}
-                    className="form-checkbox h-5 w-5 text-black rounded disabled:opacity-50 disabled:cursor-not-allowed"
-                    title={!hasTrainingData ? 'No training data available for this language' : ''}
+                    className="form-checkbox h-5 w-5 text-black rounded"
                   />
                   Enable
                 </label>
-                {!hasTrainingData && (
-                  <span className="text-sm text-gray-500 italic">(No training data available)</span>
-                )}
               </div>
 
               {/* Training File Upload */}
@@ -508,7 +509,7 @@ const Controls: React.FC<ControlsProps> = ({
                       onClick={onExportLearnedData}
                       disabled={!enablePrediction}
                       className="text-xs py-1 px-3 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                      title="Download complete training data (base + learned words)"
+                      title="Download complete training data (includes base training corpus + your learned words)"
                     >
                       📥 Export Training Data
                     </button>
@@ -705,9 +706,13 @@ const Controls: React.FC<ControlsProps> = ({
                     <input
                       id="gameWordList"
                       type="text"
-                      value={gameWordList.join(', ')}
+                      value={gameWordListInput}
                       onChange={(e) => {
-                        const words = e.target.value
+                        setGameWordListInput(e.target.value);
+                      }}
+                      onBlur={() => {
+                        // Parse and save when user leaves the field
+                        const words = gameWordListInput
                           .split(',')
                           .map((w) => w.trim())
                           .filter((w) => w.length > 0);
@@ -775,20 +780,19 @@ const Controls: React.FC<ControlsProps> = ({
             <div className="flex-1 flex justify-start">
               {scanMode === 'one-switch' && (
                 <button
-                  onClick={onSwitch1}
-                  className="flex-1 max-w-[160px] text-lg sm:text-2xl font-bold py-3 sm:py-4 px-3 sm:px-6 bg-violet-300 text-violet-900 rounded-lg hover:bg-violet-400 transition-transform transform active:scale-95"
-                  aria-label="Select"
+                  onClick={handleStartStop}
+                  className={`flex-1 max-w-[160px] text-lg sm:text-2xl font-bold py-3 sm:py-4 px-3 sm:px-6 rounded-lg transition-transform transform active:scale-95 ${isScanning ? 'bg-red-300 text-red-900 hover:bg-red-400' : 'bg-green-300 text-green-900 hover:bg-green-400'}`}
                 >
-                  SELECT
+                  {isScanning ? 'STOP' : 'START'}
                 </button>
               )}
               {scanMode === 'two-switch' && (
                 <button
-                  onClick={onSwitch2}
+                  onClick={onSwitch1}
                   className="flex-1 max-w-[160px] text-lg sm:text-2xl font-bold py-3 sm:py-4 px-3 sm:px-6 bg-violet-300 text-violet-900 rounded-lg hover:bg-violet-400 transition-transform transform active:scale-95"
-                  aria-label="Select"
+                  aria-label="Next"
                 >
-                  SELECT
+                  NEXT
                 </button>
               )}
             </div>
@@ -823,23 +827,13 @@ const Controls: React.FC<ControlsProps> = ({
 
             {/* ---- RIGHT SIDE ---- */}
             <div className="flex-1 flex justify-end">
-              {scanMode === 'one-switch' && (
-                <button
-                  onClick={handleStartStop}
-                  className={`flex-1 max-w-[160px] text-lg sm:text-2xl font-bold py-3 sm:py-4 px-3 sm:px-6 rounded-lg transition-transform transform active:scale-95 ${isScanning ? 'bg-red-300 text-red-900 hover:bg-red-400' : 'bg-green-300 text-green-900 hover:bg-green-400'}`}
-                >
-                  {isScanning ? 'STOP' : 'START'}
-                </button>
-              )}
-              {scanMode === 'two-switch' && (
-                <button
-                  onClick={onSwitch1}
-                  className="flex-1 max-w-[160px] text-lg sm:text-2xl font-bold py-3 sm:py-4 px-3 sm:px-6 bg-violet-300 text-violet-900 rounded-lg hover:bg-violet-400 transition-transform transform active:scale-95"
-                  aria-label="Next"
-                >
-                  NEXT
-                </button>
-              )}
+              <button
+                onClick={scanMode === 'one-switch' ? onSwitch1 : onSwitch2}
+                className="flex-1 max-w-[160px] text-lg sm:text-2xl font-bold py-3 sm:py-4 px-3 sm:px-6 bg-violet-300 text-violet-900 rounded-lg hover:bg-violet-400 transition-transform transform active:scale-95"
+                aria-label="Select"
+              >
+                SELECT
+              </button>
             </div>
           </div>
         </footer>

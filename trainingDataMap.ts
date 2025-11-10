@@ -1,5 +1,5 @@
-// Mapping from language codes to ppmpredictor training file names
-// Based on files in @willwade/ppmpredictor/data/training/
+// Mapping from language codes to training file names in data/training/
+// Training data files are now bundled with the app instead of fetched from npm package
 
 export const trainingDataMap: Record<string, string> = {
   // Albanian
@@ -85,3 +85,4 @@ export const hasTrainingData = (languageCode: string): boolean => {
 export const getTrainingFileName = (languageCode: string): string | null => {
   return trainingDataMap[languageCode] || null;
 };
+
