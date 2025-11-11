@@ -87,8 +87,13 @@ async function loadWordFrequencyList(languageCode: string): Promise<string[]> {
 const App: React.FC = () => {
   const [message, setMessage] = useState<string>('');
   const [scanIndex, setScanIndex] = useState<number>(0);
-  // Start with just alphabet - special actions will be added by useEffect when message has content
-  const [scanItems, setScanItems] = useState<string[]>([...ALPHABET]);
+
+  // Initialize with correct case based on localStorage setting
+  const initialUseUppercase = localStorage.getItem('useUppercase') === 'true';
+  const initialAlphabet = initialUseUppercase ? ALPHABET : ALPHABET.map((l) => l.toLowerCase());
+
+  // Start with alphabet in correct case - special actions will be added by useEffect when message has content
+  const [scanItems, setScanItems] = useState<string[]>([...initialAlphabet]);
   const [isScanning, setIsScanning] = useState<boolean>(false);
   const [scanMode, setScanMode] = useState<ScanMode>(() => {
     return (localStorage.getItem('scanMode') as ScanMode) || 'one-switch';
@@ -164,7 +169,7 @@ const App: React.FC = () => {
   const [useUppercase, setUseUppercase] = useState<boolean>(() => {
     return localStorage.getItem('useUppercase') === 'true';
   });
-  const [alphabet, setAlphabet] = useState<string[]>(ALPHABET);
+  const [alphabet, setAlphabet] = useState<string[]>(initialAlphabet);
   const [availableLanguages, setAvailableLanguages] = useState<string[]>([]);
   const [availableScripts, setAvailableScripts] = useState<string[]>([]);
   const [languageNames, setLanguageNames] = useState<Record<string, string>>({});
