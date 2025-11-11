@@ -623,6 +623,8 @@ const Controls: React.FC<ControlsProps> = ({
                     <option value="'Atkinson Hyperlegible', sans-serif">
                       Atkinson Hyperlegible
                     </option>
+                    {/* Playpen Sans automatically uses the correct variant (Arabic, Deva, Thai) based on language */}
+                    <option value="'Playpen Sans', cursive">Playpen Sans</option>
                     <option value="'Chewy', system-ui">Chewy</option>
                     <option value="Arial, sans-serif">Arial</option>
                   </select>

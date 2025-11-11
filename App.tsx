@@ -15,6 +15,7 @@ import {
 import { getTheme } from './themes';
 import confetti from 'canvas-confetti';
 import { getTrainingFileName } from './trainingDataMap';
+import { resolveFontFamily } from './utils/fontMapping';
 
 /**
  * Build a keyboard adjacency map from an alphabetical list.
@@ -179,6 +180,12 @@ const App: React.FC = () => {
   const [fontFamily, setFontFamily] = useState<string>(() => {
     return localStorage.getItem('fontFamily') || 'system-ui';
   });
+
+  // Resolved font family - automatically selects the correct Playpen Sans variant
+  // based on the current language and script
+  const resolvedFontFamily = useMemo(() => {
+    return resolveFontFamily(fontFamily, selectedLanguage, selectedScript);
+  }, [fontFamily, selectedLanguage, selectedScript]);
 
   // Border width state for scanner items
   const [borderWidth, setBorderWidth] = useState<number>(() => {
@@ -1332,13 +1339,13 @@ const App: React.FC = () => {
           fontSize={messageFontSize}
           isRTL={isRTL}
           theme={theme}
-          fontFamily={fontFamily}
+          fontFamily={resolvedFontFamily}
         />
         <Scanner
           currentItem={scanItems[scanIndex] ?? ''}
           fontSize={scannerFontSize}
           theme={theme}
-          fontFamily={fontFamily}
+          fontFamily={resolvedFontFamily}
           borderWidth={borderWidth}
           predictedLetters={predictedLetters}
           predictedWords={predictedWords}
