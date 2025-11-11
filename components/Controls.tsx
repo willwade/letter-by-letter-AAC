@@ -64,6 +64,8 @@ interface ControlsProps {
   gameTarget: string;
   audioEffectsEnabled: boolean;
   setAudioEffectsEnabled: (enabled: boolean) => void;
+  speakAfterPredictions: boolean;
+  setSpeakAfterPredictions: (enabled: boolean) => void;
 }
 
 const Controls: React.FC<ControlsProps> = ({
@@ -128,6 +130,8 @@ const Controls: React.FC<ControlsProps> = ({
   gameTarget,
   audioEffectsEnabled,
   setAudioEffectsEnabled,
+  speakAfterPredictions,
+  setSpeakAfterPredictions,
 }) => {
   // Local state for game word list input to allow typing commas
   const [gameWordListInput, setGameWordListInput] = React.useState<string>(
@@ -726,6 +730,20 @@ const Controls: React.FC<ControlsProps> = ({
                       className="form-checkbox h-5 w-5 text-black rounded"
                     />
                     Play click sounds
+                  </label>
+                </div>
+
+                {/* SPEAK Button Placement */}
+                <div className="flex items-center gap-4 mb-3">
+                  <span className="font-semibold w-32">SPEAK Button:</span>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={speakAfterPredictions}
+                      onChange={(e) => setSpeakAfterPredictions(e.target.checked)}
+                      className="form-checkbox h-5 w-5 text-black rounded"
+                    />
+                    Show after predictions (instead of in action block)
                   </label>
                 </div>
 

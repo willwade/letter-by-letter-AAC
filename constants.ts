@@ -7,7 +7,9 @@ export const SPEAK = 'SPEAK';
 export const UNDO = 'UNDO';
 export const CLEAR = 'CLEAR';
 
-export const SPECIAL_ACTIONS: string[] = [SPACE, UNDO, CLEAR];
+// SPECIAL_ACTIONS now includes SPEAK by default
+// SPEAK can optionally be moved after predictions via the speakAfterPredictions setting
+export const SPECIAL_ACTIONS: string[] = [SPACE, SPEAK, UNDO, CLEAR];
 
 // FIX: Converted JSX to React.createElement to be valid in a .ts file.
 export const LoadingIcon = () =>

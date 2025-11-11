@@ -43,9 +43,9 @@ const Scanner: React.FC<ScannerProps> = ({
       // Try font size starting from 20% larger than requested, then work down if needed
       let currentSize = fontSize;
 
-      // Allow up to 5% margin
+      // Allow up to 5% margin for width, but more for height to accommodate descenders
       const maxWidth = containerWidth * 0.95;
-      const maxHeight = containerHeight * 0.95;
+      const maxHeight = containerHeight * 0.85;
 
       // Start with the requested size and reduce if needed
       while (currentSize > 12) {
@@ -123,6 +123,7 @@ const Scanner: React.FC<ScannerProps> = ({
       style={{
         backgroundColor: theme.colors.scannerBg,
         border: `4px solid ${theme.colors.border}`,
+        padding: '0.5rem',
       }}
     >
       <span
@@ -134,7 +135,7 @@ const Scanner: React.FC<ScannerProps> = ({
           fontFamily: fontFamily,
           WebkitTextStroke: textStroke,
           textStroke: textStroke,
-          lineHeight: '1',
+          lineHeight: '1.2',
           display: 'inline-block',
         }}
       >

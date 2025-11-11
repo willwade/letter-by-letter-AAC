@@ -198,6 +198,11 @@ const App: React.FC = () => {
     return localStorage.getItem('audioEffectsEnabled') === 'true';
   });
 
+  // SPEAK button placement: after predictions or in action block
+  const [speakAfterPredictions, setSpeakAfterPredictions] = useState<boolean>(() => {
+    return localStorage.getItem('speakAfterPredictions') === 'true';
+  });
+
   // Web Audio API setup for high-performance audio playback
   const audioContext = useMemo(() => {
     if (typeof window !== 'undefined' && 'AudioContext' in window) {
@@ -585,6 +590,11 @@ const App: React.FC = () => {
     localStorage.setItem('audioEffectsEnabled', audioEffectsEnabled.toString());
   }, [audioEffectsEnabled]);
 
+  // Effect to save speakAfterPredictions to localStorage
+  useEffect(() => {
+    localStorage.setItem('speakAfterPredictions', speakAfterPredictions.toString());
+  }, [speakAfterPredictions]);
+
   // Debounced effect for running predictions as the user types
   useEffect(() => {
     if (!enablePrediction || !predictor) {
@@ -672,44 +682,47 @@ const App: React.FC = () => {
         newScanItems.push(SPACE);
       }
 
-      // Always include actions at the end (SPEAK, UNDO, CLEAR)
+      // Always include actions at the end (SPECIAL_ACTIONS includes SPEAK, UNDO, CLEAR)
       if (message.length > 0) {
-        if (message.length > 1) {
-          newScanItems.push(SPEAK);
-        }
         newScanItems.push(...SPECIAL_ACTIONS);
       }
     } else if (!predictionEnabledAndReady) {
       // Include alphabet first
       newScanItems.push(...alphabet);
 
-      // Only include SPEAK and SPECIAL_ACTIONS if message has at least one character
+      // Only include SPECIAL_ACTIONS if message has at least one character
+      // SPECIAL_ACTIONS now includes SPEAK by default
       if (message.length > 0) {
-        if (message.length > 1) {
-          newScanItems.push(SPEAK);
-        }
         newScanItems.push(...SPECIAL_ACTIONS);
       }
     } else {
+      // Prediction mode enabled
       // Include predicted words at the start
       if (showWordPrediction && predictedWords.length > 0) {
         newScanItems.push(...predictedWords);
       }
 
-      // Include predicted letters at the start
+      // Include predicted letters
       newScanItems.push(...predictedLetters);
 
-      // Only include SPEAK if message has at least 2 characters
-      if (message.length > 1) {
+      // Conditionally add SPEAK after predictions if setting is enabled
+      if (speakAfterPredictions && message.length > 1) {
         newScanItems.push(SPEAK);
       }
 
       // Include full alphabet (predicted letters will appear again in their regular positions)
       newScanItems.push(...alphabet);
 
-      // Only include SPECIAL_ACTIONS if message has at least one character
+      // Include SPECIAL_ACTIONS if message has at least one character
       if (message.length > 0) {
-        newScanItems.push(...SPECIAL_ACTIONS);
+        // If SPEAK is after predictions, exclude it from SPECIAL_ACTIONS here
+        if (speakAfterPredictions) {
+          // Add actions without SPEAK (since it's already after predictions)
+          newScanItems.push(SPACE, UNDO, CLEAR);
+        } else {
+          // Add all SPECIAL_ACTIONS including SPEAK
+          newScanItems.push(...SPECIAL_ACTIONS);
+        }
       }
     }
 
@@ -727,6 +740,7 @@ const App: React.FC = () => {
     nextCorrectLetter,
     currentGameTarget,
     useUppercase,
+    speakAfterPredictions,
   ]);
 
   // Effect to update keyboard adjacency map when scan items change
@@ -1419,6 +1433,8 @@ const App: React.FC = () => {
         gameTarget={currentGameTarget}
         audioEffectsEnabled={audioEffectsEnabled}
         setAudioEffectsEnabled={setAudioEffectsEnabled}
+        speakAfterPredictions={speakAfterPredictions}
+        setSpeakAfterPredictions={setSpeakAfterPredictions}
       />
     </div>
   );
