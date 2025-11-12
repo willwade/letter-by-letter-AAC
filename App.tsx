@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { ALPHABET } from './constants';
 import Display from './components/Display';
 import Scanner from './components/Scanner';
@@ -15,6 +15,7 @@ import { resolveFontFamily } from './utils/fontMapping';
 import { useSettings } from './hooks/useSettings';
 import { usePrediction } from './hooks/usePrediction';
 import { useScanning } from './hooks/useScanning';
+import { useKeyboard } from './hooks/useKeyboard';
 
 const App: React.FC = () => {
   // MIGRATION: Use settings hook (gradually migrating settings here)
@@ -78,8 +79,7 @@ const App: React.FC = () => {
   const [holdProgress, setHoldProgress] = useState<number>(0); // 0-100 percentage
   const [isHolding, setIsHolding] = useState<boolean>(false);
   const [holdZone, setHoldZone] = useState<'none' | 'green' | 'red'>('none'); // Which zone we're in (for UI)
-  const holdZoneRef = useRef<'none' | 'green' | 'red'>('none'); // Which zone we're in (for keyup handler)
-  const holdProgressIntervalRef = useRef<number | undefined>(undefined);
+  // MIGRATION: holdZoneRef and holdProgressIntervalRef now in useKeyboard hook!
 
   // Web Audio API setup for high-performance audio playback
   const audioContext = useMemo(() => {
@@ -672,230 +672,29 @@ const App: React.FC = () => {
 
   // MIGRATION: Auto-advance scanning interval now handled by useScanning hook!
 
-  // Handle keyboard input with custom hold-down behavior for two-switch mode
-  useEffect(() => {
-    // Don't attach keyboard listeners when settings modal is open
-    if (showSettingsModal) {
-      return;
-    }
-
-    let holdInterval: number | undefined;
-    const lastKeyUpTime: { [key: string]: number } = {};
-    let shortHoldTimeout: number | undefined;
-    let longHoldTimeout: number | undefined;
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.code === 'Space') {
-        event.preventDefault();
-
-        // Check for debounce - ignore if this is a bounce/double-press
-        // Only apply debounce to the FIRST press (not repeats from holding)
-        if (!event.repeat && settings.debounceTime > 0) {
-          const now = Date.now();
-          const lastUp = lastKeyUpTime['Space'] || 0;
-          const timeSinceLastUp = now - lastUp;
-
-          if (timeSinceLastUp < settings.debounceTime) {
-            // This is a bounce/double-press - ignore it
-            console.log(`🚫 Ignored bounce: ${timeSinceLastUp}ms since last release`);
-            return;
-          }
-        }
-
-        // One-switch mode with hold actions enabled
-        if (settings.scanMode === 'one-switch' && settings.enableHoldActions) {
-          if (!event.repeat) {
-            // First press - start tracking hold time
-            setIsHolding(true);
-            setHoldProgress(0);
-            setHoldZone('none');
-            holdZoneRef.current = 'none';
-
-            // Animate progress bar and update zones
-            console.log(`⏱️ Starting hold timer - shortHold: ${settings.shortHoldDuration}ms, longHold: ${settings.longHoldDuration}ms`);
-            const startTime = Date.now();
-
-            // Clear any existing interval first
-            if (holdProgressIntervalRef.current !== undefined) {
-              clearInterval(holdProgressIntervalRef.current);
-            }
-
-            holdProgressIntervalRef.current = window.setInterval(() => {
-              const elapsed = Date.now() - startTime;
-              const progress = Math.min((elapsed / settings.longHoldDuration) * 100, 100);
-              console.log(`📊 Progress: ${progress.toFixed(1)}%, elapsed: ${elapsed}ms, zone: ${elapsed >= settings.longHoldDuration ? 'red' : elapsed >= settings.shortHoldDuration ? 'green' : 'none'}`);
-              setHoldProgress(progress);
-
-              // Update zone based on elapsed time (zones are updated in setInterval, beeps in setTimeout)
-              if (elapsed >= settings.longHoldDuration) {
-                console.log('🔴 Setting zone to RED');
-                setHoldZone('red');
-                holdZoneRef.current = 'red'; // Update ref immediately
-                if (holdProgressIntervalRef.current !== undefined) {
-                  clearInterval(holdProgressIntervalRef.current);
-                  holdProgressIntervalRef.current = undefined;
-                }
-              } else if (elapsed >= settings.shortHoldDuration) {
-                console.log('🟢 Setting zone to GREEN');
-                setHoldZone('green');
-                holdZoneRef.current = 'green'; // Update ref immediately
-              }
-            }, 16); // ~60fps
-
-            // Set timeout to beep when entering green zone
-            shortHoldTimeout = window.setTimeout(() => {
-              playSound('beep');
-              console.log(`🟢 Entered green zone (${settings.shortHoldDuration}ms)`);
-            }, settings.shortHoldDuration);
-
-            // Set timeout to beep when entering red zone
-            longHoldTimeout = window.setTimeout(() => {
-              playSound('beep');
-              console.log(`🔴 Entered red zone (${settings.longHoldDuration}ms)`);
-            }, settings.longHoldDuration);
-          }
-          // Always return when hold actions are enabled to prevent normal switch behavior
-          // (both for first press and repeat events)
-          return;
-        }
-
-        // In two-switch mode, implement custom hold-down behavior with configurable speed
-        if (settings.scanMode === 'two-switch') {
-          // Detect if this is a repeat event (key is being held)
-          if (event.repeat) {
-            // Key is being held - check if we should advance based on holdSpeed
-            if (!holdInterval) {
-              holdInterval = window.setInterval(() => {
-                handleSwitch1();
-              }, settings.holdSpeed);
-            }
-          } else {
-            // First press
-            handleSwitch1();
-          }
-        } else {
-          // One-switch mode: normal behavior (hold actions disabled or repeat event)
-          handleSwitch1();
-        }
-      } else if (event.code === 'Enter' && settings.scanMode === 'two-switch') {
-        event.preventDefault();
-
-        // Check for debounce on Enter key too
-        if (!event.repeat && settings.debounceTime > 0) {
-          const now = Date.now();
-          const lastUp = lastKeyUpTime['Enter'] || 0;
-          const timeSinceLastUp = now - lastUp;
-
-          if (timeSinceLastUp < settings.debounceTime) {
-            // This is a bounce/double-press - ignore it
-            console.log(`🚫 Ignored bounce: ${timeSinceLastUp}ms since last release`);
-            return;
-          }
-        }
-
-        // Prevent key repeat for Enter to avoid repeated selection/speech
-        if (event.repeat) {
-          return;
-        }
-        handleSwitch2();
-      }
-    };
-
-    const handleKeyUp = (event: KeyboardEvent) => {
-      if (event.code === 'Space') {
-        // Record the time of this keyup for debounce checking
-        lastKeyUpTime['Space'] = Date.now();
-
-        // Handle hold actions on release
-        if (settings.scanMode === 'one-switch' && settings.enableHoldActions) {
-          // Clear timeouts
-          if (shortHoldTimeout !== undefined) {
-            clearTimeout(shortHoldTimeout);
-            shortHoldTimeout = undefined;
-          }
-          if (longHoldTimeout !== undefined) {
-            clearTimeout(longHoldTimeout);
-            longHoldTimeout = undefined;
-          }
-
-          // Clear progress animation
-          if (holdProgressIntervalRef.current !== undefined) {
-            clearInterval(holdProgressIntervalRef.current);
-            holdProgressIntervalRef.current = undefined;
-          }
-
-          // Determine which action to execute based on hold zone
-          // Use ref instead of state to get the most up-to-date zone value
-          const currentZone = holdZoneRef.current;
-          console.log(`🔓 Key released in zone: ${currentZone}`);
-
-          if (currentZone === 'red') {
-            // Released in red zone - execute long hold action
-            console.log(`🔴 Executing long hold action: ${settings.longHoldAction}`);
-            executeHoldAction(settings.longHoldAction);
-          } else if (currentZone === 'green') {
-            // Released in green zone - execute short hold action
-            console.log(`🟢 Executing short hold action: ${settings.shortHoldAction}`);
-            executeHoldAction(settings.shortHoldAction);
-          } else {
-            // Released before entering any zone - normal switch behavior
-            console.log('🖱️ Quick tap - executing normal switch action');
-            handleSwitch1();
-          }
-
-          // Reset states
-          setIsHolding(false);
-          setHoldProgress(0);
-          setHoldZone('none');
-          holdZoneRef.current = 'none';
-        }
-
-        if (settings.scanMode === 'two-switch') {
-          // Clear the hold interval when key is released
-          if (holdInterval !== undefined) {
-            clearInterval(holdInterval);
-            holdInterval = undefined;
-          }
-        }
-      } else if (event.code === 'Enter') {
-        // Record the time of this keyup for debounce checking
-        lastKeyUpTime['Enter'] = Date.now();
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    window.addEventListener('keyup', handleKeyUp);
-
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-      window.removeEventListener('keyup', handleKeyUp);
-      if (holdInterval !== undefined) {
-        clearInterval(holdInterval);
-      }
-      if (shortHoldTimeout !== undefined) {
-        clearTimeout(shortHoldTimeout);
-      }
-      if (longHoldTimeout !== undefined) {
-        clearTimeout(longHoldTimeout);
-      }
-      // Note: Don't clear holdProgressIntervalRef here - it should only be cleared on keyup
-      // Clearing it here would stop the progress bar mid-hold when the effect re-runs
-    };
-  }, [
-    handleSwitch1,
-    handleSwitch2,
-    settings.scanMode,
-    settings.holdSpeed,
-    settings.debounceTime,
-    showSettingsModal,
-    settings.enableHoldActions,
-    settings.shortHoldDuration,
-    settings.longHoldDuration,
-    settings.shortHoldAction,
-    settings.longHoldAction,
-    executeHoldAction,
+  // Use keyboard hook for all keyboard input handling
+  useKeyboard({
+    switch1Key: 'Space',
+    switch2Key: 'Enter',
+    onSwitch1: handleSwitch1,
+    onSwitch2: handleSwitch2,
+    onHoldAction: executeHoldAction,
+    scanMode: settings.scanMode,
+    holdSpeed: settings.holdSpeed,
+    debounceTime: settings.debounceTime,
+    disabled: showSettingsModal,
+    enableHoldActions: settings.enableHoldActions,
+    shortHoldDuration: settings.shortHoldDuration,
+    longHoldDuration: settings.longHoldDuration,
+    shortHoldAction: settings.shortHoldAction,
+    longHoldAction: settings.longHoldAction,
     playSound,
-  ]);
+    setIsHolding,
+    setHoldProgress,
+    setHoldZone,
+  });
+
+  // MIGRATION: Keyboard handling now in useKeyboard hook!
 
   const handleToggleFullscreen = useCallback(() => {
     if (!document.fullscreenElement) {
