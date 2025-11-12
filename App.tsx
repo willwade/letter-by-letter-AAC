@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { ALPHABET, SPECIAL_ACTIONS, SPEAK, SPACE } from './constants';
 import type { ScanMode, ThemeName } from './types';
 import Display from './components/Display';
@@ -207,6 +207,31 @@ const App: React.FC = () => {
   const [speakAfterPredictions, setSpeakAfterPredictions] = useState<boolean>(() => {
     return localStorage.getItem('speakAfterPredictions') === 'true';
   });
+
+  // Hold action settings for one-switch mode
+  const [enableHoldActions, setEnableHoldActions] = useState<boolean>(() => {
+    return localStorage.getItem('enableHoldActions') === 'true';
+  });
+  const [shortHoldDuration, setShortHoldDuration] = useState<number>(() => {
+    const saved = localStorage.getItem('shortHoldDuration');
+    return saved ? Number(saved) : 1000; // Default 1 second
+  });
+  const [longHoldDuration, setLongHoldDuration] = useState<number>(() => {
+    const saved = localStorage.getItem('longHoldDuration');
+    return saved ? Number(saved) : 2000; // Default 2 seconds (1s + 1s additional)
+  });
+  const [shortHoldAction, setShortHoldAction] = useState<string>(() => {
+    return localStorage.getItem('shortHoldAction') || 'SPEAK';
+  });
+  const [longHoldAction, setLongHoldAction] = useState<string>(() => {
+    return localStorage.getItem('longHoldAction') || 'CLEAR';
+  });
+
+  // Hold progress indicator state
+  const [holdProgress, setHoldProgress] = useState<number>(0); // 0-100 percentage
+  const [isHolding, setIsHolding] = useState<boolean>(false);
+  const [holdZone, setHoldZone] = useState<'none' | 'green' | 'red'>('none'); // Which zone we're in
+  const holdProgressIntervalRef = useRef<number | undefined>(undefined);
 
   // Web Audio API setup for high-performance audio playback
   const audioContext = useMemo(() => {
@@ -600,6 +625,32 @@ const App: React.FC = () => {
     localStorage.setItem('speakAfterPredictions', speakAfterPredictions.toString());
   }, [speakAfterPredictions]);
 
+  // Effect to save hold action settings to localStorage
+  useEffect(() => {
+    localStorage.setItem('enableHoldActions', enableHoldActions.toString());
+  }, [enableHoldActions]);
+
+  useEffect(() => {
+    localStorage.setItem('shortHoldDuration', shortHoldDuration.toString());
+  }, [shortHoldDuration]);
+
+  useEffect(() => {
+    localStorage.setItem('longHoldDuration', longHoldDuration.toString());
+  }, [longHoldDuration]);
+
+  useEffect(() => {
+    localStorage.setItem('shortHoldAction', shortHoldAction);
+  }, [shortHoldAction]);
+
+  useEffect(() => {
+    localStorage.setItem('longHoldAction', longHoldAction);
+  }, [longHoldAction]);
+
+  // Debug: Log when holdZone changes
+  useEffect(() => {
+    console.log(`🎨 holdZone changed to: ${holdZone}`);
+  }, [holdZone]);
+
   // Debounced effect for running predictions as the user types
   useEffect(() => {
     if (!enablePrediction || !predictor) {
@@ -969,6 +1020,48 @@ const App: React.FC = () => {
     setScanIndex(0);
   }, []);
 
+  // Execute a hold action (SPEAK, UNDO, CLEAR, or RESTART)
+  const executeHoldAction = useCallback(
+    (action: string) => {
+      console.log(`🎯 Executing hold action: ${action}, message: "${message}"`);
+      switch (action) {
+        case 'SPEAK':
+          if ('speechSynthesis' in window) {
+            if (message) {
+              console.log('🔊 Speaking message:', message);
+              const utterance = new SpeechSynthesisUtterance(message);
+              const selectedVoice = availableVoices.find((v) => v.voiceURI === selectedVoiceURI);
+              if (selectedVoice) {
+                utterance.voice = selectedVoice;
+              }
+              window.speechSynthesis.speak(utterance);
+            } else {
+              console.log('⚠️ No message to speak');
+            }
+          } else {
+            console.log('⚠️ Speech synthesis not available');
+          }
+          break;
+        case 'UNDO':
+          console.log('↩️ Executing UNDO');
+          handleUndo();
+          break;
+        case 'CLEAR':
+          console.log('🗑️ Executing CLEAR');
+          handleClear();
+          break;
+        case 'RESTART':
+          console.log('🔄 Executing RESTART');
+          // Restart scanning from the beginning
+          setIsScanning(false);
+          setScanIndex(0);
+          setTimeout(() => setIsScanning(true), 100);
+          break;
+      }
+    },
+    [message, availableVoices, selectedVoiceURI, handleUndo, handleClear]
+  );
+
   const handleFileUpload = useCallback(
     async (file: File) => {
       if (!file) return;
@@ -1143,10 +1236,13 @@ const App: React.FC = () => {
   }, [selectedLanguage, alphabet]);
 
   const handleSwitch1 = useCallback(() => {
+    console.log(`🔘 handleSwitch1 called - scanMode: ${scanMode}, isScanning: ${isScanning}, scanIndex: ${scanIndex}, currentItem: ${scanItems[scanIndex]}`);
     if (scanMode === 'one-switch') {
       if (isScanning) {
+        console.log(`✅ Selecting item: ${scanItems[scanIndex]}`);
         handleSelect(scanItems[scanIndex]);
       } else {
+        console.log('▶️ Starting scanning');
         setIsScanning(true);
       }
     } else {
@@ -1197,6 +1293,11 @@ const App: React.FC = () => {
 
     let holdInterval: number | undefined;
     let lastKeyUpTime: { [key: string]: number } = {};
+    let keyPressStartTime: number | null = null;
+    let shortHoldTimeout: number | undefined;
+    let longHoldTimeout: number | undefined;
+    let shortHoldTriggered = false;
+    let longHoldTriggered = false;
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.code === 'Space') {
@@ -1216,6 +1317,61 @@ const App: React.FC = () => {
           }
         }
 
+        // One-switch mode with hold actions enabled
+        if (scanMode === 'one-switch' && enableHoldActions) {
+          if (!event.repeat) {
+            // First press - start tracking hold time
+            keyPressStartTime = Date.now();
+            setIsHolding(true);
+            setHoldProgress(0);
+            setHoldZone('none');
+
+            // Animate progress bar and update zones
+            console.log(`⏱️ Starting hold timer - shortHold: ${shortHoldDuration}ms, longHold: ${longHoldDuration}ms`);
+            const startTime = Date.now();
+
+            // Clear any existing interval first
+            if (holdProgressIntervalRef.current !== undefined) {
+              clearInterval(holdProgressIntervalRef.current);
+            }
+
+            holdProgressIntervalRef.current = window.setInterval(() => {
+              const elapsed = Date.now() - startTime;
+              const progress = Math.min((elapsed / longHoldDuration) * 100, 100);
+              console.log(`📊 Progress: ${progress.toFixed(1)}%, elapsed: ${elapsed}ms, zone: ${elapsed >= longHoldDuration ? 'red' : elapsed >= shortHoldDuration ? 'green' : 'none'}`);
+              setHoldProgress(progress);
+
+              // Update zone based on elapsed time (zones are updated in setInterval, beeps in setTimeout)
+              if (elapsed >= longHoldDuration) {
+                console.log('🔴 Setting zone to RED');
+                setHoldZone('red');
+                if (holdProgressIntervalRef.current !== undefined) {
+                  clearInterval(holdProgressIntervalRef.current);
+                  holdProgressIntervalRef.current = undefined;
+                }
+              } else if (elapsed >= shortHoldDuration) {
+                console.log('🟢 Setting zone to GREEN');
+                setHoldZone('green');
+              }
+            }, 16); // ~60fps
+
+            // Set timeout to beep when entering green zone
+            shortHoldTimeout = window.setTimeout(() => {
+              playSound('beep');
+              console.log(`🟢 Entered green zone (${shortHoldDuration}ms)`);
+            }, shortHoldDuration);
+
+            // Set timeout to beep when entering red zone
+            longHoldTimeout = window.setTimeout(() => {
+              playSound('beep');
+              console.log(`🔴 Entered red zone (${longHoldDuration}ms)`);
+            }, longHoldDuration);
+          }
+          // Always return when hold actions are enabled to prevent normal switch behavior
+          // (both for first press and repeat events)
+          return;
+        }
+
         // In two-switch mode, implement custom hold-down behavior with configurable speed
         if (scanMode === 'two-switch') {
           // Detect if this is a repeat event (key is being held)
@@ -1231,7 +1387,7 @@ const App: React.FC = () => {
             handleSwitch1();
           }
         } else {
-          // One-switch mode: allow browser's native key repeat
+          // One-switch mode: normal behavior (hold actions disabled or repeat event)
           handleSwitch1();
         }
       } else if (event.code === 'Enter' && scanMode === 'two-switch') {
@@ -1263,6 +1419,49 @@ const App: React.FC = () => {
         // Record the time of this keyup for debounce checking
         lastKeyUpTime['Space'] = Date.now();
 
+        // Handle hold actions on release
+        if (scanMode === 'one-switch' && enableHoldActions) {
+          // Clear timeouts
+          if (shortHoldTimeout !== undefined) {
+            clearTimeout(shortHoldTimeout);
+            shortHoldTimeout = undefined;
+          }
+          if (longHoldTimeout !== undefined) {
+            clearTimeout(longHoldTimeout);
+            longHoldTimeout = undefined;
+          }
+
+          // Clear progress animation
+          if (holdProgressIntervalRef.current !== undefined) {
+            clearInterval(holdProgressIntervalRef.current);
+            holdProgressIntervalRef.current = undefined;
+          }
+
+          // Determine which action to execute based on hold zone
+          const currentZone = holdZone;
+          console.log(`🔓 Key released in zone: ${currentZone}`);
+
+          if (currentZone === 'red') {
+            // Released in red zone - execute long hold action
+            console.log(`🔴 Executing long hold action: ${longHoldAction}`);
+            executeHoldAction(longHoldAction);
+          } else if (currentZone === 'green') {
+            // Released in green zone - execute short hold action
+            console.log(`🟢 Executing short hold action: ${shortHoldAction}`);
+            executeHoldAction(shortHoldAction);
+          } else {
+            // Released before entering any zone - normal switch behavior
+            console.log('🖱️ Quick tap - executing normal switch action');
+            handleSwitch1();
+          }
+
+          // Reset states
+          setIsHolding(false);
+          setHoldProgress(0);
+          setHoldZone('none');
+          keyPressStartTime = null;
+        }
+
         if (scanMode === 'two-switch') {
           // Clear the hold interval when key is released
           if (holdInterval !== undefined) {
@@ -1285,8 +1484,30 @@ const App: React.FC = () => {
       if (holdInterval !== undefined) {
         clearInterval(holdInterval);
       }
+      if (shortHoldTimeout !== undefined) {
+        clearTimeout(shortHoldTimeout);
+      }
+      if (longHoldTimeout !== undefined) {
+        clearTimeout(longHoldTimeout);
+      }
+      // Note: Don't clear holdProgressIntervalRef here - it should only be cleared on keyup
+      // Clearing it here would stop the progress bar mid-hold when the effect re-runs
     };
-  }, [handleSwitch1, handleSwitch2, scanMode, holdSpeed, debounceTime, showSettingsModal]);
+  }, [
+    handleSwitch1,
+    handleSwitch2,
+    scanMode,
+    holdSpeed,
+    debounceTime,
+    showSettingsModal,
+    enableHoldActions,
+    shortHoldDuration,
+    longHoldDuration,
+    shortHoldAction,
+    longHoldAction,
+    executeHoldAction,
+    playSound,
+  ]);
 
   const handleToggleFullscreen = useCallback(() => {
     if (!document.fullscreenElement) {
@@ -1360,15 +1581,37 @@ const App: React.FC = () => {
           theme={theme}
           fontFamily={resolvedFontFamily}
         />
-        <Scanner
-          currentItem={scanItems[scanIndex] ?? ''}
-          fontSize={scannerFontSize}
-          theme={theme}
-          fontFamily={resolvedFontFamily}
-          borderWidth={borderWidth}
-          predictedLetters={predictedLetters}
-          predictedWords={predictedWords}
-        />
+        <div className="relative flex-grow flex flex-col">
+          <Scanner
+            currentItem={scanItems[scanIndex] ?? ''}
+            fontSize={scannerFontSize}
+            theme={theme}
+            fontFamily={resolvedFontFamily}
+            borderWidth={borderWidth}
+            predictedLetters={predictedLetters}
+            predictedWords={predictedWords}
+          />
+          {/* Hold Progress Indicator */}
+          {isHolding && enableHoldActions && (
+            <div
+              className="absolute bottom-0 left-0 right-0 h-4 bg-gray-300 border-t-2 border-gray-400"
+              style={{ zIndex: 10 }}
+            >
+              <div
+                className="h-full transition-all duration-75"
+                style={{
+                  width: `${holdProgress}%`,
+                  backgroundColor:
+                    holdZone === 'red'
+                      ? '#ef4444' // Red for long hold zone
+                      : holdZone === 'green'
+                        ? '#22c55e' // Green for short hold zone
+                        : '#6b7280', // Dark gray before entering any zone
+                }}
+              />
+            </div>
+          )}
+        </div>
       </main>
 
       {/* Settings Modal - Always rendered so it's accessible even when control bar is hidden */}
@@ -1440,6 +1683,16 @@ const App: React.FC = () => {
         setAudioEffectsEnabled={setAudioEffectsEnabled}
         speakAfterPredictions={speakAfterPredictions}
         setSpeakAfterPredictions={setSpeakAfterPredictions}
+        enableHoldActions={enableHoldActions}
+        setEnableHoldActions={setEnableHoldActions}
+        shortHoldDuration={shortHoldDuration}
+        setShortHoldDuration={setShortHoldDuration}
+        longHoldDuration={longHoldDuration}
+        setLongHoldDuration={setLongHoldDuration}
+        shortHoldAction={shortHoldAction}
+        setShortHoldAction={setShortHoldAction}
+        longHoldAction={longHoldAction}
+        setLongHoldAction={setLongHoldAction}
       />
     </div>
   );
