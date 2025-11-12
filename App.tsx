@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { ALPHABET, SPECIAL_ACTIONS, SPEAK, SPACE, UNDO, CLEAR } from './constants';
-import type { ScanMode, ThemeName } from './types';
 import Display from './components/Display';
 import Scanner from './components/Scanner';
 import Controls from './components/Controls';
@@ -211,7 +210,7 @@ const App: React.FC = () => {
       }
     };
     loadScripts();
-  }, [settings.selectedLanguage, settings.selectedScript, settings.setSelectedScript]);
+  }, [settings]);
 
   // Effect to update alphabet when language, script, or case changes
   useEffect(() => {
@@ -373,7 +372,7 @@ const App: React.FC = () => {
     return () => {
       window.speechSynthesis.onvoiceschanged = null;
     };
-  }, [settings.selectedLanguage, settings.selectedVoiceURI, settings.setSelectedVoiceURI]);
+  }, [settings]);
 
   const handleSelect = useCallback(
     (item: string) => {
@@ -555,17 +554,12 @@ const App: React.FC = () => {
     },
     [
       message,
-      settings.showWordPrediction,
+      settings,
       predictedWords,
       availableVoices,
-      settings.selectedVoiceURI,
-      settings.gameMode,
       currentGameTarget,
-      settings.gameWordList,
       predictor,
-      settings.selectedLanguage,
       playSound,
-      settings.setCurrentGameWordIndex,
       setLearnedWordsCount,
     ]
   );
@@ -681,11 +675,8 @@ const App: React.FC = () => {
 
     let holdInterval: number | undefined;
     const lastKeyUpTime: { [key: string]: number } = {};
-    let keyPressStartTime: number | null = null;
     let shortHoldTimeout: number | undefined;
     let longHoldTimeout: number | undefined;
-    const shortHoldTriggered = false;
-    const longHoldTriggered = false;
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.code === 'Space') {
@@ -709,7 +700,6 @@ const App: React.FC = () => {
         if (settings.scanMode === 'one-switch' && settings.enableHoldActions) {
           if (!event.repeat) {
             // First press - start tracking hold time
-            keyPressStartTime = Date.now();
             setIsHolding(true);
             setHoldProgress(0);
             setHoldZone('none');
@@ -852,7 +842,6 @@ const App: React.FC = () => {
           setHoldProgress(0);
           setHoldZone('none');
           holdZoneRef.current = 'none';
-          keyPressStartTime = null;
         }
 
         if (settings.scanMode === 'two-switch') {

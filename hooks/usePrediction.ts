@@ -204,8 +204,8 @@ export function usePrediction({
         : (c: string) => c.length === 1 && ((c >= 'a' && c <= 'z') || c === ' ');
 
       const filteredLetters = charPredictions
-        .filter((p: any) => letterFilter(p.text))
-        .map((p: any) => p.text === ' ' ? ' ' : caseTransform(p.text))  // Don't transform space
+        .filter((p: { text: string; probability: number }) => letterFilter(p.text))
+        .map((p: { text: string; probability: number }) => p.text === ' ' ? ' ' : caseTransform(p.text))  // Don't transform space
         .slice(0, 5);
 
       setPredictedLetters(filteredLetters);
@@ -226,7 +226,7 @@ export function usePrediction({
         // Apply case transformation based on useUppercase setting
         // Extract text property from prediction objects
         const transformedWords = wordPredictions
-          .map((p: any) => (useUppercase ? p.text.toUpperCase() : p.text.toLowerCase()))
+          .map((p: { text: string; probability: number }) => (useUppercase ? p.text.toUpperCase() : p.text.toLowerCase()))
           .slice(0, 3);
 
         setPredictedWords(transformedWords);
