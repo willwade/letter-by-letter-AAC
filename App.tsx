@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { ALPHABET, SPECIAL_ACTIONS, SPEAK, SPACE } from './constants';
+import { ALPHABET, SPECIAL_ACTIONS, SPEAK, SPACE, UNDO, CLEAR } from './constants';
 import type { ScanMode, ThemeName } from './types';
 import Display from './components/Display';
 import Scanner from './components/Scanner';
@@ -230,7 +230,8 @@ const App: React.FC = () => {
   // Hold progress indicator state
   const [holdProgress, setHoldProgress] = useState<number>(0); // 0-100 percentage
   const [isHolding, setIsHolding] = useState<boolean>(false);
-  const [holdZone, setHoldZone] = useState<'none' | 'green' | 'red'>('none'); // Which zone we're in
+  const [holdZone, setHoldZone] = useState<'none' | 'green' | 'red'>('none'); // Which zone we're in (for UI)
+  const holdZoneRef = useRef<'none' | 'green' | 'red'>('none'); // Which zone we're in (for keyup handler)
   const holdProgressIntervalRef = useRef<number | undefined>(undefined);
 
   // Web Audio API setup for high-performance audio playback
@@ -1325,6 +1326,7 @@ const App: React.FC = () => {
             setIsHolding(true);
             setHoldProgress(0);
             setHoldZone('none');
+            holdZoneRef.current = 'none';
 
             // Animate progress bar and update zones
             console.log(`⏱️ Starting hold timer - shortHold: ${shortHoldDuration}ms, longHold: ${longHoldDuration}ms`);
@@ -1345,6 +1347,7 @@ const App: React.FC = () => {
               if (elapsed >= longHoldDuration) {
                 console.log('🔴 Setting zone to RED');
                 setHoldZone('red');
+                holdZoneRef.current = 'red'; // Update ref immediately
                 if (holdProgressIntervalRef.current !== undefined) {
                   clearInterval(holdProgressIntervalRef.current);
                   holdProgressIntervalRef.current = undefined;
@@ -1352,6 +1355,7 @@ const App: React.FC = () => {
               } else if (elapsed >= shortHoldDuration) {
                 console.log('🟢 Setting zone to GREEN');
                 setHoldZone('green');
+                holdZoneRef.current = 'green'; // Update ref immediately
               }
             }, 16); // ~60fps
 
@@ -1438,7 +1442,8 @@ const App: React.FC = () => {
           }
 
           // Determine which action to execute based on hold zone
-          const currentZone = holdZone;
+          // Use ref instead of state to get the most up-to-date zone value
+          const currentZone = holdZoneRef.current;
           console.log(`🔓 Key released in zone: ${currentZone}`);
 
           if (currentZone === 'red') {
@@ -1459,6 +1464,7 @@ const App: React.FC = () => {
           setIsHolding(false);
           setHoldProgress(0);
           setHoldZone('none');
+          holdZoneRef.current = 'none';
           keyPressStartTime = null;
         }
 
