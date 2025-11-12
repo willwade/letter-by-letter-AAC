@@ -472,11 +472,24 @@ const App: React.FC = () => {
         const lastSpaceIndex = message.lastIndexOf(' ');
         const messageBase = lastSpaceIndex === -1 ? '' : message.substring(0, lastSpaceIndex + 1);
         const newMessage = messageBase + item + ' ';
+
+        console.log('📝 Word prediction selected:', {
+          item,
+          currentMessage: message,
+          lastSpaceIndex,
+          messageBase,
+          newMessage,
+          predictedWords
+        });
+
         setMessage(newMessage);
 
-        // Train predictor on confirmed word selection
+        // Train the model on the confirmed word selection
+        // In adaptive mode, addToContext() both sets context AND trains the model
         if (predictor) {
-          predictor.addToContext(item + ' ');
+          predictor.resetContext();
+          predictor.addToContext(newMessage.toLowerCase());
+
           // Save to session buffer for persistence
           const sessionKey = `ppm-session-${settings.selectedLanguage}`;
           const currentSession = localStorage.getItem(sessionKey) || '';
@@ -485,17 +498,34 @@ const App: React.FC = () => {
         }
       } else if (item === '_') {
         // Corresponds to SPACE constant
-        setMessage((prev) => prev + ' ');
-        // Train on space (context boundary)
+        const newMessage = message + ' ';
+        setMessage(newMessage);
+
+        // Train the model on the confirmed space
         if (predictor) {
-          predictor.addToContext(' ');
+          predictor.resetContext();
+          predictor.addToContext(newMessage.toLowerCase());
         }
       } else if (item === 'UNDO') {
         // Corresponds to UNDO constant
-        setMessage((prev) => prev.slice(0, -1));
+        const newMessage = message.slice(0, -1);
+        setMessage(newMessage);
+
+        // Update context after undo
+        if (predictor) {
+          predictor.resetContext();
+          if (newMessage) {
+            predictor.addToContext(newMessage.toLowerCase());
+          }
+        }
       } else if (item === 'CLEAR') {
         // Corresponds to CLEAR constant
         setMessage('');
+
+        // Reset context when clearing
+        if (predictor) {
+          predictor.resetContext();
+        }
       } else if (item === 'SPEAK') {
         // Corresponds to SPEAK constant
         if ('speechSynthesis' in window && message) {
@@ -511,7 +541,15 @@ const App: React.FC = () => {
           alert('Text-to-speech not supported in this browser.');
         }
       } else {
-        setMessage((prev) => prev + item);
+        // Regular letter selection
+        const newMessage = message + item;
+        setMessage(newMessage);
+
+        // Train the model on the confirmed letter selection
+        if (predictor) {
+          predictor.resetContext();
+          predictor.addToContext(newMessage.toLowerCase());
+        }
       }
       setScanIndex(0);
     },
@@ -642,12 +680,12 @@ const App: React.FC = () => {
     }
 
     let holdInterval: number | undefined;
-    let lastKeyUpTime: { [key: string]: number } = {};
+    const lastKeyUpTime: { [key: string]: number } = {};
     let keyPressStartTime: number | null = null;
     let shortHoldTimeout: number | undefined;
     let longHoldTimeout: number | undefined;
-    let shortHoldTriggered = false;
-    let longHoldTriggered = false;
+    const shortHoldTriggered = false;
+    const longHoldTriggered = false;
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.code === 'Space') {

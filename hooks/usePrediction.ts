@@ -180,38 +180,64 @@ export function usePrediction({
 
     const handler = setTimeout(() => {
       const lowerCaseMessage = message.toLowerCase();
-      predictor.addToContext(lowerCaseMessage);
+
+      // IMPORTANT: We're in adaptive mode, so we DON'T call addToContext() here
+      // because it would train the model on partial/incomplete text.
+      // Instead, we pass context as parameters to the prediction methods.
+
+      // For character prediction, we need to set context temporarily
+      // Reset and set context for character prediction only
+      predictor.resetContext();
+      if (lowerCaseMessage) {
+        predictor.addToContext(lowerCaseMessage);
+      }
+
+      // Predict next character based on current context
       const charPredictions = predictor.predictNextCharacter();
 
-      // Filter for single alphabet characters and apply case based on useUppercase setting
+      // Filter for single alphabet characters AND space, apply case based on useUppercase setting
       const caseTransform = useUppercase
         ? (s: string) => s.toUpperCase()
         : (s: string) => s.toLowerCase();
       const letterFilter = useUppercase
-        ? (c: string) => c.length === 1 && c >= 'A' && c <= 'Z'
-        : (c: string) => c.length === 1 && c >= 'a' && c <= 'z';
+        ? (c: string) => c.length === 1 && ((c >= 'A' && c <= 'Z') || c === ' ')
+        : (c: string) => c.length === 1 && ((c >= 'a' && c <= 'z') || c === ' ');
 
       const filteredLetters = charPredictions
-        .filter((p) => letterFilter(p.text))
-        .map((p) => caseTransform(p.text))
+        .filter((p: any) => letterFilter(p.text))
+        .map((p: any) => p.text === ' ' ? ' ' : caseTransform(p.text))  // Don't transform space
         .slice(0, 5);
 
       setPredictedLetters(filteredLetters);
 
-      // Word predictions
+      // Word predictions - use precedingContext parameter to avoid training
       if (showWordPrediction) {
-        const wordPredictions = predictor.predictWordCompletion(lowerCaseMessage);
+        // Extract the partial word (last word being typed)
+        const words = lowerCaseMessage.split(/\s+/);
+        const partialWord = words[words.length - 1] || '';
+        const precedingText = words.slice(0, -1).join(' ');
+
+        // Pass precedingContext to avoid training on partial text
+        const wordPredictions = predictor.predictWordCompletion(
+          partialWord,
+          precedingText
+        );
 
         // Apply case transformation based on useUppercase setting
         // Extract text property from prediction objects
         const transformedWords = wordPredictions
-          .map((p) => (useUppercase ? p.text.toUpperCase() : p.text.toLowerCase()))
+          .map((p: any) => (useUppercase ? p.text.toUpperCase() : p.text.toLowerCase()))
           .slice(0, 3);
 
         setPredictedWords(transformedWords);
+
+        console.log('🔮 Word predictions for "' + partialWord + '" (context: "' + precedingText + '"):', transformedWords);
       } else {
         setPredictedWords([]);
       }
+
+      // Reset context after prediction to avoid training on partial text
+      predictor.resetContext();
     }, 300); // 300ms debounce
 
     return () => {
