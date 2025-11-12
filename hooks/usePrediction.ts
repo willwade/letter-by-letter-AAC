@@ -199,8 +199,8 @@ export function usePrediction({
       const charPredictions = predictor.predictNextCharacter();
 
       // Filter for single alphabet characters AND space
-      // Note: predictor always works in lowercase, so we filter for lowercase then transform
-      const letterFilter = (c: string) => c.length === 1 && ((c >= 'a' && c <= 'z') || c === ' ');
+      // Use Unicode letter check to support all languages (Arabic, Hebrew, Chinese, etc.)
+      const letterFilter = (c: string) => c.length === 1 && (c.match(/\p{L}/u) || c === ' ');
 
       // Apply case transformation based on useUppercase setting
       const caseTransform = useUppercase
@@ -289,12 +289,9 @@ export function usePrediction({
     if (!predictor || !enablePrediction) return;
 
     // Extract just the letters from scanItems (filter out special actions)
+    // Use Unicode letter check to support all languages (Arabic, Hebrew, Chinese, etc.)
     const letters = scanItems.filter(
-      (item) =>
-        item.length === 1 &&
-        ((item >= 'a' && item <= 'z') ||
-          (item >= 'A' && item <= 'Z') ||
-          item.match(/\p{L}/u)) // Unicode letter
+      (item) => item.length === 1 && item.match(/\p{L}/u)
     );
 
     if (letters.length > 0) {
