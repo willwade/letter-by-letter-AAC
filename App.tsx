@@ -19,6 +19,9 @@ const App: React.FC = () => {
   // MIGRATION: Use settings hook (gradually migrating settings here)
   const settings = useSettings();
 
+  // Extract selectedLanguage to prevent infinite loops in useEffect dependencies
+  const { selectedLanguage } = settings;
+
   const [message, setMessage] = useState<string>('');
   const [scanIndex, setScanIndex] = useState<number>(0);
 
@@ -183,7 +186,7 @@ const App: React.FC = () => {
   useEffect(() => {
     const loadScripts = async () => {
       try {
-        const scripts = await getScripts(settings.selectedLanguage);
+        const scripts = await getScripts(selectedLanguage);
         setAvailableScripts(scripts);
         // If current script is not available for new language, reset to first available or null
         if (scripts.length > 0 && !scripts.includes(settings.selectedScript || '')) {
@@ -200,17 +203,19 @@ const App: React.FC = () => {
         setIsRTL(isRightToLeft);
 
         console.log(
-          `Language: ${settings.selectedLanguage}, Script: ${currentScript}, RTL: ${isRightToLeft}`
+          `Language: ${selectedLanguage}, Script: ${currentScript}, RTL: ${isRightToLeft}`
         );
       } catch (error) {
-        console.error('Failed to load scripts for language:', settings.selectedLanguage, error);
+        console.error('Failed to load scripts for language:', selectedLanguage, error);
         setAvailableScripts([]);
         settings.setSelectedScript(null);
         setIsRTL(false);
       }
     };
+
     loadScripts();
-  }, [settings]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedLanguage]);
 
   // Effect to update alphabet when language, script, or case changes
   useEffect(() => {
@@ -269,8 +274,23 @@ const App: React.FC = () => {
 
     const predictionEnabledAndReady = settings.enablePrediction && predictor;
 
-    // Game Mode: show full alphabet but only next correct letter is selectable
+    // Game Mode: show predictions (if enabled) and full alphabet, but only next correct letter is selectable
     if (settings.gameMode && currentGameTarget) {
+      // Include predicted words at the start if prediction is enabled
+      if (predictionEnabledAndReady && settings.showWordPrediction && predictedWords.length > 0) {
+        newScanItems.push(...predictedWords);
+      }
+
+      // Include predicted letters if prediction is enabled
+      if (predictionEnabledAndReady && predictedLetters.length > 0) {
+        newScanItems.push(...predictedLetters);
+      }
+
+      // Conditionally add SPEAK after predictions if setting is enabled
+      if (predictionEnabledAndReady && settings.speakAfterPredictions && message.length > 1) {
+        newScanItems.push(SPEAK);
+      }
+
       // Include full alphabet
       newScanItems.push(...alphabet);
 
@@ -280,9 +300,14 @@ const App: React.FC = () => {
         newScanItems.push(SPACE);
       }
 
-      // Always include actions at the end (SPECIAL_ACTIONS includes SPEAK, UNDO, CLEAR)
+      // Always include actions at the end
       if (message.length > 0) {
-        newScanItems.push(...SPECIAL_ACTIONS);
+        // If SPEAK is after predictions, exclude it from SPECIAL_ACTIONS here
+        if (predictionEnabledAndReady && settings.speakAfterPredictions) {
+          newScanItems.push(SPACE, UNDO, CLEAR);
+        } else {
+          newScanItems.push(...SPECIAL_ACTIONS);
+        }
       }
     } else if (!predictionEnabledAndReady) {
       // Include alphabet first
@@ -295,13 +320,21 @@ const App: React.FC = () => {
       }
     } else {
       // Prediction mode enabled
+      console.log('📋 Building scan items with predictions:', {
+        predictedWords: predictedWords.length,
+        predictedLetters: predictedLetters.length,
+        letters: predictedLetters
+      });
+
       // Include predicted words at the start
       if (settings.showWordPrediction && predictedWords.length > 0) {
         newScanItems.push(...predictedWords);
       }
 
       // Include predicted letters
-      newScanItems.push(...predictedLetters);
+      if (predictedLetters.length > 0) {
+        newScanItems.push(...predictedLetters);
+      }
 
       // Conditionally add SPEAK after predictions if setting is enabled
       if (settings.speakAfterPredictions && message.length > 1) {
@@ -372,7 +405,8 @@ const App: React.FC = () => {
     return () => {
       window.speechSynthesis.onvoiceschanged = null;
     };
-  }, [settings]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [settings.selectedLanguage]);
 
   const handleSelect = useCallback(
     (item: string) => {
@@ -395,6 +429,54 @@ const App: React.FC = () => {
           // Move to next word and clear message
           settings.setCurrentGameWordIndex((prev) => (prev + 1) % settings.gameWordList.length);
           setMessage('');
+          return;
+        } else if (settings.showWordPrediction && predictedWords.includes(item)) {
+          // Word prediction selected in game mode
+          // Check if the predicted word matches the target (case-insensitive)
+          const remainingTarget = currentGameTarget.substring(message.length);
+
+          // Check if the word completes the current target or matches the remaining part
+          if (item.toLowerCase() === currentGameTarget.toLowerCase()) {
+            // Complete word match - accept it
+            setMessage(item);
+
+            // Confetti for correct word
+            confetti({
+              particleCount: 100,
+              spread: 70,
+              origin: { y: 0.6 },
+            });
+
+            // Speak the word
+            if ('speechSynthesis' in window) {
+              const utterance = new SpeechSynthesisUtterance(item);
+              const selectedVoice = availableVoices.find(
+                (v) => v.voiceURI === settings.selectedVoiceURI
+              );
+              if (selectedVoice) {
+                utterance.voice = selectedVoice;
+              }
+              window.speechSynthesis.speak(utterance);
+            }
+
+            // Move to next word after 1.5 seconds
+            setTimeout(() => {
+              settings.setCurrentGameWordIndex((prev) => (prev + 1) % settings.gameWordList.length);
+              setMessage('');
+            }, 1500);
+          } else if (remainingTarget.toLowerCase().startsWith(item.toLowerCase())) {
+            // Partial word match - accept it as completing part of the target
+            const newMessage = message + item; // No space after word prediction
+            setMessage(newMessage);
+
+            // Confetti for correct partial word
+            confetti({
+              particleCount: 50,
+              spread: 60,
+              origin: { y: 0.6 },
+            });
+          }
+          // Ignore incorrect word predictions
           return;
         } else if (item.length === 1 || item === '_') {
           // Handle both letters and spaces
@@ -463,14 +545,37 @@ const App: React.FC = () => {
           }
           // Ignore incorrect letters/spaces (do nothing)
           return;
+        } else if (item === 'UNDO') {
+          // Handle UNDO in game mode
+          const newMessage = message.slice(0, -1);
+          setMessage(newMessage);
+
+          // Update context after undo
+          if (predictor) {
+            predictor.resetContext();
+            if (newMessage) {
+              predictor.addToContext(newMessage.toLowerCase());
+            }
+          }
+          return;
+        } else if (item === 'CLEAR') {
+          // Handle CLEAR in game mode - restart current word
+          setMessage('');
+
+          // Reset context when clearing
+          if (predictor) {
+            predictor.resetContext();
+          }
+          return;
         }
+        // Fall through for other actions like SPEAK (already handled above)
       }
 
       // Normal mode (non-game)
       if (settings.showWordPrediction && predictedWords.includes(item)) {
         const lastSpaceIndex = message.lastIndexOf(' ');
         const messageBase = lastSpaceIndex === -1 ? '' : message.substring(0, lastSpaceIndex + 1);
-        const newMessage = messageBase + item + ' ';
+        const newMessage = messageBase + item; // No space after word prediction
 
         console.log('📝 Word prediction selected:', {
           item,
@@ -489,10 +594,10 @@ const App: React.FC = () => {
           predictor.resetContext();
           predictor.addToContext(newMessage.toLowerCase());
 
-          // Save to session buffer for persistence
+          // Save to session buffer for persistence (no space after word)
           const sessionKey = `ppm-session-${settings.selectedLanguage}`;
           const currentSession = localStorage.getItem(sessionKey) || '';
-          localStorage.setItem(sessionKey, currentSession + item + ' ');
+          localStorage.setItem(sessionKey, currentSession + item);
           setLearnedWordsCount((prev) => prev + 1);
         }
       } else if (item === '_') {

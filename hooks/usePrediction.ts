@@ -119,10 +119,12 @@ export function usePrediction({
         // Train on corpus text if available
         if (corpusText) {
           console.log(`📚 Training on corpus text (${corpusText.length} characters)...`);
-          newPredictor.train(corpusText);
+          // Convert to lowercase for case-insensitive training
+          const normalizedCorpus = corpusText.toLowerCase();
+          newPredictor.train(normalizedCorpus);
 
-          // Store the training data for export
-          setLoadedTrainingData(corpusText);
+          // Store the normalized training data for export
+          setLoadedTrainingData(normalizedCorpus);
 
           // Count words in training corpus
           const corpusWords = corpusText.trim().split(/\s+/).filter((w) => w.length > 0).length;
@@ -146,6 +148,7 @@ export function usePrediction({
             .split(/\s+/)
             .filter((w) => w.length > 0);
           console.log(`📚 Also loading ${learnedWords.length} learned words from previous sessions`);
+          // Session data is already lowercase (saved from user input which is normalized)
           newPredictor.train(sessionData);
           setLearnedWordsCount(learnedWords.length);
         } else {
@@ -195,43 +198,79 @@ export function usePrediction({
       // Predict next character based on current context
       const charPredictions = predictor.predictNextCharacter();
 
-      // Filter for single alphabet characters AND space, apply case based on useUppercase setting
+      // Filter for single alphabet characters AND space
+      // Note: predictor always works in lowercase, so we filter for lowercase then transform
+      const letterFilter = (c: string) => c.length === 1 && ((c >= 'a' && c <= 'z') || c === ' ');
+
+      // Apply case transformation based on useUppercase setting
       const caseTransform = useUppercase
         ? (s: string) => s.toUpperCase()
         : (s: string) => s.toLowerCase();
-      const letterFilter = useUppercase
-        ? (c: string) => c.length === 1 && ((c >= 'A' && c <= 'Z') || c === ' ')
-        : (c: string) => c.length === 1 && ((c >= 'a' && c <= 'z') || c === ' ');
 
       const filteredLetters = charPredictions
         .filter((p: { text: string; probability: number }) => letterFilter(p.text))
-        .map((p: { text: string; probability: number }) => p.text === ' ' ? ' ' : caseTransform(p.text))  // Don't transform space
+        .map((p: { text: string; probability: number }) => p.text === ' ' ? '_' : caseTransform(p.text))  // Convert space to underscore for display
         .slice(0, 5);
+
+      console.log('🔤 Character predictions:', {
+        rawPredictions: charPredictions.length,
+        filteredLetters: filteredLetters.length,
+        letters: filteredLetters,
+        context: lowerCaseMessage.slice(-20) // Last 20 chars of context
+      });
 
       setPredictedLetters(filteredLetters);
 
       // Word predictions - use precedingContext parameter to avoid training
       if (showWordPrediction) {
-        // Extract the partial word (last word being typed)
-        const words = lowerCaseMessage.split(/\s+/);
-        const partialWord = words[words.length - 1] || '';
-        const precedingText = words.slice(0, -1).join(' ');
+        let wordPredictions: { text: string; probability: number }[] = [];
 
-        // Pass precedingContext to avoid training on partial text
-        const wordPredictions = predictor.predictWordCompletion(
-          partialWord,
-          precedingText
-        );
+        // Check if message ends with space (complete word just typed)
+        if (lowerCaseMessage.endsWith(' ') && lowerCaseMessage.trim().length > 0) {
+          // Next word prediction - predict what comes after the last complete word
+          const words = lowerCaseMessage.trim().split(/\s+/);
+          const lastWord = words[words.length - 1] || '';
+
+          if (lastWord) {
+            wordPredictions = predictor.predictNextWord(lastWord, 10);
+            console.log('🔮 Next word predictions after "' + lastWord + '":', wordPredictions);
+          }
+        } else {
+          // Word completion - predict completions for partial word being typed
+          const words = lowerCaseMessage.split(/\s+/);
+          const partialWord = words[words.length - 1] || '';
+          const precedingText = words.slice(0, -1).join(' ');
+
+          // Pass precedingContext to avoid training on partial text
+          wordPredictions = predictor.predictWordCompletion(
+            partialWord,
+            precedingText,
+            10
+          );
+
+          console.log('🔮 Word completions for "' + partialWord + '" (context: "' + precedingText + '"):', wordPredictions);
+        }
+
+        // Filter out words with unwanted punctuation (keep only letters, numbers, hyphens, apostrophes within words)
+        // This removes predictions like "CLES,'S," or "BALANCED,),"
+        const filteredPredictions = wordPredictions.filter((p: { text: string; probability: number }) => {
+          // Allow only: letters, numbers, hyphens, and apostrophes (but not at start/end)
+          // Reject: commas, periods, parentheses, brackets, etc.
+          const text = p.text;
+
+          // Check if word contains unwanted punctuation
+          const hasUnwantedPunctuation = /[,.()[\]{};:!?"""''`~@#$%^&*+=<>/\\|]/.test(text);
+
+          return !hasUnwantedPunctuation;
+        });
 
         // Apply case transformation based on useUppercase setting
         // Extract text property from prediction objects
-        const transformedWords = wordPredictions
+        const transformedWords = filteredPredictions
           .map((p: { text: string; probability: number }) => (useUppercase ? p.text.toUpperCase() : p.text.toLowerCase()))
           .slice(0, 3);
 
         setPredictedWords(transformedWords);
-
-        console.log('🔮 Word predictions for "' + partialWord + '" (context: "' + precedingText + '"):', transformedWords);
       } else {
         setPredictedWords([]);
       }
@@ -260,6 +299,8 @@ export function usePrediction({
 
     if (letters.length > 0) {
       // Build adjacency map based on the CURRENT scan order
+      // This represents the actual navigation order, so "adjacent" means
+      // the user might accidentally select the item before/after while scanning
       const adjacencyMap = buildKeyboardAdjacencyMap(letters);
 
       // Update the predictor's keyboard adjacency map using updateConfig
@@ -303,9 +344,10 @@ export function usePrediction({
           lexicon: lexicon.length > 0 ? lexicon : undefined,
         });
 
-        // Train on uploaded file
-        newPredictor.train(text);
-        setLoadedTrainingData(text);
+        // Train on uploaded file (normalize to lowercase)
+        const normalizedText = text.toLowerCase();
+        newPredictor.train(normalizedText);
+        setLoadedTrainingData(normalizedText);
 
         // Also load and train on any existing learned data for this language
         const sessionKey = `ppm-session-${selectedLanguage}`;
@@ -318,6 +360,7 @@ export function usePrediction({
           console.log(
             `📚 Also loading ${learnedWords.length} learned words from previous sessions`
           );
+          // Session data is already lowercase
           newPredictor.train(sessionData);
           setLearnedWordsCount(learnedWords.length);
         } else {
