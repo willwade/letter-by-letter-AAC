@@ -4,86 +4,17 @@ import type { ScanMode, ThemeName } from './types';
 import Display from './components/Display';
 import Scanner from './components/Scanner';
 import Controls from './components/Controls';
-import { createErrorTolerantPredictor, type Predictor } from '@willwade/ppmpredictor';
 import {
   getUppercase,
   getLowercase,
   getScripts,
   getIndexData,
-  loadFrequencyList,
 } from 'worldalphabets';
 import { getTheme } from './themes';
 import confetti from 'canvas-confetti';
-import { getTrainingFileName } from './trainingDataMap';
 import { resolveFontFamily } from './utils/fontMapping';
 import { useSettings } from './hooks/useSettings';
-
-/**
- * Build a keyboard adjacency map from an alphabetical list.
- * Each letter is adjacent to the letters immediately before and after it in the list.
- * This helps the error-tolerant predictor understand that adjacent letters in our
- * linear scanning interface are "closer" to each other.
- */
-function buildKeyboardAdjacencyMap(letters: string[]): Record<string, string[]> {
-  const adjacencyMap: Record<string, string[]> = {};
-
-  for (let i = 0; i < letters.length; i++) {
-    const letter = letters[i].toLowerCase();
-    const adjacent: string[] = [];
-
-    // Add previous letter if exists
-    if (i > 0) {
-      adjacent.push(letters[i - 1].toLowerCase());
-    }
-
-    // Add next letter if exists
-    if (i < letters.length - 1) {
-      adjacent.push(letters[i + 1].toLowerCase());
-    }
-
-    if (adjacent.length > 0) {
-      adjacencyMap[letter] = adjacent;
-    }
-  }
-
-  console.log('🗺️ Built keyboard adjacency map:', adjacencyMap);
-  return adjacencyMap;
-}
-
-/**
- * Load frequency word list from worldalphabets for a given language.
- * Returns top 1000 most frequent words for the language.
- */
-async function loadWordFrequencyList(languageCode: string): Promise<string[]> {
-  try {
-    // Use worldalphabets loadFrequencyList API
-    const freqData = await loadFrequencyList(languageCode);
-
-    if (freqData && freqData.tokens && freqData.tokens.length > 0) {
-      console.log(
-        `✅ Loaded ${freqData.tokens.length} words from worldalphabets frequency list (mode: ${freqData.mode})`
-      );
-
-      // Strip frequency counts from tokens (format: "word\tcount" or just "word")
-      const cleanedTokens = freqData.tokens
-        .map((token: string) => {
-          // Split on tab character and take only the word part
-          const parts = token.split('\t');
-          return parts[0].trim();
-        })
-        .filter((word: string) => word.length > 0);
-
-      console.log(`✅ Cleaned ${cleanedTokens.length} words (removed frequency counts)`);
-      return cleanedTokens;
-    } else {
-      console.warn(`⚠️ No frequency list found for ${languageCode}`);
-      return [];
-    }
-  } catch (error) {
-    console.warn(`⚠️ Could not load frequency list for ${languageCode}:`, error);
-    return [];
-  }
-}
+import { usePrediction } from './hooks/usePrediction';
 
 const App: React.FC = () => {
   // MIGRATION: Use settings hook (gradually migrating settings here)
@@ -99,19 +30,33 @@ const App: React.FC = () => {
   // Start with alphabet in correct case - special actions will be added by useEffect when message has content
   const [scanItems, setScanItems] = useState<string[]>([...initialAlphabet]);
   const [isScanning, setIsScanning] = useState<boolean>(false);
-  const [predictedLetters, setPredictedLetters] = useState<string[]>([]);
-  const [predictedWords, setPredictedWords] = useState<string[]>([]);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(!!document.fullscreenElement);
   const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [showSettingsModal, setShowSettingsModal] = useState<boolean>(false);
 
-  const [predictor, setPredictor] = useState<Predictor | null>(null);
-  const [trainingStatus, setTrainingStatus] = useState<string>('No model loaded.');
-  const [learnedWordsCount, setLearnedWordsCount] = useState<number>(0); // Track learned words
-  const [loadedTrainingData, setLoadedTrainingData] = useState<string>(''); // Store the loaded training corpus
-
   // Language and alphabet state (complex dependencies, not fully migrated)
   const [alphabet, setAlphabet] = useState<string[]>(initialAlphabet);
+
+  // Use prediction hook
+  const {
+    predictor,
+    predictedLetters,
+    predictedWords,
+    trainingStatus,
+    learnedWordsCount,
+    setLearnedWordsCount,
+    handleFileUpload,
+    handleExportLearnedData,
+    handleClearLearnedData,
+  } = usePrediction({
+    message,
+    alphabet,
+    selectedLanguage: settings.selectedLanguage,
+    enablePrediction: settings.enablePrediction,
+    showWordPrediction: settings.showWordPrediction,
+    useUppercase: settings.useUppercase,
+    scanItems,
+  });
   const [availableLanguages, setAvailableLanguages] = useState<string[]>([]);
   const [availableScripts, setAvailableScripts] = useState<string[]>([]);
   const [languageNames, setLanguageNames] = useState<Record<string, string>>({});
@@ -199,124 +144,6 @@ const App: React.FC = () => {
     },
     [settings.audioEffectsEnabled, audioContext, audioBuffers]
   );
-
-  // Effect to load language-specific model and training data
-  useEffect(() => {
-    const loadLanguageModel = async () => {
-      setTrainingStatus(`Loading model for ${settings.selectedLanguage}...`);
-      try {
-        const trainingFileName = getTrainingFileName(settings.selectedLanguage);
-        let corpusText = '';
-        let lexicon: string[] = [];
-
-        // Try to load training data from local files
-        if (trainingFileName) {
-          try {
-            const basePath = import.meta.env.BASE_URL || '/';
-            const response = await fetch(`${basePath}data/training/${trainingFileName}`);
-            if (response.ok) {
-              corpusText = await response.text();
-              console.log(`✅ Loaded training data from ${trainingFileName}`);
-            } else {
-              console.warn(`⚠️ Could not load training file: ${trainingFileName}`);
-            }
-          } catch (error) {
-            console.warn(`⚠️ Error loading training file:`, error);
-          }
-        }
-
-        // Try to load lexicon from worldalphabets frequency lists
-        try {
-          // First try worldalphabets frequency list (top 1000 words)
-          lexicon = await loadWordFrequencyList(settings.selectedLanguage);
-          console.log(`✅ Using ${lexicon.length} words from worldalphabets frequency list`);
-        } catch (error) {
-          console.warn(`⚠️ Could not load lexicon:`, error);
-        }
-
-        // Build keyboard adjacency map from current alphabet
-        const adjacencyMap = buildKeyboardAdjacencyMap(alphabet);
-
-        // Create predictor with error tolerance, keyboard awareness, and lexicon
-        const newPredictor = createErrorTolerantPredictor({
-          maxOrder: 5,
-          adaptive: true,
-          maxEditDistance: 2,
-          minSimilarity: 0.6,
-          maxPredictions: 10,
-          keyboardAware: true,
-          keyboardAdjacencyMap: adjacencyMap,
-          lexicon: lexicon.length > 0 ? lexicon : undefined,
-        });
-
-        console.log(
-          '✅ Created predictor with keyboard awareness for alphabet:',
-          alphabet.slice(0, 10)
-        );
-        if (lexicon.length > 0) {
-          console.log(
-            `✅ Predictor has lexicon with ${lexicon.length} words for error-tolerant matching`
-          );
-        }
-
-        // Train on corpus text if available
-        if (corpusText) {
-          console.log(`📚 Training on corpus text (${corpusText.length} characters)...`);
-          newPredictor.train(corpusText);
-
-          // Store the training data for export
-          setLoadedTrainingData(corpusText);
-
-          // Count words in training corpus
-          const corpusWords = corpusText.trim().split(/\s+/).filter((w) => w.length > 0).length;
-          setTrainingStatus(
-            `✅ Trained on ${trainingFileName} (${corpusWords.toLocaleString()} words) + lexicon (${lexicon.length} words)`
-          );
-        } else {
-          // No training data loaded
-          setLoadedTrainingData('');
-          setTrainingStatus(
-            `✅ Model ready with lexicon (${lexicon.length} words). Will learn from your input.`
-          );
-        }
-
-        // Load and replay session data from localStorage for adaptive learning
-        const sessionKey = `ppm-session-${settings.selectedLanguage}`;
-        const sessionData = localStorage.getItem(sessionKey);
-        if (sessionData) {
-          const learnedWords = sessionData
-            .trim()
-            .split(/\s+/)
-            .filter((w) => w.length > 0);
-          console.log(`📚 Also loading ${learnedWords.length} learned words from previous sessions`);
-          newPredictor.train(sessionData);
-          setLearnedWordsCount(learnedWords.length);
-        } else {
-          setLearnedWordsCount(0);
-        }
-
-        setPredictor(newPredictor);
-      } catch (error) {
-        console.error('❌ Failed to load language model:', error);
-        setTrainingStatus(`❌ Error: Could not load model for ${settings.selectedLanguage}.`);
-
-        // Create a basic predictor as fallback with keyboard awareness
-        const adjacencyMap = buildKeyboardAdjacencyMap(alphabet);
-        const fallbackPredictor = createErrorTolerantPredictor({
-          maxOrder: 5,
-          adaptive: true,
-          maxEditDistance: 2,
-          minSimilarity: 0.6,
-          maxPredictions: 10,
-          keyboardAware: true,
-          keyboardAdjacencyMap: adjacencyMap,
-        });
-        setPredictor(fallbackPredictor);
-      }
-    };
-
-    loadLanguageModel();
-  }, [settings.selectedLanguage, alphabet]); // Reload when language changes
 
   // Effect to load available languages and their names on startup
   useEffect(() => {
@@ -428,67 +255,6 @@ const App: React.FC = () => {
     console.log(`🎨 holdZone changed to: ${holdZone}`);
   }, [holdZone]);
 
-  // Debounced effect for running predictions as the user types
-  useEffect(() => {
-    if (!settings.enablePrediction || !predictor) {
-      setPredictedLetters([]);
-      setPredictedWords([]);
-      return;
-    }
-
-    const handler = setTimeout(() => {
-      // The library's prediction works better on lower-case text for consistency.
-      const lowerCaseMessage = message.toLowerCase();
-
-      // CHARACTER PREDICTIONS (direct from PPM model)
-      predictor.resetContext();
-      predictor.addToContext(lowerCaseMessage);
-      const charPredictions = predictor.predictNextCharacter();
-
-      // Filter for single alphabet characters and apply case based on useUppercase setting
-      const caseTransform = settings.useUppercase
-        ? (s: string) => s.toUpperCase()
-        : (s: string) => s.toLowerCase();
-      const letterFilter = settings.useUppercase
-        ? (c: string) => c.length === 1 && c >= 'A' && c <= 'Z'
-        : (c: string) => c.length === 1 && c >= 'a' && c <= 'z';
-
-      const uniqueLetters = [
-        ...new Set(charPredictions.map((p) => caseTransform(p.text)).filter(letterFilter)),
-      ];
-      setPredictedLetters(uniqueLetters.slice(0, 8));
-
-      // WORD PREDICTIONS (for current partial word)
-      const words = message.split(' ');
-      const currentPartialWord = words[words.length - 1];
-
-      if (currentPartialWord.trim().length > 0) {
-        const precedingText = message
-          .substring(0, message.length - currentPartialWord.length)
-          .toLowerCase();
-        const wordPredictions = predictor.predictWordCompletion(
-          currentPartialWord.toLowerCase(),
-          precedingText
-        );
-
-        // Apply case transformation based on useUppercase setting
-        // Extract text property from prediction objects
-        const wordTexts = wordPredictions.slice(0, 5).map((p) => {
-          const text = typeof p === 'string' ? p : p.text;
-          return caseTransform(text);
-        });
-
-        setPredictedWords(wordTexts);
-      } else {
-        setPredictedWords([]);
-      }
-    }, 250); // 250ms debounce delay
-
-    return () => {
-      clearTimeout(handler);
-    };
-  }, [message, settings.enablePrediction, predictor, settings.useUppercase]);
-
   // Compute current game target word
   const currentGameTarget =
     settings.gameMode && settings.gameWordList.length > 0
@@ -575,28 +341,6 @@ const App: React.FC = () => {
     settings.useUppercase,
     settings.speakAfterPredictions,
   ]);
-
-  // Effect to update keyboard adjacency map when scan items change
-  useEffect(() => {
-    if (!predictor || !settings.enablePrediction) return;
-
-    // Filter scanItems to only include single-character letters (not words, actions, etc.)
-    const letterItems = scanItems.filter(
-      (item) => item.length === 1 && !SPECIAL_ACTIONS.includes(item) && item !== SPEAK
-    );
-
-    // Build adjacency map based on the CURRENT scan order
-    const adjacencyMap = buildKeyboardAdjacencyMap(letterItems);
-
-    // Update the predictor's keyboard adjacency map using updateConfig
-    if (predictor.updateConfig) {
-      predictor.updateConfig({ keyboardAdjacencyMap: adjacencyMap });
-      console.log(
-        '🔄 Updated keyboard adjacency map based on current scan order:',
-        letterItems.slice(0, 10)
-      );
-    }
-  }, [scanItems, predictor, settings.enablePrediction]);
 
   // Effect to load speech synthesis voices
   useEffect(() => {
@@ -784,6 +528,7 @@ const App: React.FC = () => {
       settings.selectedLanguage,
       playSound,
       settings.setCurrentGameWordIndex,
+      setLearnedWordsCount,
     ]
   );
 
@@ -839,179 +584,6 @@ const App: React.FC = () => {
     },
     [message, availableVoices, settings.selectedVoiceURI, handleUndo, handleClear]
   );
-
-  const handleFileUpload = useCallback(
-    async (file: File) => {
-      if (!file) return;
-
-      setTrainingStatus(`Training on ${file.name}...`);
-      try {
-        const text = await file.text();
-
-        // Extract lexicon from uploaded file
-        const words = text
-          .toLowerCase()
-          .split(/\s+/)
-          .filter((w) => w.length > 0);
-        const wordFreq = new Map<string, number>();
-        words.forEach((word) => {
-          const count = wordFreq.get(word) || 0;
-          wordFreq.set(word, count + 1);
-        });
-        // Sort by frequency and take top 5000 words
-        const lexicon = Array.from(wordFreq.entries())
-          .sort((a, b) => b[1] - a[1])
-          .slice(0, 5000)
-          .map(([word]) => word);
-
-        console.log(`✅ Extracted ${lexicon.length} words from uploaded file as lexicon`);
-
-        // Build keyboard adjacency map from current alphabet
-        const adjacencyMap = buildKeyboardAdjacencyMap(alphabet);
-
-        // Use error-tolerant predictor with keyboard awareness and lexicon
-        const newPredictor = createErrorTolerantPredictor({
-          maxOrder: 5,
-          adaptive: true,
-          lexicon: lexicon,
-          maxEditDistance: 2,
-          minSimilarity: 0.6,
-          maxPredictions: 10,
-          keyboardAware: true,
-          keyboardAdjacencyMap: adjacencyMap,
-        });
-
-        // Train on uploaded file
-        newPredictor.train(text);
-
-        // Store the uploaded training data for export
-        setLoadedTrainingData(text);
-
-        // Also load and train on any existing learned data for this language
-        const sessionKey = `ppm-session-${settings.selectedLanguage}`;
-        const sessionData = localStorage.getItem(sessionKey);
-        if (sessionData) {
-          const learnedWords = sessionData
-            .trim()
-            .split(/\s+/)
-            .filter((w) => w.length > 0);
-          console.log(
-            `📚 Also loading ${learnedWords.length} learned words from previous sessions`
-          );
-          newPredictor.train(sessionData);
-          setLearnedWordsCount(learnedWords.length);
-        } else {
-          setLearnedWordsCount(0);
-        }
-
-        setPredictor(newPredictor);
-
-        // Count words in uploaded file
-        const uploadedWords = text.trim().split(/\s+/).filter((w) => w.length > 0).length;
-        setTrainingStatus(
-          `✅ Trained on ${file.name} (${uploadedWords.toLocaleString()} words) + lexicon (${lexicon.length} words)`
-        );
-      } catch (error) {
-        console.error('Failed to train model:', error);
-        setTrainingStatus('Error training model. Please try again.');
-      }
-    },
-    [settings.selectedLanguage, alphabet]
-  );
-
-  const handleExportLearnedData = useCallback(async () => {
-    const sessionKey = `ppm-session-${settings.selectedLanguage}`;
-    const sessionData = localStorage.getItem(sessionKey) || '';
-
-    // Combine training data (if any) with learned data
-    let exportData = '';
-    let trainingWords = 0;
-    let learnedWords = 0;
-
-    // Add loaded training data first (from repo or uploaded file)
-    if (loadedTrainingData.trim()) {
-      exportData += loadedTrainingData;
-      trainingWords = loadedTrainingData.trim().split(/\s+/).filter((w) => w.length > 0).length;
-
-      // Add separator if we have both training data and learned data
-      if (sessionData.trim()) {
-        exportData += '\n\n';
-      }
-    }
-
-    // Add learned data from user sessions
-    if (sessionData.trim()) {
-      exportData += sessionData;
-      learnedWords = sessionData.split(/\s+/).filter((w) => w.length > 0).length;
-    }
-
-    // Check if we have any data to export
-    if (!exportData.trim()) {
-      alert('No training data to export. Upload a training file or start typing to build your personalized training data!');
-      return;
-    }
-
-    // Create a blob with the combined data
-    const blob = new Blob([exportData], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-
-    // Create a download link and trigger it
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `training-data-${settings.selectedLanguage}-${new Date().toISOString().split('T')[0]}.txt`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-
-    const totalWords = trainingWords + learnedWords;
-    console.log(`📥 Exported training data for ${settings.selectedLanguage}: ${trainingWords.toLocaleString()} training words + ${learnedWords.toLocaleString()} learned words = ${totalWords.toLocaleString()} total words`);
-  }, [settings.selectedLanguage, loadedTrainingData]);
-
-  const handleClearLearnedData = useCallback(() => {
-    const sessionKey = `ppm-session-${settings.selectedLanguage}`;
-    localStorage.removeItem(sessionKey);
-    setLearnedWordsCount(0);
-    console.log('🗑️ Cleared learned data for', settings.selectedLanguage);
-
-    // Reload the predictor to reset it
-    const loadLanguageModel = async () => {
-      try {
-        let lexicon: string[] = [];
-
-        // Try to load lexicon from worldalphabets frequency lists
-        try {
-          lexicon = await loadWordFrequencyList(settings.selectedLanguage);
-          console.log(`✅ Using ${lexicon.length} words from worldalphabets frequency list`);
-        } catch (error) {
-          console.warn(`⚠️ Could not load lexicon:`, error);
-        }
-
-        // Build keyboard adjacency map from current alphabet
-        const adjacencyMap = buildKeyboardAdjacencyMap(alphabet);
-
-        const newPredictor = createErrorTolerantPredictor({
-          maxOrder: 5,
-          adaptive: true,
-          maxEditDistance: 2,
-          minSimilarity: 0.6,
-          maxPredictions: 10,
-          keyboardAware: true,
-          keyboardAdjacencyMap: adjacencyMap,
-          lexicon: lexicon.length > 0 ? lexicon : undefined,
-        });
-
-        setPredictor(newPredictor);
-        setTrainingStatus(
-          `✅ Learned data cleared. Model reset with ${lexicon.length} words.`
-        );
-      } catch (error) {
-        console.error('❌ Failed to reload model:', error);
-      }
-    };
-
-    loadLanguageModel();
-  }, [settings.selectedLanguage, alphabet]);
 
   const handleSwitch1 = useCallback(() => {
     console.log(`🔘 handleSwitch1 called - scanMode: ${settings.scanMode}, isScanning: ${isScanning}, scanIndex: ${scanIndex}, currentItem: ${scanItems[scanIndex]}`);
