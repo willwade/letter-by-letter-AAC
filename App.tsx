@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { ALPHABET, SPECIAL_ACTIONS, SPEAK, SPACE, UNDO, CLEAR } from './constants';
+import { ALPHABET } from './constants';
 import Display from './components/Display';
 import Scanner from './components/Scanner';
 import Controls from './components/Controls';
@@ -14,6 +14,7 @@ import confetti from 'canvas-confetti';
 import { resolveFontFamily } from './utils/fontMapping';
 import { useSettings } from './hooks/useSettings';
 import { usePrediction } from './hooks/usePrediction';
+import { useScanning } from './hooks/useScanning';
 
 const App: React.FC = () => {
   // MIGRATION: Use settings hook (gradually migrating settings here)
@@ -23,15 +24,11 @@ const App: React.FC = () => {
   const { selectedLanguage } = settings;
 
   const [message, setMessage] = useState<string>('');
-  const [scanIndex, setScanIndex] = useState<number>(0);
 
   // Initialize with correct case based on localStorage setting
   const initialUseUppercase = localStorage.getItem('useUppercase') === 'true';
   const initialAlphabet = initialUseUppercase ? ALPHABET : ALPHABET.map((l) => l.toLowerCase());
 
-  // Start with alphabet in correct case - special actions will be added by useEffect when message has content
-  const [scanItems, setScanItems] = useState<string[]>([...initialAlphabet]);
-  const [isScanning, setIsScanning] = useState<boolean>(false);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(!!document.fullscreenElement);
   const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [showSettingsModal, setShowSettingsModal] = useState<boolean>(false);
@@ -39,7 +36,11 @@ const App: React.FC = () => {
   // Language and alphabet state (complex dependencies, not fully migrated)
   const [alphabet, setAlphabet] = useState<string[]>(initialAlphabet);
 
-  // Use prediction hook
+  // STEP 1: We need predictions first, but predictions need scanItems
+  // So we'll use a temporary scanItems state that gets updated by useScanning
+  const [tempScanItems, setTempScanItems] = useState<string[]>([...initialAlphabet]);
+
+  // Use prediction hook (needs scanItems for keyboard adjacency map)
   const {
     predictor,
     predictedLetters,
@@ -57,7 +58,7 @@ const App: React.FC = () => {
     enablePrediction: settings.enablePrediction,
     showWordPrediction: settings.showWordPrediction,
     useUppercase: settings.useUppercase,
-    scanItems,
+    scanItems: tempScanItems,
   });
   const [availableLanguages, setAvailableLanguages] = useState<string[]>([]);
   const [availableScripts, setAvailableScripts] = useState<string[]>([]);
@@ -147,6 +148,36 @@ const App: React.FC = () => {
     [settings.audioEffectsEnabled, audioContext, audioBuffers]
   );
 
+  // Use scanning hook (needs predictions to build scan items AND playSound)
+  const {
+    scanIndex,
+    scanItems,
+    isScanning,
+    setIsScanning,
+    setScanIndex,
+  } = useScanning({
+    alphabet,
+    message,
+    predictedLetters,
+    predictedWords,
+    enablePrediction: settings.enablePrediction,
+    predictor,
+    showWordPrediction: settings.showWordPrediction,
+    speakAfterPredictions: settings.speakAfterPredictions,
+    gameMode: settings.gameMode,
+    currentGameTarget: settings.gameWordList[settings.currentGameWordIndex] || '',
+    scanMode: settings.scanMode,
+    scanSpeed: settings.scanSpeed,
+    firstItemDelay: settings.firstItemDelay,
+    showSettingsModal,
+    playSound,
+  });
+
+  // Update temp scan items when scanning hook updates them
+  useEffect(() => {
+    setTempScanItems(scanItems);
+  }, [scanItems]);
+
   // Effect to load available languages and their names on startup
   useEffect(() => {
     const loadLanguages = async () => {
@@ -230,8 +261,7 @@ const App: React.FC = () => {
           console.log(`Loaded lowercase alphabet for ${settings.selectedLanguage}:`, letters.slice(0, 5));
         }
         setAlphabet(letters);
-        // Update scan items with new alphabet
-        setScanItems([...letters, ...SPECIAL_ACTIONS]);
+        // MIGRATION: Scan items will be rebuilt automatically by useScanning hook
         console.log(
           '✅ Alphabet set to:',
           letters.slice(0, 10),
@@ -244,7 +274,7 @@ const App: React.FC = () => {
         // Fallback to default English alphabet
         const fallbackAlphabet = settings.useUppercase ? ALPHABET : ALPHABET.map((l) => l.toLowerCase());
         setAlphabet(fallbackAlphabet);
-        setScanItems([...fallbackAlphabet, ...SPECIAL_ACTIONS]);
+        // MIGRATION: Scan items will be rebuilt automatically by useScanning hook
       }
     };
     loadAlphabet();
@@ -265,114 +295,7 @@ const App: React.FC = () => {
       ? settings.gameWordList[settings.currentGameWordIndex % settings.gameWordList.length]
       : '';
 
-  // Compute next correct letter for game mode
-  const nextCorrectLetter =
-    settings.gameMode && currentGameTarget ? currentGameTarget[message.length]?.toLowerCase() : null;
-
-  useEffect(() => {
-    const newScanItems: string[] = [];
-
-    const predictionEnabledAndReady = settings.enablePrediction && predictor;
-
-    // Game Mode: show predictions (if enabled) and full alphabet, but only next correct letter is selectable
-    if (settings.gameMode && currentGameTarget) {
-      // Include predicted words at the start if prediction is enabled
-      if (predictionEnabledAndReady && settings.showWordPrediction && predictedWords.length > 0) {
-        newScanItems.push(...predictedWords);
-      }
-
-      // Include predicted letters if prediction is enabled
-      if (predictionEnabledAndReady && predictedLetters.length > 0) {
-        newScanItems.push(...predictedLetters);
-      }
-
-      // Conditionally add SPEAK after predictions if setting is enabled
-      if (predictionEnabledAndReady && settings.speakAfterPredictions && message.length > 1) {
-        newScanItems.push(SPEAK);
-      }
-
-      // Include full alphabet
-      newScanItems.push(...alphabet);
-
-      // If next character is a space, include SPACE action
-      const nextChar = currentGameTarget[message.length];
-      if (nextChar === ' ') {
-        newScanItems.push(SPACE);
-      }
-
-      // Always include actions at the end
-      if (message.length > 0) {
-        // If SPEAK is after predictions, exclude it from SPECIAL_ACTIONS here
-        if (predictionEnabledAndReady && settings.speakAfterPredictions) {
-          newScanItems.push(SPACE, UNDO, CLEAR);
-        } else {
-          newScanItems.push(...SPECIAL_ACTIONS);
-        }
-      }
-    } else if (!predictionEnabledAndReady) {
-      // Include alphabet first
-      newScanItems.push(...alphabet);
-
-      // Only include SPECIAL_ACTIONS if message has at least one character
-      // SPECIAL_ACTIONS now includes SPEAK by default
-      if (message.length > 0) {
-        newScanItems.push(...SPECIAL_ACTIONS);
-      }
-    } else {
-      // Prediction mode enabled
-      console.log('📋 Building scan items with predictions:', {
-        predictedWords: predictedWords.length,
-        predictedLetters: predictedLetters.length,
-        letters: predictedLetters
-      });
-
-      // Include predicted words at the start
-      if (settings.showWordPrediction && predictedWords.length > 0) {
-        newScanItems.push(...predictedWords);
-      }
-
-      // Include predicted letters
-      if (predictedLetters.length > 0) {
-        newScanItems.push(...predictedLetters);
-      }
-
-      // Conditionally add SPEAK after predictions if setting is enabled
-      if (settings.speakAfterPredictions && message.length > 1) {
-        newScanItems.push(SPEAK);
-      }
-
-      // Include full alphabet (predicted letters will appear again in their regular positions)
-      newScanItems.push(...alphabet);
-
-      // Include SPECIAL_ACTIONS if message has at least one character
-      if (message.length > 0) {
-        // If SPEAK is after predictions, exclude it from SPECIAL_ACTIONS here
-        if (settings.speakAfterPredictions) {
-          // Add actions without SPEAK (since it's already after predictions)
-          newScanItems.push(SPACE, UNDO, CLEAR);
-        } else {
-          // Add all SPECIAL_ACTIONS including SPEAK
-          newScanItems.push(...SPECIAL_ACTIONS);
-        }
-      }
-    }
-
-    setScanItems(newScanItems);
-    setScanIndex(0);
-  }, [
-    predictedLetters,
-    predictedWords,
-    message,
-    settings.showWordPrediction,
-    settings.enablePrediction,
-    predictor,
-    alphabet,
-    settings.gameMode,
-    nextCorrectLetter,
-    currentGameTarget,
-    settings.useUppercase,
-    settings.speakAfterPredictions,
-  ]);
+  // MIGRATION: Scan items building logic now handled by useScanning hook!
 
   // Effect to load speech synthesis voices
   useEffect(() => {
@@ -666,6 +589,7 @@ const App: React.FC = () => {
       predictor,
       playSound,
       setLearnedWordsCount,
+      setScanIndex,
     ]
   );
 
@@ -673,12 +597,12 @@ const App: React.FC = () => {
     setMessage('');
     setIsScanning(false);
     setScanIndex(0);
-  }, []);
+  }, [setIsScanning, setScanIndex]);
 
   const handleUndo = useCallback(() => {
     setMessage((prev) => prev.slice(0, -1));
     setScanIndex(0);
-  }, []);
+  }, [setScanIndex]);
 
   // Execute a hold action (SPEAK, UNDO, CLEAR, or RESTART)
   const executeHoldAction = useCallback(
@@ -719,7 +643,7 @@ const App: React.FC = () => {
           break;
       }
     },
-    [message, availableVoices, settings.selectedVoiceURI, handleUndo, handleClear]
+    [message, availableVoices, settings.selectedVoiceURI, handleUndo, handleClear, setIsScanning, setScanIndex]
   );
 
   const handleSwitch1 = useCallback(() => {
@@ -736,9 +660,9 @@ const App: React.FC = () => {
       // two-switch
       // Play click sound when advancing in two-switch mode
       playSound('click');
-      setScanIndex((prev) => (prev + 1) % scanItems.length);
+      setScanIndex((prev: number) => (prev + 1) % scanItems.length);
     }
-  }, [settings.scanMode, isScanning, scanItems, scanIndex, handleSelect, playSound]);
+  }, [settings.scanMode, isScanning, scanItems, scanIndex, handleSelect, playSound, setIsScanning, setScanIndex]);
 
   const handleSwitch2 = useCallback(() => {
     if (settings.scanMode === 'two-switch') {
@@ -746,30 +670,7 @@ const App: React.FC = () => {
     }
   }, [settings.scanMode, scanItems, scanIndex, handleSelect]);
 
-  useEffect(() => {
-    let scanInterval: number | undefined;
-    let initialTimeout: number | undefined;
-
-    // Pause scanning when settings modal is open
-    if (isScanning && settings.scanMode === 'one-switch' && !showSettingsModal) {
-      // Use longer delay for first item (index 0), normal speed for others
-      const isFirstItem = scanIndex === 0;
-      const delay = isFirstItem ? settings.firstItemDelay : settings.scanSpeed;
-
-      scanInterval = window.setInterval(() => {
-        setScanIndex((prev) => {
-          // Play click sound when advancing
-          playSound('click');
-          return (prev + 1) % scanItems.length;
-        });
-      }, delay);
-    }
-
-    return () => {
-      clearInterval(scanInterval);
-      clearTimeout(initialTimeout);
-    };
-  }, [isScanning, settings.scanMode, settings.scanSpeed, scanItems.length, scanIndex, settings.firstItemDelay, playSound, showSettingsModal]);
+  // MIGRATION: Auto-advance scanning interval now handled by useScanning hook!
 
   // Handle keyboard input with custom hold-down behavior for two-switch mode
   useEffect(() => {
