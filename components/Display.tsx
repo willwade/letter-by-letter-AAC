@@ -41,7 +41,9 @@ const Display: React.FC<DisplayProps> = ({
         }}
       >
         {message}
-        <span className="animate-pulse" style={{ opacity: 0.5, fontWeight: 'lighter' }}>▌</span>
+        <span className="animate-pulse" style={{ opacity: 0.5, fontWeight: 'lighter' }}>
+          ▌
+        </span>
       </p>
     </div>
   );

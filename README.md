@@ -211,6 +211,7 @@ The prediction engine uses multiple data sources:
 ### How Adaptive Learning Works
 
 As you type, the app automatically learns:
+
 - Your common letter sequences
 - Your frequently used words
 - Your personal vocabulary (names, places, phrases)

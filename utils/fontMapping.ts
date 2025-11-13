@@ -14,10 +14,7 @@
  * @param scriptCode - ISO 15924 script code (e.g., 'Arab', 'Hebr', 'Deva', 'Thai')
  * @returns The appropriate Playpen Sans font family CSS string
  */
-export function getPlaypenSansVariant(
-  languageCode: string,
-  scriptCode: string | null
-): string {
+export function getPlaypenSansVariant(languageCode: string, scriptCode: string | null): string {
   // Map script codes to Playpen Sans variants
   const scriptToFont: Record<string, string> = {
     Arab: "'Playpen Sans Arabic', cursive",
@@ -56,7 +53,7 @@ export function getPlaypenSansVariant(
  * Resolve the actual font family to use based on the user's font selection.
  * If the user selected "Playpen Sans", this will return the appropriate variant
  * based on the current language and script.
- * 
+ *
  * @param selectedFont - The font family selected by the user
  * @param languageCode - Current language code
  * @param scriptCode - Current script code (if available)
@@ -75,4 +72,3 @@ export function resolveFontFamily(
   // For all other fonts, return as-is
   return selectedFont;
 }
-

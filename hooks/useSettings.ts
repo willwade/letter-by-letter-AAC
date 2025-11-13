@@ -276,4 +276,3 @@ export function useSettings() {
     setUseUppercase,
   };
 }
-

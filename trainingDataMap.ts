@@ -85,4 +85,3 @@ export const hasTrainingData = (languageCode: string): boolean => {
 export const getTrainingFileName = (languageCode: string): string | null => {
   return trainingDataMap[languageCode] || null;
 };
-

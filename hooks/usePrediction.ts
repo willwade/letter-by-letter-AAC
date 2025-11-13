@@ -127,7 +127,10 @@ export function usePrediction({
           setLoadedTrainingData(normalizedCorpus);
 
           // Count words in training corpus
-          const corpusWords = corpusText.trim().split(/\s+/).filter((w) => w.length > 0).length;
+          const corpusWords = corpusText
+            .trim()
+            .split(/\s+/)
+            .filter((w) => w.length > 0).length;
           setTrainingStatus(
             `✅ Trained on ${trainingFileName} (${corpusWords.toLocaleString()} words) + lexicon (${lexicon.length} words)`
           );
@@ -147,7 +150,9 @@ export function usePrediction({
             .trim()
             .split(/\s+/)
             .filter((w) => w.length > 0);
-          console.log(`📚 Also loading ${learnedWords.length} learned words from previous sessions`);
+          console.log(
+            `📚 Also loading ${learnedWords.length} learned words from previous sessions`
+          );
           // Session data is already lowercase (saved from user input which is normalized)
           newPredictor.train(sessionData);
           setLearnedWordsCount(learnedWords.length);
@@ -209,14 +214,16 @@ export function usePrediction({
 
       const filteredLetters = charPredictions
         .filter((p: { text: string; probability: number }) => letterFilter(p.text))
-        .map((p: { text: string; probability: number }) => p.text === ' ' ? '_' : caseTransform(p.text))  // Convert space to underscore for display
+        .map((p: { text: string; probability: number }) =>
+          p.text === ' ' ? '_' : caseTransform(p.text)
+        ) // Convert space to underscore for display
         .slice(0, 5);
 
       console.log('🔤 Character predictions:', {
         rawPredictions: charPredictions.length,
         filteredLetters: filteredLetters.length,
         letters: filteredLetters,
-        context: lowerCaseMessage.slice(-20) // Last 20 chars of context
+        context: lowerCaseMessage.slice(-20), // Last 20 chars of context
       });
 
       setPredictedLetters(filteredLetters);
@@ -242,32 +249,35 @@ export function usePrediction({
           const precedingText = words.slice(0, -1).join(' ');
 
           // Pass precedingContext to avoid training on partial text
-          wordPredictions = predictor.predictWordCompletion(
-            partialWord,
-            precedingText,
-            10
-          );
+          wordPredictions = predictor.predictWordCompletion(partialWord, precedingText, 10);
 
-          console.log('🔮 Word completions for "' + partialWord + '" (context: "' + precedingText + '"):', wordPredictions);
+          console.log(
+            '🔮 Word completions for "' + partialWord + '" (context: "' + precedingText + '"):',
+            wordPredictions
+          );
         }
 
         // Filter out words with unwanted punctuation (keep only letters, numbers, hyphens, apostrophes within words)
         // This removes predictions like "CLES,'S," or "BALANCED,),"
-        const filteredPredictions = wordPredictions.filter((p: { text: string; probability: number }) => {
-          // Allow only: letters, numbers, hyphens, and apostrophes (but not at start/end)
-          // Reject: commas, periods, parentheses, brackets, etc.
-          const text = p.text;
+        const filteredPredictions = wordPredictions.filter(
+          (p: { text: string; probability: number }) => {
+            // Allow only: letters, numbers, hyphens, and apostrophes (but not at start/end)
+            // Reject: commas, periods, parentheses, brackets, etc.
+            const text = p.text;
 
-          // Check if word contains unwanted punctuation
-          const hasUnwantedPunctuation = /[,.()[\]{};:!?"""''`~@#$%^&*+=<>/\\|]/.test(text);
+            // Check if word contains unwanted punctuation
+            const hasUnwantedPunctuation = /[,.()[\]{};:!?"""''`~@#$%^&*+=<>/\\|]/.test(text);
 
-          return !hasUnwantedPunctuation;
-        });
+            return !hasUnwantedPunctuation;
+          }
+        );
 
         // Apply case transformation based on useUppercase setting
         // Extract text property from prediction objects
         const transformedWords = filteredPredictions
-          .map((p: { text: string; probability: number }) => (useUppercase ? p.text.toUpperCase() : p.text.toLowerCase()))
+          .map((p: { text: string; probability: number }) =>
+            useUppercase ? p.text.toUpperCase() : p.text.toLowerCase()
+          )
           .slice(0, 3);
 
         setPredictedWords(transformedWords);
@@ -290,9 +300,7 @@ export function usePrediction({
 
     // Extract just the letters from scanItems (filter out special actions)
     // Use Unicode letter check to support all languages (Arabic, Hebrew, Chinese, etc.)
-    const letters = scanItems.filter(
-      (item) => item.length === 1 && item.match(/\p{L}/u)
-    );
+    const letters = scanItems.filter((item) => item.length === 1 && item.match(/\p{L}/u));
 
     if (letters.length > 0) {
       // Build adjacency map based on the CURRENT scan order
@@ -367,7 +375,10 @@ export function usePrediction({
         setPredictor(newPredictor);
 
         // Count words in uploaded file
-        const uploadedWords = text.trim().split(/\s+/).filter((w) => w.length > 0).length;
+        const uploadedWords = text
+          .trim()
+          .split(/\s+/)
+          .filter((w) => w.length > 0).length;
         setTrainingStatus(
           `✅ Trained on ${file.name} (${uploadedWords.toLocaleString()} words) + lexicon (${lexicon.length} words)`
         );
@@ -385,9 +396,14 @@ export function usePrediction({
     const sessionData = localStorage.getItem(sessionKey) || '';
 
     // Count words
-    const learnedWords = sessionData.trim().split(/\s+/).filter((w) => w.length > 0).length;
-    const trainingWords = loadedTrainingData.trim().split(/\s+/).filter((w) => w.length > 0)
-      .length;
+    const learnedWords = sessionData
+      .trim()
+      .split(/\s+/)
+      .filter((w) => w.length > 0).length;
+    const trainingWords = loadedTrainingData
+      .trim()
+      .split(/\s+/)
+      .filter((w) => w.length > 0).length;
 
     // Combine training data and learned data
     const combinedData = loadedTrainingData
@@ -478,4 +494,3 @@ export function usePrediction({
     handleClearLearnedData,
   };
 }
-

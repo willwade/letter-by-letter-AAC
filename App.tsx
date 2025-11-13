@@ -3,12 +3,7 @@ import { ALPHABET } from './constants';
 import Display from './components/Display';
 import Scanner from './components/Scanner';
 import Controls from './components/Controls';
-import {
-  getUppercase,
-  getLowercase,
-  getScripts,
-  getIndexData,
-} from 'worldalphabets';
+import { getUppercase, getLowercase, getScripts, getIndexData } from 'worldalphabets';
 import { getTheme } from './themes';
 import confetti from 'canvas-confetti';
 import { resolveFontFamily } from './utils/fontMapping';
@@ -72,7 +67,11 @@ const App: React.FC = () => {
   // Resolved font family - automatically selects the correct Playpen Sans variant
   // based on the current language and script
   const resolvedFontFamily = useMemo(() => {
-    return resolveFontFamily(settings.fontFamily, settings.selectedLanguage, settings.selectedScript);
+    return resolveFontFamily(
+      settings.fontFamily,
+      settings.selectedLanguage,
+      settings.selectedScript
+    );
   }, [settings.fontFamily, settings.selectedLanguage, settings.selectedScript]);
 
   // Hold progress indicator state
@@ -149,13 +148,7 @@ const App: React.FC = () => {
   );
 
   // Use scanning hook (needs predictions to build scan items AND playSound)
-  const {
-    scanIndex,
-    scanItems,
-    isScanning,
-    setIsScanning,
-    setScanIndex,
-  } = useScanning({
+  const { scanIndex, scanItems, isScanning, setIsScanning, setScanIndex } = useScanning({
     alphabet,
     message,
     predictedLetters,
@@ -254,11 +247,23 @@ const App: React.FC = () => {
       try {
         let letters: string[];
         if (settings.useUppercase) {
-          letters = await getUppercase(settings.selectedLanguage, settings.selectedScript || undefined);
-          console.log(`Loaded uppercase alphabet for ${settings.selectedLanguage}:`, letters.slice(0, 5));
+          letters = await getUppercase(
+            settings.selectedLanguage,
+            settings.selectedScript || undefined
+          );
+          console.log(
+            `Loaded uppercase alphabet for ${settings.selectedLanguage}:`,
+            letters.slice(0, 5)
+          );
         } else {
-          letters = await getLowercase(settings.selectedLanguage, settings.selectedScript || undefined);
-          console.log(`Loaded lowercase alphabet for ${settings.selectedLanguage}:`, letters.slice(0, 5));
+          letters = await getLowercase(
+            settings.selectedLanguage,
+            settings.selectedScript || undefined
+          );
+          console.log(
+            `Loaded lowercase alphabet for ${settings.selectedLanguage}:`,
+            letters.slice(0, 5)
+          );
         }
         setAlphabet(letters);
         // MIGRATION: Scan items will be rebuilt automatically by useScanning hook
@@ -272,7 +277,9 @@ const App: React.FC = () => {
       } catch (error) {
         console.error('Failed to load alphabet:', error);
         // Fallback to default English alphabet
-        const fallbackAlphabet = settings.useUppercase ? ALPHABET : ALPHABET.map((l) => l.toLowerCase());
+        const fallbackAlphabet = settings.useUppercase
+          ? ALPHABET
+          : ALPHABET.map((l) => l.toLowerCase());
         setAlphabet(fallbackAlphabet);
         // MIGRATION: Scan items will be rebuilt automatically by useScanning hook
       }
@@ -313,7 +320,10 @@ const App: React.FC = () => {
         setAvailableVoices(voicesToShow);
 
         // Auto-select a voice for the current language if needed
-        if (!settings.selectedVoiceURI || !voicesToShow.find((v) => v.voiceURI === settings.selectedVoiceURI)) {
+        if (
+          !settings.selectedVoiceURI ||
+          !voicesToShow.find((v) => v.voiceURI === settings.selectedVoiceURI)
+        ) {
           // Prefer local voices for the selected language
           const defaultVoice = voicesToShow.find((voice) => voice.localService) || voicesToShow[0];
           if (defaultVoice) {
@@ -342,7 +352,9 @@ const App: React.FC = () => {
           // Word completed - speak it and move to next word
           if ('speechSynthesis' in window && message) {
             const utterance = new SpeechSynthesisUtterance(message);
-            const selectedVoice = availableVoices.find((v) => v.voiceURI === settings.selectedVoiceURI);
+            const selectedVoice = availableVoices.find(
+              (v) => v.voiceURI === settings.selectedVoiceURI
+            );
             if (selectedVoice) {
               utterance.voice = selectedVoice;
             }
@@ -457,7 +469,9 @@ const App: React.FC = () => {
 
                   // Move to next word after 1.5 seconds
                   setTimeout(() => {
-                    settings.setCurrentGameWordIndex((prev) => (prev + 1) % settings.gameWordList.length);
+                    settings.setCurrentGameWordIndex(
+                      (prev) => (prev + 1) % settings.gameWordList.length
+                    );
                     setMessage('');
                   }, 1500);
                 }, 300);
@@ -506,7 +520,7 @@ const App: React.FC = () => {
           lastSpaceIndex,
           messageBase,
           newMessage,
-          predictedWords
+          predictedWords,
         });
 
         setMessage(newMessage);
@@ -557,7 +571,9 @@ const App: React.FC = () => {
         // Corresponds to SPEAK constant
         if ('speechSynthesis' in window && message) {
           const utterance = new SpeechSynthesisUtterance(message);
-          const selectedVoice = availableVoices.find((v) => v.voiceURI === settings.selectedVoiceURI);
+          const selectedVoice = availableVoices.find(
+            (v) => v.voiceURI === settings.selectedVoiceURI
+          );
           if (selectedVoice) {
             utterance.voice = selectedVoice;
           }
@@ -614,7 +630,9 @@ const App: React.FC = () => {
             if (message) {
               console.log('🔊 Speaking message:', message);
               const utterance = new SpeechSynthesisUtterance(message);
-              const selectedVoice = availableVoices.find((v) => v.voiceURI === settings.selectedVoiceURI);
+              const selectedVoice = availableVoices.find(
+                (v) => v.voiceURI === settings.selectedVoiceURI
+              );
               if (selectedVoice) {
                 utterance.voice = selectedVoice;
               }
@@ -643,11 +661,21 @@ const App: React.FC = () => {
           break;
       }
     },
-    [message, availableVoices, settings.selectedVoiceURI, handleUndo, handleClear, setIsScanning, setScanIndex]
+    [
+      message,
+      availableVoices,
+      settings.selectedVoiceURI,
+      handleUndo,
+      handleClear,
+      setIsScanning,
+      setScanIndex,
+    ]
   );
 
   const handleSwitch1 = useCallback(() => {
-    console.log(`🔘 handleSwitch1 called - scanMode: ${settings.scanMode}, isScanning: ${isScanning}, scanIndex: ${scanIndex}, currentItem: ${scanItems[scanIndex]}`);
+    console.log(
+      `🔘 handleSwitch1 called - scanMode: ${settings.scanMode}, isScanning: ${isScanning}, scanIndex: ${scanIndex}, currentItem: ${scanItems[scanIndex]}`
+    );
     if (settings.scanMode === 'one-switch') {
       if (isScanning) {
         console.log(`✅ Selecting item: ${scanItems[scanIndex]}`);
@@ -662,7 +690,16 @@ const App: React.FC = () => {
       playSound('click');
       setScanIndex((prev: number) => (prev + 1) % scanItems.length);
     }
-  }, [settings.scanMode, isScanning, scanItems, scanIndex, handleSelect, playSound, setIsScanning, setScanIndex]);
+  }, [
+    settings.scanMode,
+    isScanning,
+    scanItems,
+    scanIndex,
+    handleSelect,
+    playSound,
+    setIsScanning,
+    setScanIndex,
+  ]);
 
   const handleSwitch2 = useCallback(() => {
     if (settings.scanMode === 'two-switch') {

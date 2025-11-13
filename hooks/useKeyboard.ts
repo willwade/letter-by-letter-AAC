@@ -4,28 +4,28 @@ interface KeyboardConfig {
   // Key mappings
   switch1Key: string; // e.g., 'Space'
   switch2Key: string; // e.g., 'Enter'
-  
+
   // Callbacks
   onSwitch1: () => void;
   onSwitch2: () => void;
   onHoldAction: (action: string) => void;
-  
+
   // Settings
   scanMode: 'one-switch' | 'two-switch' | 'auto-scan';
   holdSpeed: number;
   debounceTime: number;
   disabled: boolean; // e.g., when settings modal is open
-  
+
   // Hold actions
   enableHoldActions: boolean;
   shortHoldDuration: number;
   longHoldDuration: number;
   shortHoldAction: string;
   longHoldAction: string;
-  
+
   // Audio feedback
   playSound: (sound: 'click' | 'beep') => void;
-  
+
   // Visual feedback callbacks
   setIsHolding: (value: boolean) => void;
   setHoldProgress: (value: number) => void;
@@ -97,7 +97,9 @@ export function useKeyboard(config: KeyboardConfig) {
             holdZoneRef.current = 'none';
 
             // Animate progress bar and update zones
-            console.log(`⏱️ Starting hold timer - shortHold: ${shortHoldDuration}ms, longHold: ${longHoldDuration}ms`);
+            console.log(
+              `⏱️ Starting hold timer - shortHold: ${shortHoldDuration}ms, longHold: ${longHoldDuration}ms`
+            );
             const startTime = Date.now();
 
             // Clear any existing interval first
@@ -108,7 +110,9 @@ export function useKeyboard(config: KeyboardConfig) {
             holdProgressIntervalRef.current = window.setInterval(() => {
               const elapsed = Date.now() - startTime;
               const progress = Math.min((elapsed / longHoldDuration) * 100, 100);
-              console.log(`📊 Progress: ${progress.toFixed(1)}%, elapsed: ${elapsed}ms, zone: ${elapsed >= longHoldDuration ? 'red' : elapsed >= shortHoldDuration ? 'green' : 'none'}`);
+              console.log(
+                `📊 Progress: ${progress.toFixed(1)}%, elapsed: ${elapsed}ms, zone: ${elapsed >= longHoldDuration ? 'red' : elapsed >= shortHoldDuration ? 'green' : 'none'}`
+              );
               setHoldProgress(progress);
 
               // Update zone based on elapsed time (zones are updated in setInterval, beeps in setTimeout)
@@ -287,4 +291,3 @@ export function useKeyboard(config: KeyboardConfig) {
     setHoldZone,
   ]);
 }
-

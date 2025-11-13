@@ -106,7 +106,7 @@ export function useScanning({
       console.log('📋 Building scan items with predictions:', {
         predictedWords: predictedWords.length,
         predictedLetters: predictedLetters.length,
-        letters: predictedLetters
+        letters: predictedLetters,
       });
 
       // Include predicted words at the start
@@ -179,7 +179,16 @@ export function useScanning({
       clearInterval(scanInterval);
       clearTimeout(initialTimeout);
     };
-  }, [isScanning, scanMode, scanSpeed, scanItems.length, scanIndex, firstItemDelay, playSound, showSettingsModal]);
+  }, [
+    isScanning,
+    scanMode,
+    scanSpeed,
+    scanItems.length,
+    scanIndex,
+    firstItemDelay,
+    playSound,
+    showSettingsModal,
+  ]);
 
   // Get current item being scanned
   const currentItem = scanItems[scanIndex] ?? '';
@@ -205,4 +214,3 @@ export function useScanning({
     resetScan,
   };
 }
-
