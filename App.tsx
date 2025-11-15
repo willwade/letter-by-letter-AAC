@@ -11,6 +11,8 @@ import { useSettings } from './hooks/useSettings';
 import { usePrediction } from './hooks/usePrediction';
 import { useScanning } from './hooks/useScanning';
 import { useKeyboard } from './hooks/useKeyboard';
+import { useAudio } from './hooks/useAudio';
+import { useTTS } from './hooks/useTTS';
 
 const App: React.FC = () => {
   // MIGRATION: Use settings hook (gradually migrating settings here)
@@ -26,7 +28,6 @@ const App: React.FC = () => {
   const initialAlphabet = initialUseUppercase ? ALPHABET : ALPHABET.map((l) => l.toLowerCase());
 
   const [isFullscreen, setIsFullscreen] = useState<boolean>(!!document.fullscreenElement);
-  const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [showSettingsModal, setShowSettingsModal] = useState<boolean>(false);
 
   // Language and alphabet state (complex dependencies, not fully migrated)
@@ -80,72 +81,18 @@ const App: React.FC = () => {
   const [holdZone, setHoldZone] = useState<'none' | 'green' | 'red'>('none'); // Which zone we're in (for UI)
   // MIGRATION: holdZoneRef and holdProgressIntervalRef now in useKeyboard hook!
 
-  // Web Audio API setup for high-performance audio playback
-  const audioContext = useMemo(() => {
-    if (typeof window !== 'undefined' && 'AudioContext' in window) {
-      return new AudioContext();
-    }
-    return null;
-  }, []);
+  // MIGRATION: Audio handling now in useAudio hook!
+  const { playSound } = useAudio({
+    enabled: settings.audioEffectsEnabled,
+    volume: 0.3,
+  });
 
-  const [audioBuffers, setAudioBuffers] = useState<{
-    click: AudioBuffer | null;
-    select: AudioBuffer | null;
-  }>({ click: null, select: null });
-
-  // Load audio files into buffers
-  useEffect(() => {
-    if (!audioContext) return;
-
-    const loadAudio = async (url: string): Promise<AudioBuffer | null> => {
-      try {
-        const response = await fetch(url);
-        const arrayBuffer = await response.arrayBuffer();
-        const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-        return audioBuffer;
-      } catch (error) {
-        console.error('Failed to load audio:', url, error);
-        return null;
-      }
-    };
-
-    const loadAllAudio = async () => {
-      const [clickBuffer, selectBuffer] = await Promise.all([
-        loadAudio('/letter-by-letter-AAC/click.mp3'),
-        loadAudio('/letter-by-letter-AAC/click-select.mp3'),
-      ]);
-
-      setAudioBuffers({
-        click: clickBuffer,
-        select: selectBuffer,
-      });
-    };
-
-    loadAllAudio();
-  }, [audioContext]);
-
-  // Helper function to play audio with Web Audio API (ultra-fast, no lag)
-  const playSound = useCallback(
-    (type: 'click' | 'select') => {
-      if (!settings.audioEffectsEnabled || !audioContext || !audioBuffers[type]) return;
-
-      // Create a new buffer source (very lightweight)
-      const source = audioContext.createBufferSource();
-      source.buffer = audioBuffers[type];
-
-      // Create gain node for volume control
-      const gainNode = audioContext.createGain();
-      gainNode.gain.value = 0.3; // Reduce volume to 30%
-
-      // Connect: source -> gain -> destination
-      source.connect(gainNode);
-      gainNode.connect(audioContext.destination);
-
-      // Play immediately
-      source.start(0);
-    },
-    [settings.audioEffectsEnabled, audioContext, audioBuffers]
-  );
+  // MIGRATION: TTS handling now in useTTS hook!
+  const { availableVoices, speak } = useTTS({
+    selectedLanguage: settings.selectedLanguage,
+    selectedVoiceURI: settings.selectedVoiceURI,
+    setSelectedVoiceURI: settings.setSelectedVoiceURI,
+  });
 
   // Use scanning hook (needs predictions to build scan items AND playSound)
   const { scanIndex, scanItems, isScanning, setIsScanning, setScanIndex } = useScanning({
@@ -304,42 +251,7 @@ const App: React.FC = () => {
 
   // MIGRATION: Scan items building logic now handled by useScanning hook!
 
-  // Effect to load speech synthesis voices
-  useEffect(() => {
-    const loadVoices = () => {
-      const allVoices = window.speechSynthesis.getVoices();
-      if (allVoices.length > 0) {
-        // Filter voices by selected language
-        // Match voices where lang starts with the selected language code
-        const filteredVoices = allVoices.filter((voice) =>
-          voice.lang.toLowerCase().startsWith(settings.selectedLanguage.toLowerCase())
-        );
-
-        // If no voices match the selected language, show all voices as fallback
-        const voicesToShow = filteredVoices.length > 0 ? filteredVoices : allVoices;
-        setAvailableVoices(voicesToShow);
-
-        // Auto-select a voice for the current language if needed
-        if (
-          !settings.selectedVoiceURI ||
-          !voicesToShow.find((v) => v.voiceURI === settings.selectedVoiceURI)
-        ) {
-          // Prefer local voices for the selected language
-          const defaultVoice = voicesToShow.find((voice) => voice.localService) || voicesToShow[0];
-          if (defaultVoice) {
-            settings.setSelectedVoiceURI(defaultVoice.voiceURI);
-          }
-        }
-      }
-    };
-    // Voices load asynchronously, so we need to listen for the voiceschanged event.
-    window.speechSynthesis.onvoiceschanged = loadVoices;
-    loadVoices(); // Initial call in case they are already loaded
-    return () => {
-      window.speechSynthesis.onvoiceschanged = null;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [settings.selectedLanguage]);
+  // MIGRATION: TTS voice loading now handled by useTTS hook!
 
   const handleSelect = useCallback(
     (item: string) => {
@@ -350,16 +262,7 @@ const App: React.FC = () => {
       if (settings.gameMode && currentGameTarget) {
         if (item === 'SPEAK' && message.length === currentGameTarget.length) {
           // Word completed - speak it and move to next word
-          if ('speechSynthesis' in window && message) {
-            const utterance = new SpeechSynthesisUtterance(message);
-            const selectedVoice = availableVoices.find(
-              (v) => v.voiceURI === settings.selectedVoiceURI
-            );
-            if (selectedVoice) {
-              utterance.voice = selectedVoice;
-            }
-            window.speechSynthesis.speak(utterance);
-          }
+          speak(message);
 
           // Move to next word and clear message
           settings.setCurrentGameWordIndex((prev) => (prev + 1) % settings.gameWordList.length);
@@ -383,16 +286,7 @@ const App: React.FC = () => {
             });
 
             // Speak the word
-            if ('speechSynthesis' in window) {
-              const utterance = new SpeechSynthesisUtterance(item);
-              const selectedVoice = availableVoices.find(
-                (v) => v.voiceURI === settings.selectedVoiceURI
-              );
-              if (selectedVoice) {
-                utterance.voice = selectedVoice;
-              }
-              window.speechSynthesis.speak(utterance);
-            }
+            speak(item);
 
             // Move to next word after 1.5 seconds
             setTimeout(() => {
@@ -456,16 +350,7 @@ const App: React.FC = () => {
                   });
 
                   // Speak the word
-                  if ('speechSynthesis' in window) {
-                    const utterance = new SpeechSynthesisUtterance(newMessage);
-                    const selectedVoice = availableVoices.find(
-                      (v) => v.voiceURI === settings.selectedVoiceURI
-                    );
-                    if (selectedVoice) {
-                      utterance.voice = selectedVoice;
-                    }
-                    window.speechSynthesis.speak(utterance);
-                  }
+                  speak(newMessage);
 
                   // Move to next word after 1.5 seconds
                   setTimeout(() => {
@@ -569,20 +454,10 @@ const App: React.FC = () => {
         }
       } else if (item === 'SPEAK') {
         // Corresponds to SPEAK constant
-        if ('speechSynthesis' in window && message) {
-          const utterance = new SpeechSynthesisUtterance(message);
-          const selectedVoice = availableVoices.find(
-            (v) => v.voiceURI === settings.selectedVoiceURI
-          );
-          if (selectedVoice) {
-            utterance.voice = selectedVoice;
-          }
-          window.speechSynthesis.speak(utterance);
-        } else if (!message) {
-          // Do nothing if message is empty
-        } else {
-          alert('Text-to-speech not supported in this browser.');
+        if (message) {
+          speak(message);
         }
+        // Do nothing if message is empty
       } else {
         // Regular letter selection
         const newMessage = message + item;
@@ -600,10 +475,10 @@ const App: React.FC = () => {
       message,
       settings,
       predictedWords,
-      availableVoices,
       currentGameTarget,
       predictor,
       playSound,
+      speak,
       setLearnedWordsCount,
       setScanIndex,
     ]
@@ -626,22 +501,11 @@ const App: React.FC = () => {
       console.log(`🎯 Executing hold action: ${action}, message: "${message}"`);
       switch (action) {
         case 'SPEAK':
-          if ('speechSynthesis' in window) {
-            if (message) {
-              console.log('🔊 Speaking message:', message);
-              const utterance = new SpeechSynthesisUtterance(message);
-              const selectedVoice = availableVoices.find(
-                (v) => v.voiceURI === settings.selectedVoiceURI
-              );
-              if (selectedVoice) {
-                utterance.voice = selectedVoice;
-              }
-              window.speechSynthesis.speak(utterance);
-            } else {
-              console.log('⚠️ No message to speak');
-            }
+          if (message) {
+            console.log('🔊 Speaking message:', message);
+            speak(message);
           } else {
-            console.log('⚠️ Speech synthesis not available');
+            console.log('⚠️ No message to speak');
           }
           break;
         case 'UNDO':
@@ -661,15 +525,7 @@ const App: React.FC = () => {
           break;
       }
     },
-    [
-      message,
-      availableVoices,
-      settings.selectedVoiceURI,
-      handleUndo,
-      handleClear,
-      setIsScanning,
-      setScanIndex,
-    ]
+    [message, speak, handleUndo, handleClear, setIsScanning, setScanIndex]
   );
 
   const handleSwitch1 = useCallback(() => {
