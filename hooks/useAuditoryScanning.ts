@@ -1,6 +1,11 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import meSpeak from 'mespeak';
 
+// Module-level promise to prevent concurrent initialization
+// This prevents "Can't overwrite object" errors when React StrictMode
+// causes the effect to run multiple times simultaneously
+let initPromise: Promise<void> | null = null;
+
 export interface UseAuditoryScanningProps {
   enabled: boolean;
   audioDeviceId: string | null;
@@ -39,21 +44,70 @@ export function useAuditoryScanning({
     }
 
     // Load meSpeak config
-    const loadMeSpeak = async () => {
-      try {
-        if (!meSpeak.isConfigLoaded()) {
-          const baseUrl = import.meta.env.BASE_URL.endsWith('/')
-            ? import.meta.env.BASE_URL
-            : `${import.meta.env.BASE_URL}/`;
-          meSpeak.loadConfig(`${baseUrl}mespeak/mespeak_config.json`);
-          meSpeak.loadVoice(`${baseUrl}mespeak/voices/en/en-us.json`);
-          setIsReady(true);
-        } else {
-          setIsReady(true);
-        }
-      } catch (e) {
-        console.error('Failed to load meSpeak:', e);
+    const loadMeSpeak = () => {
+      console.log('🔧 loadMeSpeak called');
+      console.log('  - isConfigLoaded:', meSpeak.isConfigLoaded());
+      console.log('  - isVoiceLoaded:', meSpeak.isVoiceLoaded('en-us'));
+
+      // If already fully initialized, just set ready
+      if (meSpeak.isConfigLoaded() && meSpeak.isVoiceLoaded('en-us')) {
+        console.log('✅ Already initialized');
+        setIsReady(true);
+        return;
       }
+
+      // If initialization is in progress, the promise will handle it
+      if (initPromise) {
+        console.log('⏳ Initialization already in progress');
+        return;
+      }
+
+      const baseUrl = import.meta.env.BASE_URL.endsWith('/')
+        ? import.meta.env.BASE_URL
+        : `${import.meta.env.BASE_URL}/`;
+
+      console.log('📂 Base URL:', baseUrl);
+      console.log('📄 Config URL:', `${baseUrl}mespeak/mespeak_config.json`);
+      console.log('📄 Voice URL:', `${baseUrl}mespeak/voices/en/en-us.json`);
+
+      // Create initialization promise
+      initPromise = (async () => {
+        try {
+          if (!meSpeak.isConfigLoaded()) {
+            console.log('🔄 Loading config...');
+            const configRes = await fetch(`${baseUrl}mespeak/mespeak_config.json`);
+            if (!configRes.ok) {
+              throw new Error(`Config request failed: ${configRes.status}`);
+            }
+            const configJson = await configRes.json();
+            meSpeak.loadConfig(configJson);
+            console.log('✅ Config loaded successfully');
+          }
+
+          if (!meSpeak.isVoiceLoaded('en-us')) {
+            console.log('🔄 Loading voice...');
+            const voiceRes = await fetch(`${baseUrl}mespeak/voices/en/en-us.json`);
+            if (!voiceRes.ok) {
+              throw new Error(`Voice request failed: ${voiceRes.status}`);
+            }
+            const voiceJson = await voiceRes.json();
+            meSpeak.loadVoice(voiceJson);
+            console.log('✅ Voice loaded successfully');
+          }
+
+          console.log('✅ meSpeak initialization complete!');
+          setIsReady(true);
+        } catch (error) {
+          console.error('❌ Failed to initialize meSpeak:', error);
+          setIsReady(true); // Set ready anyway to not block app
+          throw error;
+        }
+      })();
+
+      // Clear the promise after completion (success or failure)
+      initPromise.finally(() => {
+        initPromise = null;
+      });
     };
 
     loadMeSpeak();
@@ -110,15 +164,27 @@ export function useAuditoryScanning({
       // We need to ensure we pass a string.
       const wavData = meSpeak.speak(text, { rawdata: 'array' });
 
-      // Strict check for ArrayBuffer to avoid decoding errors
-      if (!wavData || !(wavData instanceof ArrayBuffer)) {
+      if (!wavData) {
+        return null;
+      }
+
+      let arrayBuffer: ArrayBuffer | null = null;
+      if (wavData instanceof ArrayBuffer) {
+        arrayBuffer = wavData;
+      } else if (wavData instanceof Uint8Array) {
+        arrayBuffer = wavData.buffer.slice(wavData.byteOffset, wavData.byteOffset + wavData.byteLength);
+      } else if (Array.isArray(wavData)) {
+        arrayBuffer = Uint8Array.from(wavData).buffer;
+      }
+
+      if (!arrayBuffer) {
         return null;
       }
 
       // Decode the WAV data into an AudioBuffer
       // decodeAudioData requires a copy of the buffer in some browsers if it detaches it?
       // safe to just pass it.
-      const audioBuffer = await audioContextRef.current.decodeAudioData(wavData as ArrayBuffer);
+      const audioBuffer = await audioContextRef.current.decodeAudioData(arrayBuffer);
 
       audioCacheRef.current.set(cacheKey, audioBuffer);
       return audioBuffer;
@@ -176,6 +242,11 @@ export function useAuditoryScanning({
   const playAudioBuffer = useCallback((buffer: AudioBuffer) => {
     if (!audioContextRef.current) return;
 
+    // Resume AudioContext if suspended (browsers suspend until user interaction)
+    if (audioContextRef.current.state === 'suspended') {
+      audioContextRef.current.resume();
+    }
+
     // Stop previous source if playing
     if (currentSourceRef.current) {
         try {
@@ -199,15 +270,23 @@ export function useAuditoryScanning({
   }, []);
 
   const playItem = useCallback(async (text: string) => {
-    if (!enabled || !text) return;
+    console.log('🔊 playItem called:', { text, enabled, isReady });
+    if (!enabled || !text) {
+      console.log('⚠️ playItem skipped:', { enabled, hasText: !!text });
+      return;
+    }
 
     // If not ready, skip
-    if (!isReady) return;
+    if (!isReady) {
+      console.log('⚠️ playItem not ready yet');
+      return;
+    }
 
     let buffer = audioCacheRef.current.get(text);
 
     // If not in cache, force generation immediately (bypass queue for responsiveness)
     if (!buffer) {
+        console.log('🔄 Generating audio for:', text);
         // Remove from queue if it was there to avoid double work
         const queueIndex = requestQueueRef.current.indexOf(text);
         if (queueIndex > -1) {
@@ -217,7 +296,10 @@ export function useAuditoryScanning({
     }
 
     if (buffer) {
+        console.log('▶️ Playing audio for:', text);
         playAudioBuffer(buffer);
+    } else {
+      console.log('❌ Failed to generate audio for:', text);
     }
   }, [enabled, isReady, generateAudioBuffer, playAudioBuffer]);
 
