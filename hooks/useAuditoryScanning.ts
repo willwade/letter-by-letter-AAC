@@ -26,6 +26,8 @@ export function useAuditoryScanning({
   const audioContextRef = useRef<AudioContext | null>(null);
   const audioCacheRef = useRef<Map<string, AudioBuffer>>(new Map());
   const currentSourceRef = useRef<AudioBufferSourceNode | null>(null);
+  const requestQueueRef = useRef<string[]>([]);
+  const isProcessingQueueRef = useRef<boolean>(false);
 
   // Initialize AudioContext and load meSpeak
   useEffect(() => {
@@ -108,7 +110,10 @@ export function useAuditoryScanning({
       // We need to ensure we pass a string.
       const wavData = meSpeak.speak(text, { rawdata: 'array' });
 
-      if (!wavData) return null;
+      // Strict check for ArrayBuffer to avoid decoding errors
+      if (!wavData || !(wavData instanceof ArrayBuffer)) {
+        return null;
+      }
 
       // Decode the WAV data into an AudioBuffer
       // decodeAudioData requires a copy of the buffer in some browsers if it detaches it?
@@ -123,37 +128,50 @@ export function useAuditoryScanning({
     }
   }, [isReady]);
 
-  // Pre-generate buffers for a list of items
+  // Queue Processing Loop
+  const processQueue = useCallback(async () => {
+    if (isProcessingQueueRef.current || requestQueueRef.current.length === 0 || !isReady) {
+      return;
+    }
+
+    isProcessingQueueRef.current = true;
+
+    try {
+      // Process one item
+      const item = requestQueueRef.current.shift();
+      if (item && !audioCacheRef.current.has(item)) {
+        await generateAudioBuffer(item);
+      }
+    } catch (err) {
+      console.warn('Queue processing error:', err);
+    } finally {
+      // Continue processing after a delay to yield to main thread
+      isProcessingQueueRef.current = false;
+      if (requestQueueRef.current.length > 0) {
+        setTimeout(processQueue, 50);
+      }
+    }
+  }, [isReady, generateAudioBuffer]);
+
+  // Pre-generate buffers for a list of items using a queue
   const addToCache = useCallback((items: string[]) => {
     if (!enabled || !isReady) return;
 
-    // Process strictly sequentially or in small chunks to avoid blocking main thread too much?
-    // meSpeak is sync, so it WILL block.
-    // We should use a timeout loop to yield back to main thread.
+    // Add items to queue if not already cached and not already in queue
+    let newItemsAdded = false;
+    // Prioritize first 5 items, then queue the rest?
+    // For now, just queue them all. The scanner moves slower than 50ms usually.
+    for (const item of items) {
+      if (!audioCacheRef.current.has(item) && !requestQueueRef.current.includes(item)) {
+        requestQueueRef.current.push(item);
+        newItemsAdded = true;
+      }
+    }
 
-    let index = 0;
-    const processNext = async () => {
-        if (index >= items.length) return;
-
-        const item = items[index];
-        // Only generate if not already cached
-        if (!audioCacheRef.current.has(item)) {
-             // We call generateAudioBuffer but we know the sync part (meSpeak) happens inside.
-             // Wait, if generateAudioBuffer calls meSpeak.speak() synchronously,
-             // we need to wrap that call in a setTimeout to let UI render.
-             await new Promise<void>(resolve => setTimeout(async () => {
-                 await generateAudioBuffer(item);
-                 resolve();
-             }, 10)); // Small delay between items
-        }
-
-        index++;
-        processNext();
-    };
-
-    processNext();
-
-  }, [enabled, isReady, generateAudioBuffer]);
+    if (newItemsAdded) {
+      processQueue();
+    }
+  }, [enabled, isReady, processQueue]);
 
   const playAudioBuffer = useCallback((buffer: AudioBuffer) => {
     if (!audioContextRef.current) return;
@@ -183,15 +201,25 @@ export function useAuditoryScanning({
   const playItem = useCallback(async (text: string) => {
     if (!enabled || !text) return;
 
+    // If not ready, skip
+    if (!isReady) return;
+
     let buffer = audioCacheRef.current.get(text);
+
+    // If not in cache, force generation immediately (bypass queue for responsiveness)
     if (!buffer) {
+        // Remove from queue if it was there to avoid double work
+        const queueIndex = requestQueueRef.current.indexOf(text);
+        if (queueIndex > -1) {
+            requestQueueRef.current.splice(queueIndex, 1);
+        }
         buffer = await generateAudioBuffer(text);
     }
 
     if (buffer) {
         playAudioBuffer(buffer);
     }
-  }, [enabled, generateAudioBuffer, playAudioBuffer]);
+  }, [enabled, isReady, generateAudioBuffer, playAudioBuffer]);
 
   const playMessage = useCallback(async (message: string) => {
       // This will handle the sequence playing logic
