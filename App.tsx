@@ -13,6 +13,7 @@ import { useScanning } from './hooks/useScanning';
 import { useKeyboard } from './hooks/useKeyboard';
 import { useAudio } from './hooks/useAudio';
 import { useTTS } from './hooks/useTTS';
+import { useAuditoryScanning } from './hooks/useAuditoryScanning';
 
 const App: React.FC = () => {
   // MIGRATION: Use settings hook (gradually migrating settings here)
@@ -94,6 +95,17 @@ const App: React.FC = () => {
     setSelectedVoiceURI: settings.setSelectedVoiceURI,
   });
 
+  // Auditory Scanning Hook
+  const {
+    playItem: playAuditoryItem,
+    playMessage: playAuditoryMessage,
+    addToCache: addAuditoryItemsToCache,
+    availableDevices: auditoryDevices,
+  } = useAuditoryScanning({
+    enabled: settings.auditoryScanningEnabled,
+    audioDeviceId: settings.auditoryScanningDeviceId,
+  });
+
   // Use scanning hook (needs predictions to build scan items AND playSound)
   const { scanIndex, scanItems, isScanning, setIsScanning, setScanIndex } = useScanning({
     alphabet,
@@ -116,7 +128,21 @@ const App: React.FC = () => {
   // Update temp scan items when scanning hook updates them
   useEffect(() => {
     setTempScanItems(scanItems);
-  }, [scanItems]);
+    // When scan items update, also update the auditory cache
+    if (settings.auditoryScanningEnabled) {
+      addAuditoryItemsToCache(scanItems);
+    }
+  }, [scanItems, settings.auditoryScanningEnabled, addAuditoryItemsToCache]);
+
+  // Effect to play auditory scanning item when scan index changes
+  useEffect(() => {
+    if (isScanning && settings.auditoryScanningEnabled) {
+      const item = scanItems[scanIndex];
+      if (item) {
+        playAuditoryItem(item);
+      }
+    }
+  }, [scanIndex, isScanning, settings.auditoryScanningEnabled, scanItems, playAuditoryItem]);
 
   // Effect to load available languages and their names on startup
   useEffect(() => {
@@ -470,6 +496,36 @@ const App: React.FC = () => {
         }
       }
       setScanIndex(0);
+
+      // Play auditory feedback for message if enabled
+      if (settings.auditoryScanningEnabled) {
+        // We need to calculate what the NEW message will be to play it
+        // Since we already called setMessage, we can either duplicate the logic or use an effect
+        // Duplicating logic is safer to ensure we play the RIGHT thing immediately
+        // Wait, setMessage is async.
+        // But we can construct the new message here.
+        // Actually, let's just use the fact that we can recalculate it or use the message in the next render?
+        // No, we want immediate feedback.
+        // Simpler: Just rely on the message state update?
+        // Let's assume for now we want to play the *updated* message.
+        // Using a setTimeout to let the state update settle? Or pass the new message explicitly.
+        // Passing explicitly is better but complex due to the branching logic above.
+
+        // Alternative: Use an effect that watches `message`?
+        // But we only want to play it on *selection*, not on backspace or clear (unless desired).
+        // The requirement: "when a letter or word is selected ... it needs to equally read out ... the current message bar."
+        // So checking the message change source is hard in an effect.
+
+        // Let's try to reconstruct the simplest "new message" for the common path
+        // For now, I'll use a small timeout to play the message state after it updates.
+        setTimeout(() => {
+          // We can't access the *new* message from state here immediately because closure captures old state.
+          // Ref approach or just pass the logic down.
+          // Actually, let's just trigger it with the *expected* new message if possible, or wait for effect?
+          // I will use an Effect with a Ref to track "last message" and detect changes?
+          // No, that fires on any change.
+        }, 0);
+      }
     },
     [
       message,
@@ -483,6 +539,23 @@ const App: React.FC = () => {
       setScanIndex,
     ]
   );
+
+  // Effect to play auditory message when message changes via selection
+  // We use a ref to track if the change was due to a selection vs internal reset
+  // But actually, "reading out the message bar" usually happens on any change?
+  // User said: "when a letter or word is selected ... read out ... the current message bar"
+  // This implies Undo/Clear might not trigger it, or might?
+  // Let's assume any *content* change triggers it.
+  const prevMessageRef = React.useRef(message);
+  useEffect(() => {
+    if (settings.auditoryScanningEnabled && message !== prevMessageRef.current) {
+        // Only play if message is not empty (or maybe clear says nothing?)
+        if (message.length > 0) {
+           playAuditoryMessage(message);
+        }
+        prevMessageRef.current = message;
+    }
+  }, [message, settings.auditoryScanningEnabled, playAuditoryMessage]);
 
   const handleClear = useCallback(() => {
     setMessage('');
@@ -773,6 +846,11 @@ const App: React.FC = () => {
         setShortHoldAction={settings.setShortHoldAction}
         longHoldAction={settings.longHoldAction}
         setLongHoldAction={settings.setLongHoldAction}
+        auditoryScanningEnabled={settings.auditoryScanningEnabled}
+        setAuditoryScanningEnabled={settings.setAuditoryScanningEnabled}
+        auditoryScanningDeviceId={settings.auditoryScanningDeviceId}
+        setAuditoryScanningDeviceId={settings.setAuditoryScanningDeviceId}
+        auditoryDevices={auditoryDevices}
       />
     </div>
   );

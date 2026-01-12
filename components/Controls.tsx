@@ -76,6 +76,11 @@ interface ControlsProps {
   setShortHoldAction: (action: string) => void;
   longHoldAction: string;
   setLongHoldAction: (action: string) => void;
+  auditoryScanningEnabled: boolean;
+  setAuditoryScanningEnabled: (enabled: boolean) => void;
+  auditoryScanningDeviceId: string | null;
+  setAuditoryScanningDeviceId: (deviceId: string | null) => void;
+  auditoryDevices: MediaDeviceInfo[];
 }
 
 const Controls: React.FC<ControlsProps> = ({
@@ -152,6 +157,11 @@ const Controls: React.FC<ControlsProps> = ({
   setShortHoldAction,
   longHoldAction,
   setLongHoldAction,
+  auditoryScanningEnabled,
+  setAuditoryScanningEnabled,
+  auditoryScanningDeviceId,
+  setAuditoryScanningDeviceId,
+  auditoryDevices,
 }) => {
   // Local state for game word list input to allow typing commas
   const [gameWordListInput, setGameWordListInput] = React.useState<string>(gameWordList.join(', '));
@@ -832,6 +842,58 @@ const Controls: React.FC<ControlsProps> = ({
                       />
                       Hide (use cog icon to access settings)
                     </label>
+                  </div>
+
+                  {/* Auditory Scanning */}
+                  <div className="border-t pt-4">
+                    <h3 className="font-bold text-lg mb-3">Auditory Scanning</h3>
+
+                    {/* Enable Toggle */}
+                    <div className="flex items-center gap-4 mb-3">
+                      <span className="font-semibold w-32">Auditory Scan:</span>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={auditoryScanningEnabled}
+                          onChange={(e) => setAuditoryScanningEnabled(e.target.checked)}
+                          className="form-checkbox h-5 w-5 text-black rounded"
+                        />
+                        Enable auditory cues
+                      </label>
+                    </div>
+
+                    {/* Output Device Selector */}
+                    {auditoryScanningEnabled && (
+                      <div className="flex items-center gap-2 mb-3">
+                        <label htmlFor="audioDevicePicker" className="font-semibold w-32">
+                          Output Device:
+                        </label>
+                        <select
+                          id="audioDevicePicker"
+                          value={auditoryScanningDeviceId || ''}
+                          onChange={(e) => setAuditoryScanningDeviceId(e.target.value || null)}
+                          className="w-64 p-2 border rounded-md"
+                          style={{
+                            backgroundColor: theme.colors.inputBg,
+                            color: theme.colors.inputText,
+                            borderColor: theme.colors.border,
+                          }}
+                        >
+                          <option value="">Default Output</option>
+                          {auditoryDevices.map((device, index) => (
+                            <option key={`${device.deviceId}-${index}`} value={device.deviceId}>
+                              {device.label || `Device ${index + 1}`}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+                     <div className="flex items-center gap-2 mb-3">
+                        <span className="w-32"></span>
+                        <span className="text-sm text-gray-600 italic">
+                          Reads items as they are scanned. Use a separate device (e.g. headphones) for privacy.
+                        </span>
+                      </div>
                   </div>
 
                   {/* Audio Effects Toggle */}
