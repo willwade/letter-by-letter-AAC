@@ -48,10 +48,17 @@ export function useAudio({ enabled, volume = 0.3 }: UseAudioProps): UseAudioRetu
     };
 
     const loadAllAudio = async () => {
+      // Use baseUrl to support both dev and prod environments
+      const baseUrl = import.meta.env.BASE_URL.endsWith('/')
+        ? import.meta.env.BASE_URL
+        : `${import.meta.env.BASE_URL}/`;
+
       const [clickBuffer, selectBuffer, beepBuffer] = await Promise.all([
-        loadAudio('/letter-by-letter-AAC/click.mp3'),
-        loadAudio('/letter-by-letter-AAC/click-select.mp3'),
-        loadAudio('/letter-by-letter-AAC/beep.mp3'),
+        loadAudio(`${baseUrl}click.mp3`),
+        loadAudio(`${baseUrl}click-select.mp3`),
+        // TODO: Change this to a rising beep sound in the future.
+        // Currently falling back to click.mp3 as beep.mp3 is missing.
+        loadAudio(`${baseUrl}click.mp3`),
       ]);
 
       setAudioBuffers({

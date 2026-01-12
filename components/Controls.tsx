@@ -844,11 +844,25 @@ const Controls: React.FC<ControlsProps> = ({
                     </label>
                   </div>
 
-                  {/* Auditory Scanning */}
+                  {/* Auditory Features Section */}
                   <div className="border-t pt-4">
-                    <h3 className="font-bold text-lg mb-3">Auditory Scanning</h3>
+                    <h3 className="font-bold text-lg mb-3">Auditory Features</h3>
 
-                    {/* Enable Toggle */}
+                    {/* Audio Effects Toggle */}
+                    <div className="flex items-center gap-4 mb-3">
+                      <span className="font-semibold w-32">UI Sounds:</span>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={audioEffectsEnabled}
+                          onChange={(e) => setAudioEffectsEnabled(e.target.checked)}
+                          className="form-checkbox h-5 w-5 text-black rounded"
+                        />
+                        Play click/beep sounds
+                      </label>
+                    </div>
+
+                    {/* Auditory Scanning Enable Toggle */}
                     <div className="flex items-center gap-4 mb-3">
                       <span className="font-semibold w-32">Auditory Scan:</span>
                       <label className="flex items-center gap-2 cursor-pointer">
@@ -858,56 +872,44 @@ const Controls: React.FC<ControlsProps> = ({
                           onChange={(e) => setAuditoryScanningEnabled(e.target.checked)}
                           className="form-checkbox h-5 w-5 text-black rounded"
                         />
-                        Enable auditory cues
+                        Read items while scanning
                       </label>
                     </div>
 
-                    {/* Output Device Selector */}
+                    {/* Output Device Selector (Only if Auditory Scanning is enabled) */}
                     {auditoryScanningEnabled && (
-                      <div className="flex items-center gap-2 mb-3">
-                        <label htmlFor="audioDevicePicker" className="font-semibold w-32">
-                          Output Device:
-                        </label>
-                        <select
-                          id="audioDevicePicker"
-                          value={auditoryScanningDeviceId || ''}
-                          onChange={(e) => setAuditoryScanningDeviceId(e.target.value || null)}
-                          className="w-64 p-2 border rounded-md"
-                          style={{
-                            backgroundColor: theme.colors.inputBg,
-                            color: theme.colors.inputText,
-                            borderColor: theme.colors.border,
-                          }}
-                        >
-                          <option value="">Default Output</option>
-                          {auditoryDevices.map((device, index) => (
-                            <option key={`${device.deviceId}-${index}`} value={device.deviceId}>
-                              {device.label || `Device ${index + 1}`}
-                            </option>
-                          ))}
-                        </select>
+                      <div className="flex flex-col gap-2 mb-3">
+                        <div className="flex items-center gap-2">
+                          <label htmlFor="audioDevicePicker" className="font-semibold w-32">
+                            Scan Output:
+                          </label>
+                          <select
+                            id="audioDevicePicker"
+                            value={auditoryScanningDeviceId || ''}
+                            onChange={(e) => setAuditoryScanningDeviceId(e.target.value || null)}
+                            className="w-64 p-2 border rounded-md"
+                            style={{
+                              backgroundColor: theme.colors.inputBg,
+                              color: theme.colors.inputText,
+                              borderColor: theme.colors.border,
+                            }}
+                          >
+                            <option value="">Default Output</option>
+                            {auditoryDevices.map((device, index) => (
+                              <option key={`${device.deviceId}-${index}`} value={device.deviceId}>
+                                {device.label || `Device ${index + 1}`}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="w-32"></span>
+                          <span className="text-sm text-gray-600 italic">
+                            Tip: Select headphones for privacy (if supported by browser).
+                          </span>
+                        </div>
                       </div>
                     )}
-                     <div className="flex items-center gap-2 mb-3">
-                        <span className="w-32"></span>
-                        <span className="text-sm text-gray-600 italic">
-                          Reads items as they are scanned. Use a separate device (e.g. headphones) for privacy.
-                        </span>
-                      </div>
-                  </div>
-
-                  {/* Audio Effects Toggle */}
-                  <div className="flex items-center gap-4 mb-3">
-                    <span className="font-semibold w-32">Audio Effects:</span>
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={audioEffectsEnabled}
-                        onChange={(e) => setAudioEffectsEnabled(e.target.checked)}
-                        className="form-checkbox h-5 w-5 text-black rounded"
-                      />
-                      Play click sounds
-                    </label>
                   </div>
 
                   {/* SPEAK Button Placement */}

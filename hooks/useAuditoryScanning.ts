@@ -40,11 +40,14 @@ export function useAuditoryScanning({
     const loadMeSpeak = async () => {
       try {
         if (!meSpeak.isConfigLoaded()) {
-          meSpeak.loadConfig('/mespeak/mespeak_config.json');
-          meSpeak.loadVoice('/mespeak/voices/en/en-us.json');
+          const baseUrl = import.meta.env.BASE_URL.endsWith('/')
+            ? import.meta.env.BASE_URL
+            : `${import.meta.env.BASE_URL}/`;
+          meSpeak.loadConfig(`${baseUrl}mespeak/mespeak_config.json`);
+          meSpeak.loadVoice(`${baseUrl}mespeak/voices/en/en-us.json`);
           setIsReady(true);
         } else {
-            setIsReady(true);
+          setIsReady(true);
         }
       } catch (e) {
         console.error('Failed to load meSpeak:', e);
