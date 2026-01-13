@@ -13,7 +13,7 @@ export interface UseAuditoryScanningProps {
 
 export interface UseAuditoryScanningReturn {
   playItem: (text: string) => void;
-  playMessage: (message: string) => void;
+  playMessage: (message: string) => Promise<void>;
   addToCache: (items: string[]) => void;
   availableDevices: MediaDeviceInfo[];
   setAudioDeviceId: (deviceId: string) => void;
@@ -303,7 +303,7 @@ export function useAuditoryScanning({
     }
   }, [enabled, isReady, generateAudioBuffer, playAudioBuffer]);
 
-  const playMessage = useCallback(async (message: string) => {
+  const playMessage = useCallback(async (message: string): Promise<void> => {
       // This will handle the sequence playing logic
       // We need to implement the parsing logic here or helper
       // and play them in sequence.
@@ -342,36 +342,37 @@ export function useAuditoryScanning({
       // Generate all needed buffers first (or play as we go?)
       // Better to play sequence.
 
-      const playSequence = async (index: number) => {
-          if (index >= parts.length) return;
+      return new Promise<void>((resolve) => {
+          const playSequence = async (index: number) => {
+              if (index >= parts.length) {
+                  resolve();
+                  return;
+              }
 
-          const text = parts[index];
-          let buffer = audioCacheRef.current?.get(text);
-          if (!buffer) {
-              buffer = await generateAudioBuffer(text);
-          }
+              const text = parts[index];
+              let buffer = audioCacheRef.current?.get(text);
+              if (!buffer) {
+                  buffer = await generateAudioBuffer(text);
+              }
 
-          if (buffer && audioContextRef.current) {
-              const source = audioContextRef.current.createBufferSource();
-              source.buffer = buffer;
-              source.connect(audioContextRef.current.destination);
-              source.start(0);
-              // Store it so we can stop it if needed?
-              // Actually for message reading, we might want to let it finish or be interruptible?
-              // The user said "equally read out in the auditory scanning voice".
-              // Usually feedback is interruptible.
-              currentSourceRef.current = source;
+              if (buffer && audioContextRef.current) {
+                  const source = audioContextRef.current.createBufferSource();
+                  source.buffer = buffer;
+                  source.connect(audioContextRef.current.destination);
+                  source.start(0);
+                  currentSourceRef.current = source;
 
-              source.onended = () => {
+                  source.onended = () => {
+                      playSequence(index + 1);
+                  };
+              } else {
+                  // Skip if failed
                   playSequence(index + 1);
-              };
-          } else {
-              // Skip if failed
-              playSequence(index + 1);
-          }
-      };
+              }
+          };
 
-      playSequence(0);
+          playSequence(0);
+      });
 
   }, [enabled, generateAudioBuffer]);
 

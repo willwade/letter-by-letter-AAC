@@ -547,15 +547,39 @@ const App: React.FC = () => {
   // This implies Undo/Clear might not trigger it, or might?
   // Let's assume any *content* change triggers it.
   const prevMessageRef = React.useRef(message);
+  const messagePlaybackIdRef = React.useRef(0);
   useEffect(() => {
-    if (settings.auditoryScanningEnabled && message !== prevMessageRef.current) {
-        // Only play if message is not empty (or maybe clear says nothing?)
-        if (message.length > 0) {
-           playAuditoryMessage(message);
-        }
-        prevMessageRef.current = message;
+    if (!settings.auditoryScanningEnabled || message === prevMessageRef.current) {
+      prevMessageRef.current = message;
+      return;
     }
-  }, [message, settings.auditoryScanningEnabled, playAuditoryMessage]);
+
+    const playbackId = ++messagePlaybackIdRef.current;
+    const wasScanning = isScanning;
+
+    if (wasScanning) {
+      setIsScanning(false);
+    }
+
+    const play = async () => {
+      if (message.length > 0) {
+        await playAuditoryMessage(message);
+      }
+
+      if (messagePlaybackIdRef.current === playbackId && wasScanning) {
+        setIsScanning(true);
+      }
+    };
+
+    play();
+    prevMessageRef.current = message;
+  }, [
+    message,
+    settings.auditoryScanningEnabled,
+    playAuditoryMessage,
+    isScanning,
+    setIsScanning,
+  ]);
 
   const handleClear = useCallback(() => {
     setMessage('');
@@ -615,6 +639,12 @@ const App: React.FC = () => {
       }
     } else {
       // two-switch
+      if (!isScanning) {
+        // Start scanning so auditory cue plays on current item
+        setIsScanning(true);
+        return;
+      }
+
       // Play click sound when advancing in two-switch mode
       playSound('click');
       setScanIndex((prev: number) => (prev + 1) % scanItems.length);
