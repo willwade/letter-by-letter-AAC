@@ -74,6 +74,15 @@ export function useSettings() {
     return localStorage.getItem('audioEffectsEnabled') === 'true';
   });
 
+  // Auditory Scanning settings
+  const [auditoryScanningEnabled, setAuditoryScanningEnabled] = useState<boolean>(() => {
+    return localStorage.getItem('auditoryScanningEnabled') === 'true';
+  });
+
+  const [auditoryScanningDeviceId, setAuditoryScanningDeviceId] = useState<string | null>(() => {
+    return localStorage.getItem('auditoryScanningDeviceId') || null;
+  });
+
   // UI settings
   const [hideControlBar, setHideControlBar] = useState<boolean>(() => {
     return localStorage.getItem('hideControlBar') === 'true';
@@ -150,6 +159,12 @@ export function useSettings() {
     localStorage.setItem('fontFamily', fontFamily);
     localStorage.setItem('borderWidth', borderWidth.toString());
     localStorage.setItem('audioEffectsEnabled', audioEffectsEnabled.toString());
+    localStorage.setItem('auditoryScanningEnabled', auditoryScanningEnabled.toString());
+    if (auditoryScanningDeviceId) {
+      localStorage.setItem('auditoryScanningDeviceId', auditoryScanningDeviceId);
+    } else {
+      localStorage.removeItem('auditoryScanningDeviceId');
+    }
     localStorage.setItem('hideControlBar', hideControlBar.toString());
     localStorage.setItem('speakAfterPredictions', speakAfterPredictions.toString());
     localStorage.setItem('enableHoldActions', enableHoldActions.toString());
@@ -189,6 +204,8 @@ export function useSettings() {
     borderWidth,
     selectedVoiceURI,
     audioEffectsEnabled,
+    auditoryScanningEnabled,
+    auditoryScanningDeviceId,
     hideControlBar,
     speakAfterPredictions,
     enableHoldActions,
@@ -240,6 +257,12 @@ export function useSettings() {
     setSelectedVoiceURI,
     audioEffectsEnabled,
     setAudioEffectsEnabled,
+
+    // Auditory Scanning settings
+    auditoryScanningEnabled,
+    setAuditoryScanningEnabled,
+    auditoryScanningDeviceId,
+    setAuditoryScanningDeviceId,
 
     // UI settings
     hideControlBar,
