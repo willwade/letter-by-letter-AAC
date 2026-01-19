@@ -276,6 +276,39 @@ export function useAuditoryScanning({
     };
   }, []);
 
+  const playMessageEarcon = useCallback(async (variant: 'start' | 'end' = 'start'): Promise<void> => {
+    if (!audioContextRef.current) return;
+
+    const ctx = audioContextRef.current;
+    if (ctx.state === 'suspended') {
+      await ctx.resume();
+    }
+
+    const now = ctx.currentTime;
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0, now);
+    gain.gain.linearRampToValueAtTime(0.18, now + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.14);
+    gain.connect(ctx.destination);
+
+    const osc = ctx.createOscillator();
+    osc.type = 'sine';
+    if (variant === 'start') {
+      osc.frequency.setValueAtTime(660, now);
+      osc.frequency.linearRampToValueAtTime(990, now + 0.1);
+    } else {
+      osc.frequency.setValueAtTime(990, now);
+      osc.frequency.linearRampToValueAtTime(660, now + 0.1);
+    }
+    osc.connect(gain);
+
+    return new Promise((resolve) => {
+      osc.onended = () => resolve();
+      osc.start(now);
+      osc.stop(now + 0.15);
+    });
+  }, []);
+
   const playItem = useCallback(async (text: string) => {
     console.log('🔊 playItem called:', { text, enabled, isReady });
     if (!enabled || !text) {
@@ -329,6 +362,8 @@ export function useAuditoryScanning({
           try { currentSourceRef.current.stop(); } catch { /* ignore */ }
       }
 
+      await playMessageEarcon('start');
+
       // Parse message
       const parts: string[] = [];
       const isSpaceLast = message.endsWith(' ');
@@ -352,6 +387,7 @@ export function useAuditoryScanning({
       return new Promise<void>((resolve) => {
           const playSequence = async (index: number) => {
               if (index >= parts.length) {
+                  await playMessageEarcon('end');
                   resolve();
                   return;
               }
@@ -381,7 +417,7 @@ export function useAuditoryScanning({
           playSequence(0);
       });
 
-  }, [enabled, generateAudioBuffer]);
+  }, [enabled, generateAudioBuffer, playMessageEarcon]);
 
   return {
     playItem,
