@@ -171,10 +171,17 @@ export function useAuditoryScanning({
       let arrayBuffer: ArrayBuffer | null = null;
       if (wavData instanceof ArrayBuffer) {
         arrayBuffer = wavData;
+      } else if (typeof SharedArrayBuffer !== 'undefined' && wavData instanceof SharedArrayBuffer) {
+        const view = new Uint8Array(wavData);
+        const copy = new Uint8Array(view.length);
+        copy.set(view);
+        arrayBuffer = copy.buffer as ArrayBuffer;
       } else if (wavData instanceof Uint8Array) {
-        arrayBuffer = wavData.buffer.slice(wavData.byteOffset, wavData.byteOffset + wavData.byteLength);
+        const copy = new Uint8Array(wavData.length);
+        copy.set(wavData);
+        arrayBuffer = copy.buffer as ArrayBuffer;
       } else if (Array.isArray(wavData)) {
-        arrayBuffer = Uint8Array.from(wavData).buffer;
+        arrayBuffer = Uint8Array.from(wavData).buffer as ArrayBuffer;
       }
 
       if (!arrayBuffer) {

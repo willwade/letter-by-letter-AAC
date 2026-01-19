@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>meSpeak Test</title>
+</head>
+<body>
+    <h1>meSpeak Test</h1>
+    <button id="speak">Speak "Hello"</button>
+    <button id="test">Test Audio</button>
+    <pre id="log"></pre>
+
+    <script type="module">
+        import meSpeak from 'mespeak';
+
+        const log = document.getElementById('log');
+        function addLog(msg) {
+            log.textContent += msg + '\n';
+            console.log(msg);
+        }
+
+        addLog('meSpeak loaded: ' + typeof meSpeak);
+        addLog('isConfigLoaded: ' + meSpeak.isConfigLoaded());
+        addLog('isVoiceLoaded: ' + meSpeak.isVoiceLoaded('en-us'));
+
+        // Test 1: Load with callback (the correct way)
+        addLog('\n=== Testing loadConfig with callback ===');
+
+        const baseUrl = '/';
+
+        meSpeak.loadConfig(baseUrl + 'mespeak/mespeak_config.json', function() {
+            addLog('✓ Config loaded successfully');
+            addLog('isConfigLoaded: ' + meSpeak.isConfigLoaded());
+
+            // Load voice after config
+            meSpeak.loadVoice(baseUrl + 'mespeak/voices/en/en-us.json', function() {
+                addLog('✓ Voice loaded successfully');
+                addLog('isVoiceLoaded: ' + meSpeak.isVoiceLoaded('en-us'));
+
+                // Try speaking
+                try {
+                    const wavData = meSpeak.speak('Hello', { rawdata: 'array' });
+                    addLog('✓ Generated audio data: ' + (wavData ? wavData.byteLength : 'null') + ' bytes');
+                } catch (e) {
+                    addLog('✗ Error speaking: ' + e.message);
+                }
+
+                document.getElementById('speak').disabled = false;
+                document.getElementById('test').disabled = false;
+            }, function(error) {
+                addLog('✗ Failed to load voice: ' + error);
+            });
+
+        }, function(error) {
+            addLog('✗ Failed to load config: ' + error);
+        });
+
+        // Play audio button
+        document.getElementById('speak').disabled = true;
+        document.getElementById('speak').addEventListener('click', () => {
+            try {
+                const wavData = meSpeak.speak('Hello World', { rawdata: 'array' });
+                if (wavData) {
+                    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    audioContext.decodeAudioData(wavData).then(audioBuffer => {
+                        const source = audioContext.createBufferSource();
+                        source.buffer = audioBuffer;
+                        source.connect(audioContext.destination);
+                        source.start(0);
+                        addLog('✓ Playing "Hello World"');
+                    });
+                }
+            } catch (e) {
+                addLog('✗ Error: ' + e.message);
+            }
+        });
+
+        // Test button
+        document.getElementById('test').disabled = true;
+        document.getElementById('test').addEventListener('click', () => {
+            addLog('isConfigLoaded: ' + meSpeak.isConfigLoaded());
+            addLog('isVoiceLoaded: ' + meSpeak.isVoiceLoaded('en-us'));
+        });
+    </script>
+</body>
+</html>
