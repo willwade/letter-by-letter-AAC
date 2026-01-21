@@ -102,6 +102,8 @@ const App: React.FC = () => {
     addToCache: addAuditoryItemsToCache,
     availableDevices: auditoryDevices,
     requestAudioDeviceAccess,
+    sinkStatus,
+    applySinkIdWithGesture,
   } = useAuditoryScanning({
     enabled: settings.auditoryScanningEnabled,
     audioDeviceId: settings.auditoryScanningDeviceId,
@@ -880,9 +882,13 @@ const App: React.FC = () => {
         auditoryScanningEnabled={settings.auditoryScanningEnabled}
         setAuditoryScanningEnabled={settings.setAuditoryScanningEnabled}
         auditoryScanningDeviceId={settings.auditoryScanningDeviceId}
-        setAuditoryScanningDeviceId={settings.setAuditoryScanningDeviceId}
+        setAuditoryScanningDeviceId={(deviceId) => {
+          applySinkIdWithGesture(deviceId);
+          settings.setAuditoryScanningDeviceId(deviceId);
+        }}
         auditoryDevices={auditoryDevices}
         onUnlockAudioDevices={requestAudioDeviceAccess}
+        sinkStatus={sinkStatus}
       />
     </div>
   );

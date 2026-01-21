@@ -82,6 +82,11 @@ interface ControlsProps {
   setAuditoryScanningDeviceId: (deviceId: string | null) => void;
   auditoryDevices: MediaDeviceInfo[];
   onUnlockAudioDevices: () => void;
+  sinkStatus: {
+    route: 'context' | 'element' | 'unsupported' | 'error';
+    targetSinkId: string;
+    error?: string;
+  } | null;
 }
 
 const Controls: React.FC<ControlsProps> = ({
@@ -164,6 +169,7 @@ const Controls: React.FC<ControlsProps> = ({
   setAuditoryScanningDeviceId,
   auditoryDevices,
   onUnlockAudioDevices,
+  sinkStatus,
 }) => {
   // Local state for game word list input to allow typing commas
   const [gameWordListInput, setGameWordListInput] = React.useState<string>(gameWordList.join(', '));
@@ -927,6 +933,15 @@ const Controls: React.FC<ControlsProps> = ({
                             Tip: Select headphones for privacy. Edge may require mic permission to show device names.
                           </span>
                         </div>
+                        {sinkStatus && (
+                          <div className="flex items-center gap-2">
+                            <span className="w-32"></span>
+                            <span className="text-xs text-gray-500 italic">
+                              Output routing: {sinkStatus.route} ({sinkStatus.targetSinkId}
+                              {sinkStatus.error ? ` - ${sinkStatus.error}` : ''})
+                            </span>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>

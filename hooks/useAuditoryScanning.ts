@@ -17,6 +17,12 @@ export interface UseAuditoryScanningReturn {
   addToCache: (items: string[]) => void;
   availableDevices: MediaDeviceInfo[];
   requestAudioDeviceAccess: () => Promise<void>;
+  applySinkIdWithGesture: (deviceId: string | null) => void;
+  sinkStatus: {
+    route: 'context' | 'element' | 'unsupported' | 'error';
+    targetSinkId: string;
+    error?: string;
+  } | null;
   setAudioDeviceId: (deviceId: string) => void;
   isReady: boolean;
 }
@@ -30,10 +36,30 @@ export function useAuditoryScanning({
 
   // Audio Context and Destination
   const audioContextRef = useRef<AudioContext | null>(null);
+  const mediaElementRef = useRef<HTMLAudioElement | null>(null);
+  const mediaDestinationRef = useRef<MediaStreamAudioDestinationNode | null>(null);
+  const useMediaElementRoutingRef = useRef<boolean>(false);
   const audioCacheRef = useRef<Map<string, AudioBuffer>>(new Map());
   const currentSourceRef = useRef<AudioBufferSourceNode | null>(null);
   const requestQueueRef = useRef<string[]>([]);
   const isProcessingQueueRef = useRef<boolean>(false);
+  const [sinkStatus, setSinkStatus] = useState<{
+    route: 'context' | 'element' | 'unsupported' | 'error';
+    targetSinkId: string;
+    error?: string;
+  } | null>(null);
+
+  const getOutputNode = useCallback((): AudioNode | null => {
+    const ctx = audioContextRef.current;
+    if (!ctx) return null;
+    if (useMediaElementRoutingRef.current && mediaDestinationRef.current) {
+      mediaElementRef.current?.play().catch(() => {
+        // Autoplay may be blocked until a user gesture.
+      });
+      return mediaDestinationRef.current;
+    }
+    return ctx.destination;
+  }, []);
 
   const refreshDevices = useCallback(async () => {
     try {
@@ -55,13 +81,75 @@ export function useAuditoryScanning({
     }
   }, [refreshDevices]);
 
+  const applySinkId = useCallback(async (deviceId: string | null) => {
+    const targetSink = deviceId || 'default';
+    const ctx = audioContextRef.current as AudioContext & {
+      setSinkId?: (sinkId: string) => Promise<void>;
+    };
+    const mediaElement = mediaElementRef.current;
+    const elementWithSink = mediaElement as (HTMLMediaElement & {
+      setSinkId?: (sinkId: string) => Promise<void>;
+    }) | null;
+
+    const tryAudioContextSink = async () => {
+      if (ctx && typeof ctx.setSinkId === 'function') {
+        await ctx.setSinkId(targetSink);
+        useMediaElementRoutingRef.current = false;
+        setSinkStatus({ route: 'context', targetSinkId: targetSink });
+        return true;
+      }
+      return false;
+    };
+
+    const tryMediaElementSink = async () => {
+      if (elementWithSink && typeof elementWithSink.setSinkId === 'function') {
+        await elementWithSink.setSinkId(targetSink);
+        useMediaElementRoutingRef.current = true;
+        mediaElement?.play().catch(() => {
+          // Autoplay may be blocked; audio will resume on user gesture.
+        });
+        setSinkStatus({ route: 'element', targetSinkId: targetSink });
+        return true;
+      }
+      return false;
+    };
+
+    try {
+      if (await tryAudioContextSink()) return;
+      if (await tryMediaElementSink()) return;
+      useMediaElementRoutingRef.current = false;
+      setSinkStatus({ route: 'unsupported', targetSinkId: targetSink });
+    } catch (err) {
+      console.error('Failed to set sink ID:', err);
+      useMediaElementRoutingRef.current = false;
+      setSinkStatus({
+        route: 'error',
+        targetSinkId: targetSink,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }, []);
+
+  const applySinkIdWithGesture = useCallback((deviceId: string | null) => {
+    void applySinkId(deviceId);
+  }, [applySinkId]);
+
   // Initialize AudioContext and load meSpeak
   useEffect(() => {
     // Initialize AudioContext
     if (!audioContextRef.current) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-      audioContextRef.current = new AudioContextClass();
+      const ctx = new AudioContextClass();
+      audioContextRef.current = ctx;
+
+      // Route audio through a media element so we can set sinkId when supported.
+      const mediaElement = new Audio();
+      mediaElement.autoplay = true;
+      const mediaDestination = ctx.createMediaStreamDestination();
+      mediaElement.srcObject = mediaDestination.stream;
+      mediaElementRef.current = mediaElement;
+      mediaDestinationRef.current = mediaDestination;
     }
 
     // Load meSpeak config
@@ -146,19 +234,8 @@ export function useAuditoryScanning({
 
   // Update Sink ID (Output Device)
   useEffect(() => {
-    if (audioContextRef.current && audioDeviceId) {
-        // TypeScript might complain about setSinkId if not typed, as it's experimental/new
-        // We cast to any to avoid type errors for now or check existence
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const ctx = audioContextRef.current as any;
-        if (typeof ctx.setSinkId === 'function') {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            ctx.setSinkId(audioDeviceId).catch((err: any) =>
-                console.error('Failed to set sink ID:', err)
-            );
-        }
-    }
-  }, [audioDeviceId]);
+    void applySinkId(audioDeviceId);
+  }, [audioDeviceId, applySinkId]);
 
   const generateAudioBuffer = useCallback(async (text: string): Promise<AudioBuffer | null> => {
     if (!text || !isReady || !audioContextRef.current) return null;
@@ -275,7 +352,9 @@ export function useAuditoryScanning({
 
     const source = audioContextRef.current.createBufferSource();
     source.buffer = buffer;
-    source.connect(audioContextRef.current.destination);
+    const outputNode = getOutputNode();
+    if (!outputNode) return;
+    source.connect(outputNode);
     source.start(0);
     currentSourceRef.current = source;
 
@@ -284,7 +363,7 @@ export function useAuditoryScanning({
             currentSourceRef.current = null;
         }
     };
-  }, []);
+  }, [getOutputNode]);
 
   const playMessageEarcon = useCallback(async (variant: 'start' | 'end' = 'start'): Promise<void> => {
     if (!audioContextRef.current) return;
@@ -299,7 +378,9 @@ export function useAuditoryScanning({
     gain.gain.setValueAtTime(0, now);
     gain.gain.linearRampToValueAtTime(0.18, now + 0.01);
     gain.gain.exponentialRampToValueAtTime(0.001, now + 0.14);
-    gain.connect(ctx.destination);
+    const outputNode = getOutputNode();
+    if (!outputNode) return;
+    gain.connect(outputNode);
 
     const osc = ctx.createOscillator();
     osc.type = 'sine';
@@ -317,7 +398,7 @@ export function useAuditoryScanning({
       osc.start(now);
       osc.stop(now + 0.15);
     });
-  }, []);
+  }, [getOutputNode]);
 
   const playItem = useCallback(async (text: string) => {
     console.log('🔊 playItem called:', { text, enabled, isReady });
@@ -411,7 +492,12 @@ export function useAuditoryScanning({
               if (buffer && audioContextRef.current) {
                   const source = audioContextRef.current.createBufferSource();
                   source.buffer = buffer;
-                  source.connect(audioContextRef.current.destination);
+                  const outputNode = getOutputNode();
+                  if (!outputNode) {
+                    playSequence(index + 1);
+                    return;
+                  }
+                  source.connect(outputNode);
                   source.start(0);
                   currentSourceRef.current = source;
 
@@ -427,7 +513,7 @@ export function useAuditoryScanning({
           playSequence(0);
       });
 
-  }, [enabled, generateAudioBuffer, playMessageEarcon]);
+  }, [enabled, generateAudioBuffer, getOutputNode, playMessageEarcon]);
 
   return {
     playItem,
@@ -435,6 +521,8 @@ export function useAuditoryScanning({
     addToCache,
     availableDevices,
     requestAudioDeviceAccess,
+    applySinkIdWithGesture,
+    sinkStatus,
     setAudioDeviceId: () => {}, // Handled by prop, but we can expose a setter if we move state inside
     isReady
   };
