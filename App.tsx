@@ -101,6 +101,7 @@ const App: React.FC = () => {
     playMessage: playAuditoryMessage,
     addToCache: addAuditoryItemsToCache,
     availableDevices: auditoryDevices,
+    requestAudioDeviceAccess,
   } = useAuditoryScanning({
     enabled: settings.auditoryScanningEnabled,
     audioDeviceId: settings.auditoryScanningDeviceId,
@@ -881,6 +882,7 @@ const App: React.FC = () => {
         auditoryScanningDeviceId={settings.auditoryScanningDeviceId}
         setAuditoryScanningDeviceId={settings.setAuditoryScanningDeviceId}
         auditoryDevices={auditoryDevices}
+        onUnlockAudioDevices={requestAudioDeviceAccess}
       />
     </div>
   );

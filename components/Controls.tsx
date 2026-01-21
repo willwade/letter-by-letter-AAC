@@ -81,6 +81,7 @@ interface ControlsProps {
   auditoryScanningDeviceId: string | null;
   setAuditoryScanningDeviceId: (deviceId: string | null) => void;
   auditoryDevices: MediaDeviceInfo[];
+  onUnlockAudioDevices: () => void;
 }
 
 const Controls: React.FC<ControlsProps> = ({
@@ -162,6 +163,7 @@ const Controls: React.FC<ControlsProps> = ({
   auditoryScanningDeviceId,
   setAuditoryScanningDeviceId,
   auditoryDevices,
+  onUnlockAudioDevices,
 }) => {
   // Local state for game word list input to allow typing commas
   const [gameWordListInput, setGameWordListInput] = React.useState<string>(gameWordList.join(', '));
@@ -901,11 +903,28 @@ const Controls: React.FC<ControlsProps> = ({
                               </option>
                             ))}
                           </select>
+                          <button
+                            type="button"
+                            onClick={onUnlockAudioDevices}
+                            className="text-sm py-2 px-3 rounded-md transition-colors"
+                            style={{
+                              backgroundColor: theme.colors.buttonBg,
+                              color: theme.colors.buttonText,
+                            }}
+                            onMouseEnter={(e) =>
+                              (e.currentTarget.style.backgroundColor = theme.colors.buttonHover)
+                            }
+                            onMouseLeave={(e) =>
+                              (e.currentTarget.style.backgroundColor = theme.colors.buttonBg)
+                            }
+                          >
+                            Unlock Devices
+                          </button>
                         </div>
                         <div className="flex items-center gap-2">
                           <span className="w-32"></span>
                           <span className="text-sm text-gray-600 italic">
-                            Tip: Select headphones for privacy (if supported by browser).
+                            Tip: Select headphones for privacy. Edge may require mic permission to show device names.
                           </span>
                         </div>
                       </div>

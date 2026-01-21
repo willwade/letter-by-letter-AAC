@@ -16,6 +16,7 @@ export interface UseAuditoryScanningReturn {
   playMessage: (message: string) => Promise<void>;
   addToCache: (items: string[]) => void;
   availableDevices: MediaDeviceInfo[];
+  requestAudioDeviceAccess: () => Promise<void>;
   setAudioDeviceId: (deviceId: string) => void;
   isReady: boolean;
 }
@@ -33,6 +34,26 @@ export function useAuditoryScanning({
   const currentSourceRef = useRef<AudioBufferSourceNode | null>(null);
   const requestQueueRef = useRef<string[]>([]);
   const isProcessingQueueRef = useRef<boolean>(false);
+
+  const refreshDevices = useCallback(async () => {
+    try {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const outputs = devices.filter((d) => d.kind === 'audiooutput');
+      setAvailableDevices(outputs);
+    } catch (e) {
+      console.warn('Unable to enumerate audio devices:', e);
+    }
+  }, []);
+
+  const requestAudioDeviceAccess = useCallback(async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      stream.getTracks().forEach((track) => track.stop());
+      await refreshDevices();
+    } catch (e) {
+      console.warn('Unable to get audio device permission:', e);
+    }
+  }, [refreshDevices]);
 
   // Initialize AudioContext and load meSpeak
   useEffect(() => {
@@ -112,27 +133,16 @@ export function useAuditoryScanning({
 
     loadMeSpeak();
 
-    // Enumerate devices
-    const getDevices = async () => {
-      try {
-        const devices = await navigator.mediaDevices.enumerateDevices();
-        const outputs = devices.filter((d) => d.kind === 'audiooutput');
-        setAvailableDevices(outputs);
-      } catch (e) {
-        console.warn('Unable to enumerate audio devices:', e);
-      }
-    };
-
     // Only request permission/enumerate if we can (requires interaction usually, but we check what's available)
-    getDevices();
+    refreshDevices();
 
     // Listen for device changes
-    navigator.mediaDevices.ondevicechange = getDevices;
+    navigator.mediaDevices.ondevicechange = refreshDevices;
 
     return () => {
       navigator.mediaDevices.ondevicechange = null;
     };
-  }, []);
+  }, [refreshDevices]);
 
   // Update Sink ID (Output Device)
   useEffect(() => {
@@ -424,6 +434,7 @@ export function useAuditoryScanning({
     playMessage,
     addToCache,
     availableDevices,
+    requestAudioDeviceAccess,
     setAudioDeviceId: () => {}, // Handled by prop, but we can expose a setter if we move state inside
     isReady
   };
