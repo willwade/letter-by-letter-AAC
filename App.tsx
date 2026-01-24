@@ -110,7 +110,16 @@ const App: React.FC = () => {
   });
 
   // Use scanning hook (needs predictions to build scan items AND playSound)
-  const { scanIndex, scanItems, isScanning, setIsScanning, setScanIndex } = useScanning({
+  const {
+    scanIndex,
+    scanItems,
+    isScanning,
+    setIsScanning,
+    setScanIndex,
+    processSelection,
+    scanItemsSpoken,
+    currentItemSpoken,
+  } = useScanning({
     alphabet,
     message,
     predictedLetters,
@@ -126,6 +135,9 @@ const App: React.FC = () => {
     firstItemDelay: settings.firstItemDelay,
     showSettingsModal,
     playSound,
+    scanningStrategy: settings.scanningStrategy,
+    blockMode: settings.blockMode,
+    blockSize: settings.blockSize,
   });
 
   // Update temp scan items when scanning hook updates them
@@ -133,19 +145,25 @@ const App: React.FC = () => {
     setTempScanItems(scanItems);
     // When scan items update, also update the auditory cache
     if (settings.auditoryScanningEnabled) {
-      addAuditoryItemsToCache(scanItems);
+      addAuditoryItemsToCache(scanItemsSpoken);
     }
-  }, [scanItems, settings.auditoryScanningEnabled, addAuditoryItemsToCache]);
+  }, [scanItems, scanItemsSpoken, settings.auditoryScanningEnabled, addAuditoryItemsToCache]);
 
   // Effect to play auditory scanning item when scan index changes
   useEffect(() => {
     if (isScanning && settings.auditoryScanningEnabled) {
-      const item = scanItems[scanIndex];
-      if (item) {
-        playAuditoryItem(item);
+      // Use currentItemSpoken from useScanning which handles block labels
+      if (currentItemSpoken) {
+        playAuditoryItem(currentItemSpoken);
       }
     }
-  }, [scanIndex, isScanning, settings.auditoryScanningEnabled, scanItems, playAuditoryItem]);
+  }, [
+    scanIndex,
+    isScanning,
+    settings.auditoryScanningEnabled,
+    currentItemSpoken,
+    playAuditoryItem,
+  ]);
 
   // Effect to load available languages and their names on startup
   useEffect(() => {
@@ -287,9 +305,23 @@ const App: React.FC = () => {
       // Play select sound
       playSound('select');
 
+      // Process selection through scanning hook (handles blocks vs items)
+      const selection = processSelection(item);
+
+      // If entering or exiting a block, we stop here (UI updates automatically)
+      if (selection.action === 'enter-block' || selection.action === 'exit-block') {
+        return;
+      }
+
+      // If nothing to do (shouldn't happen)
+      if (selection.action === 'none') return;
+
+      // Use the resolved value from the selection
+      const selectedItem = selection.value || item;
+
       // Game Mode: handle letter selection and word completion
       if (settings.gameMode && currentGameTarget) {
-        if (item === 'SPEAK' && message.length === currentGameTarget.length) {
+        if (selectedItem === 'SPEAK' && message.length === currentGameTarget.length) {
           // Word completed - speak it and move to next word
           speak(message);
 
@@ -297,15 +329,15 @@ const App: React.FC = () => {
           settings.setCurrentGameWordIndex((prev) => (prev + 1) % settings.gameWordList.length);
           setMessage('');
           return;
-        } else if (settings.showWordPrediction && predictedWords.includes(item)) {
+        } else if (settings.showWordPrediction && predictedWords.includes(selectedItem)) {
           // Word prediction selected in game mode
           // Check if the predicted word matches the target (case-insensitive)
           const remainingTarget = currentGameTarget.substring(message.length);
 
           // Check if the word completes the current target or matches the remaining part
-          if (item.toLowerCase() === currentGameTarget.toLowerCase()) {
+          if (selectedItem.toLowerCase() === currentGameTarget.toLowerCase()) {
             // Complete word match - accept it
-            setMessage(item);
+            setMessage(selectedItem);
 
             // Confetti for correct word
             confetti({
@@ -315,16 +347,16 @@ const App: React.FC = () => {
             });
 
             // Speak the word
-            speak(item);
+            speak(selectedItem);
 
             // Move to next word after 1.5 seconds
             setTimeout(() => {
               settings.setCurrentGameWordIndex((prev) => (prev + 1) % settings.gameWordList.length);
               setMessage('');
             }, 1500);
-          } else if (remainingTarget.toLowerCase().startsWith(item.toLowerCase())) {
+          } else if (remainingTarget.toLowerCase().startsWith(selectedItem.toLowerCase())) {
             // Partial word match - accept it as completing part of the target
-            const newMessage = message + item; // No space after word prediction
+            const newMessage = message + selectedItem; // No space after word prediction
             setMessage(newMessage);
 
             // Confetti for correct partial word
@@ -336,11 +368,11 @@ const App: React.FC = () => {
           }
           // Ignore incorrect word predictions
           return;
-        } else if (item.length === 1 || item === '_') {
+        } else if (selectedItem.length === 1 || selectedItem === '_') {
           // Handle both letters and spaces
           const expectedChar = currentGameTarget[message.length];
 
-          if (expectedChar === ' ' && item === '_') {
+          if (expectedChar === ' ' && selectedItem === '_') {
             // Correct space! Add it to the message
             setMessage((prev) => {
               const newMessage = prev + ' ';
@@ -355,11 +387,11 @@ const App: React.FC = () => {
           } else if (
             expectedChar &&
             expectedChar !== ' ' &&
-            item.toLowerCase() === expectedChar.toLowerCase()
+            selectedItem.toLowerCase() === expectedChar.toLowerCase()
           ) {
             // Correct letter! Add it to the message
             setMessage((prev) => {
-              const newMessage = prev + item;
+              const newMessage = prev + selectedItem;
 
               // Confetti for correct letter
               confetti({
@@ -396,7 +428,7 @@ const App: React.FC = () => {
           }
           // Ignore incorrect letters/spaces (do nothing)
           return;
-        } else if (item === 'UNDO') {
+        } else if (selectedItem === 'UNDO') {
           // Handle UNDO in game mode
           const newMessage = message.slice(0, -1);
           setMessage(newMessage);
@@ -409,7 +441,7 @@ const App: React.FC = () => {
             }
           }
           return;
-        } else if (item === 'CLEAR') {
+        } else if (selectedItem === 'CLEAR') {
           // Handle CLEAR in game mode - restart current word
           setMessage('');
 
@@ -423,13 +455,13 @@ const App: React.FC = () => {
       }
 
       // Normal mode (non-game)
-      if (settings.showWordPrediction && predictedWords.includes(item)) {
+      if (settings.showWordPrediction && predictedWords.includes(selectedItem)) {
         const lastSpaceIndex = message.lastIndexOf(' ');
         const messageBase = lastSpaceIndex === -1 ? '' : message.substring(0, lastSpaceIndex + 1);
-        const newMessage = messageBase + item; // No space after word prediction
+        const newMessage = messageBase + selectedItem; // No space after word prediction
 
         console.log('📝 Word prediction selected:', {
-          item,
+          item: selectedItem,
           currentMessage: message,
           lastSpaceIndex,
           messageBase,
@@ -448,10 +480,10 @@ const App: React.FC = () => {
           // Save to session buffer for persistence (no space after word)
           const sessionKey = `ppm-session-${settings.selectedLanguage}`;
           const currentSession = localStorage.getItem(sessionKey) || '';
-          localStorage.setItem(sessionKey, currentSession + item);
+          localStorage.setItem(sessionKey, currentSession + selectedItem);
           setLearnedWordsCount((prev) => prev + 1);
         }
-      } else if (item === '_') {
+      } else if (selectedItem === '_') {
         // Corresponds to SPACE constant
         const newMessage = message + ' ';
         setMessage(newMessage);
@@ -461,7 +493,7 @@ const App: React.FC = () => {
           predictor.resetContext();
           predictor.addToContext(newMessage.toLowerCase());
         }
-      } else if (item === 'UNDO') {
+      } else if (selectedItem === 'UNDO') {
         // Corresponds to UNDO constant
         const newMessage = message.slice(0, -1);
         setMessage(newMessage);
@@ -473,7 +505,7 @@ const App: React.FC = () => {
             predictor.addToContext(newMessage.toLowerCase());
           }
         }
-      } else if (item === 'CLEAR') {
+      } else if (selectedItem === 'CLEAR') {
         // Corresponds to CLEAR constant
         setMessage('');
 
@@ -481,7 +513,7 @@ const App: React.FC = () => {
         if (predictor) {
           predictor.resetContext();
         }
-      } else if (item === 'SPEAK') {
+      } else if (selectedItem === 'SPEAK') {
         // Corresponds to SPEAK constant
         if (message) {
           speak(message);
@@ -489,7 +521,7 @@ const App: React.FC = () => {
         // Do nothing if message is empty
       } else {
         // Regular letter selection
-        const newMessage = message + item;
+        const newMessage = message + selectedItem;
         setMessage(newMessage);
 
         // Train the model on the confirmed letter selection
@@ -540,6 +572,7 @@ const App: React.FC = () => {
       speak,
       setLearnedWordsCount,
       setScanIndex,
+      processSelection,
     ]
   );
 
@@ -889,6 +922,12 @@ const App: React.FC = () => {
         auditoryDevices={auditoryDevices}
         onUnlockAudioDevices={requestAudioDeviceAccess}
         sinkStatus={sinkStatus}
+        scanningStrategy={settings.scanningStrategy}
+        setScanningStrategy={settings.setScanningStrategy}
+        blockMode={settings.blockMode}
+        setBlockMode={settings.setBlockMode}
+        blockSize={settings.blockSize}
+        setBlockSize={settings.setBlockSize}
       />
     </div>
   );

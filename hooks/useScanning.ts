@@ -1,5 +1,7 @@
-import { useState, useCallback, useEffect } from 'react';
-import { SPECIAL_ACTIONS, SPEAK, SPACE, UNDO, CLEAR } from '../constants';
+import { useState, useCallback, useEffect, useRef } from 'react';
+import { SPECIAL_ACTIONS, SPEAK, SPACE, UNDO, CLEAR, BACK } from '../constants';
+import { ScanningStrategy, BlockMode } from '../types';
+import { generateBlocks, Block } from '../utils/layoutEngine';
 
 interface UseScanningProps {
   alphabet: string[];
@@ -17,17 +19,29 @@ interface UseScanningProps {
   firstItemDelay: number;
   showSettingsModal: boolean;
   playSound: (sound: 'click' | 'beep') => void;
+  scanningStrategy: ScanningStrategy;
+  blockMode: BlockMode;
+  blockSize: number;
+}
+
+interface SelectionResult {
+  action: 'select' | 'enter-block' | 'exit-block' | 'none';
+  value?: string;
 }
 
 interface UseScanningReturn {
   scanIndex: number;
   scanItems: string[];
+  scanItemsSpoken: string[];
   isScanning: boolean;
   currentItem: string;
   setIsScanning: (value: boolean) => void;
   setScanIndex: (value: number | ((prev: number) => number)) => void;
   advanceScan: () => void;
   resetScan: () => void;
+  processSelection: (item: string) => SelectionResult;
+  scanStage: 'blocks' | 'items';
+  currentItemSpoken: string;
 }
 
 export function useScanning({
@@ -46,102 +60,130 @@ export function useScanning({
   firstItemDelay,
   showSettingsModal,
   playSound,
+  scanningStrategy,
+  blockMode,
+  blockSize,
 }: UseScanningProps): UseScanningReturn {
   const [scanIndex, setScanIndex] = useState<number>(0);
   const [scanItems, setScanItems] = useState<string[]>([...alphabet]);
+  const [scanItemsSpoken, setScanItemsSpoken] = useState<string[]>([...alphabet]);
   const [isScanning, setIsScanning] = useState<boolean>(false);
+
+  // Block scanning state
+  const [scanStage, setScanStage] = useState<'blocks' | 'items'>('blocks');
+  const [blocks, setBlocks] = useState<Block[]>([]);
+  const [activeBlockIndex, setActiveBlockIndex] = useState<number>(0);
+  const pendingScanIndexRef = useRef<number | null>(null);
+
+  // Reset stage when message changes (context change)
+  // This ensures we go back to blocks when a letter is typed
+  useEffect(() => {
+    setScanStage('blocks');
+    setScanIndex(0);
+    setActiveBlockIndex(0);
+  }, [message]);
 
   // Build scan items based on current state
   useEffect(() => {
-    const newScanItems: string[] = [];
+    // If game mode is on, force linear strategy for now
+    const effectiveStrategy = gameMode ? 'linear' : scanningStrategy;
 
-    const predictionEnabledAndReady = enablePrediction && predictor;
+    if (effectiveStrategy === 'linear') {
+      const newScanItems: string[] = [];
+      const predictionEnabledAndReady = enablePrediction && predictor;
 
-    // Game Mode: show predictions (if enabled) and full alphabet, but only next correct letter is selectable
-    if (gameMode && currentGameTarget) {
-      // Include predicted words at the start if prediction is enabled
-      if (predictionEnabledAndReady && showWordPrediction && predictedWords.length > 0) {
-        newScanItems.push(...predictedWords);
-      }
-
-      // Include predicted letters if prediction is enabled
-      if (predictionEnabledAndReady && predictedLetters.length > 0) {
-        newScanItems.push(...predictedLetters);
-      }
-
-      // Conditionally add SPEAK after predictions if setting is enabled
-      if (predictionEnabledAndReady && speakAfterPredictions && message.length > 1) {
-        newScanItems.push(SPEAK);
-      }
-
-      // Include full alphabet
-      newScanItems.push(...alphabet);
-
-      // If next character is a space, include SPACE action
-      const nextChar = currentGameTarget[message.length];
-      if (nextChar === ' ') {
-        newScanItems.push(SPACE);
-      }
-
-      // Always include actions at the end
-      if (message.length > 0) {
-        // If SPEAK is after predictions, exclude it from SPECIAL_ACTIONS here
-        if (predictionEnabledAndReady && speakAfterPredictions) {
-          newScanItems.push(SPACE, UNDO, CLEAR);
-        } else {
-          newScanItems.push(...SPECIAL_ACTIONS);
+      // Game Mode logic (simplified for brevity, matching original)
+      if (gameMode && currentGameTarget) {
+        if (predictionEnabledAndReady && showWordPrediction && predictedWords.length > 0)
+          newScanItems.push(...predictedWords);
+        if (predictionEnabledAndReady && predictedLetters.length > 0)
+          newScanItems.push(...predictedLetters);
+        if (predictionEnabledAndReady && speakAfterPredictions && message.length > 1)
+          newScanItems.push(SPEAK);
+        newScanItems.push(...alphabet);
+        if (currentGameTarget[message.length] === ' ') newScanItems.push(SPACE);
+        if (message.length > 0) {
+          if (predictionEnabledAndReady && speakAfterPredictions) {
+            newScanItems.push(SPACE, UNDO, CLEAR);
+          } else {
+            newScanItems.push(...SPECIAL_ACTIONS);
+          }
+        }
+      } else if (!predictionEnabledAndReady) {
+        newScanItems.push(...alphabet);
+        if (message.length > 0) newScanItems.push(...SPECIAL_ACTIONS);
+      } else {
+        // Prediction enabled
+        if (showWordPrediction && predictedWords.length > 0) newScanItems.push(...predictedWords);
+        if (predictedLetters.length > 0) newScanItems.push(...predictedLetters);
+        if (speakAfterPredictions && message.length > 1) newScanItems.push(SPEAK);
+        newScanItems.push(...alphabet);
+        if (message.length > 0) {
+          if (speakAfterPredictions) {
+            newScanItems.push(SPACE, UNDO, CLEAR);
+          } else {
+            newScanItems.push(...SPECIAL_ACTIONS);
+          }
         }
       }
-    } else if (!predictionEnabledAndReady) {
-      // Include alphabet first
-      newScanItems.push(...alphabet);
 
-      // Only include SPECIAL_ACTIONS if message has at least one character
-      // SPECIAL_ACTIONS now includes SPEAK by default
-      if (message.length > 0) {
-        newScanItems.push(...SPECIAL_ACTIONS);
-      }
+      setScanItems(newScanItems);
+      // For linear, spoken items are mostly same as display items, with some exceptions
+      setScanItemsSpoken(
+        newScanItems.map((item) => {
+          if (item === '_') return 'Space';
+          if (item === SPEAK) return 'Speak';
+          if (item === UNDO) return 'Undo';
+          if (item === CLEAR) return 'Clear';
+          return item;
+        })
+      );
+      setScanIndex(0);
     } else {
-      // Prediction mode enabled
-      console.log('📋 Building scan items with predictions:', {
-        predictedWords: predictedWords.length,
-        predictedLetters: predictedLetters.length,
-        letters: predictedLetters,
+      // BLOCK STRATEGY
+      const generatedBlocks = generateBlocks({
+        mode: blockMode,
+        blockSize,
+        alphabet,
+        predictedWords,
+        predictedLetters,
       });
+      setBlocks(generatedBlocks);
 
-      // Include predicted words at the start
-      if (showWordPrediction && predictedWords.length > 0) {
-        newScanItems.push(...predictedWords);
-      }
-
-      // Include predicted letters
-      if (predictedLetters.length > 0) {
-        newScanItems.push(...predictedLetters);
-      }
-
-      // Conditionally add SPEAK after predictions if setting is enabled
-      if (speakAfterPredictions && message.length > 1) {
-        newScanItems.push(SPEAK);
-      }
-
-      // Include full alphabet (predicted letters will appear again in their regular positions)
-      newScanItems.push(...alphabet);
-
-      // Include SPECIAL_ACTIONS if message has at least one character
-      if (message.length > 0) {
-        // If SPEAK is after predictions, exclude it from SPECIAL_ACTIONS here
-        if (speakAfterPredictions) {
-          // Add actions without SPEAK (since it's already after predictions)
-          newScanItems.push(SPACE, UNDO, CLEAR);
+      if (scanStage === 'blocks') {
+        setScanItems(generatedBlocks.map((b) => b.label));
+        setScanItemsSpoken(generatedBlocks.map((b) => b.spokenLabel));
+      } else {
+        // Items stage
+        const block = generatedBlocks[activeBlockIndex];
+        if (block) {
+          setScanItems([...block.items, BACK]);
+          setScanItemsSpoken([
+            ...block.items.map((item) => {
+              if (item === '_') return 'Space';
+              if (item === SPEAK) return 'Speak';
+              if (item === UNDO) return 'Undo';
+              if (item === CLEAR) return 'Clear';
+              return item;
+            }),
+            'Go Back',
+          ]);
         } else {
-          // Add all SPECIAL_ACTIONS including SPEAK
-          newScanItems.push(...SPECIAL_ACTIONS);
+          // Fallback if index invalid (e.g. config changed)
+          setScanStage('blocks');
+          setScanItems(generatedBlocks.map((b) => b.label));
+          setScanItemsSpoken(generatedBlocks.map((b) => b.spokenLabel));
         }
+      }
+
+      // Handle scan index restoration or reset
+      if (pendingScanIndexRef.current !== null) {
+        setScanIndex(pendingScanIndexRef.current);
+        pendingScanIndexRef.current = null;
+      } else {
+        setScanIndex(0);
       }
     }
-
-    setScanItems(newScanItems);
-    setScanIndex(0);
   }, [
     predictedLetters,
     predictedWords,
@@ -153,22 +195,23 @@ export function useScanning({
     gameMode,
     currentGameTarget,
     speakAfterPredictions,
+    scanningStrategy,
+    blockMode,
+    blockSize,
+    scanStage,
+    activeBlockIndex,
   ]);
 
-  // Auto-advance scanning interval for one-switch mode
+  // Auto-advance scanning interval
   useEffect(() => {
     let scanInterval: number | undefined;
-    let initialTimeout: number | undefined;
 
-    // Pause scanning when settings modal is open
     if (isScanning && scanMode === 'one-switch' && !showSettingsModal) {
-      // Use longer delay for first item (index 0), normal speed for others
       const isFirstItem = scanIndex === 0;
       const delay = isFirstItem ? firstItemDelay : scanSpeed;
 
       scanInterval = window.setInterval(() => {
         setScanIndex((prev: number) => {
-          // Play click sound when advancing
           playSound('click');
           return (prev + 1) % scanItems.length;
         });
@@ -177,7 +220,6 @@ export function useScanning({
 
     return () => {
       clearInterval(scanInterval);
-      clearTimeout(initialTimeout);
     };
   }, [
     isScanning,
@@ -190,18 +232,70 @@ export function useScanning({
     showSettingsModal,
   ]);
 
-  // Get current item being scanned
   const currentItem = scanItems[scanIndex] ?? '';
 
-  // Advance to next scan item
+  // Determine the spoken representation of the current item
+  let currentItemSpoken = currentItem;
+  if (!gameMode && scanningStrategy === 'block' && scanStage === 'blocks') {
+    const block = blocks[scanIndex];
+    // If scanning blocks, use the spoken label (e.g. "A, B, C, D" instead of "A-D")
+    if (block) {
+      currentItemSpoken = block.spokenLabel;
+    }
+  } else if (currentItem === BACK) {
+    currentItemSpoken = 'Go Back';
+  } else if (currentItem === '_') {
+    currentItemSpoken = 'Space';
+  }
+
   const advanceScan = useCallback(() => {
     setScanIndex((prev: number) => (prev + 1) % scanItems.length);
   }, [scanItems.length]);
 
-  // Reset scan to beginning
   const resetScan = useCallback(() => {
+    setScanStage('blocks');
     setScanIndex(0);
+    setActiveBlockIndex(0);
   }, []);
+
+  const processSelection = useCallback(
+    (item: string): SelectionResult => {
+      const effectiveStrategy = gameMode ? 'linear' : scanningStrategy;
+
+      if (effectiveStrategy === 'linear') {
+        return { action: 'select', value: item };
+      }
+
+      // Block Strategy
+      if (scanStage === 'blocks') {
+        // Find block by label
+        const index = blocks.findIndex((b) => b.label === item);
+        if (index !== -1) {
+          setActiveBlockIndex(index);
+          setScanStage('items');
+          // Scan index will be reset to 0 by useEffect
+          return { action: 'enter-block' };
+        }
+        // Should not happen unless item doesn't match
+        return { action: 'none' };
+      } else {
+        // Items stage
+        if (item === BACK) {
+          setScanStage('blocks');
+          pendingScanIndexRef.current = activeBlockIndex;
+          // Scan index will be restored by useEffect
+          return { action: 'exit-block' };
+        }
+
+        // Selected a real item
+        // We reset to blocks stage after selection
+        setScanStage('blocks');
+        setScanIndex(0);
+        return { action: 'select', value: item };
+      }
+    },
+    [gameMode, scanningStrategy, scanStage, blocks, activeBlockIndex]
+  );
 
   return {
     scanIndex,
@@ -212,5 +306,9 @@ export function useScanning({
     setScanIndex,
     advanceScan,
     resetScan,
+    processSelection,
+    scanStage,
+    currentItemSpoken,
+    scanItemsSpoken,
   };
 }

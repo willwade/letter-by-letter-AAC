@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import type { ScanMode, ThemeName } from '../types';
+import type { ScanMode, ThemeName, ScanningStrategy, BlockMode } from '../types';
 
 /**
  * Custom hook to manage all app settings with localStorage persistence.
@@ -29,6 +29,20 @@ export function useSettings() {
   const [debounceTime, setDebounceTime] = useState<number>(() => {
     const saved = localStorage.getItem('debounceTime');
     return saved ? Number(saved) : 0;
+  });
+
+  // Block Scanning settings
+  const [scanningStrategy, setScanningStrategy] = useState<ScanningStrategy>(() => {
+    return (localStorage.getItem('scanningStrategy') as ScanningStrategy) || 'linear';
+  });
+
+  const [blockMode, setBlockMode] = useState<BlockMode>(() => {
+    return (localStorage.getItem('blockMode') as BlockMode) || 'hybrid';
+  });
+
+  const [blockSize, setBlockSize] = useState<number>(() => {
+    const saved = localStorage.getItem('blockSize');
+    return saved ? Number(saved) : 5;
   });
 
   // Prediction settings
@@ -151,6 +165,9 @@ export function useSettings() {
     localStorage.setItem('firstItemDelay', firstItemDelay.toString());
     localStorage.setItem('holdSpeed', holdSpeed.toString());
     localStorage.setItem('debounceTime', debounceTime.toString());
+    localStorage.setItem('scanningStrategy', scanningStrategy);
+    localStorage.setItem('blockMode', blockMode);
+    localStorage.setItem('blockSize', blockSize.toString());
     localStorage.setItem('enablePrediction', enablePrediction.toString());
     localStorage.setItem('showWordPrediction', showWordPrediction.toString());
     localStorage.setItem('messageFontSize', messageFontSize.toString());
@@ -233,6 +250,14 @@ export function useSettings() {
     setHoldSpeed,
     debounceTime,
     setDebounceTime,
+
+    // Block Scanning settings
+    scanningStrategy,
+    setScanningStrategy,
+    blockMode,
+    setBlockMode,
+    blockSize,
+    setBlockSize,
 
     // Prediction settings
     enablePrediction,
