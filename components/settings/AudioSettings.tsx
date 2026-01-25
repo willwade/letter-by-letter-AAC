@@ -16,8 +16,6 @@ interface AudioSettingsProps {
     error?: string;
   } | null;
   theme: Theme;
-  speakAfterPredictions: boolean;
-  setSpeakAfterPredictions: (enabled: boolean) => void;
 }
 
 export const AudioSettings: React.FC<AudioSettingsProps> = ({
@@ -31,8 +29,6 @@ export const AudioSettings: React.FC<AudioSettingsProps> = ({
   onUnlockAudioDevices,
   sinkStatus,
   theme,
-  speakAfterPredictions,
-  setSpeakAfterPredictions,
 }) => {
   return (
     <div className="border-t pt-4">
@@ -127,20 +123,6 @@ export const AudioSettings: React.FC<AudioSettingsProps> = ({
           )}
         </div>
       )}
-
-      {/* SPEAK Button Placement */}
-      <div className="flex items-center gap-4 mb-3">
-        <span className="font-semibold w-32">SPEAK Button:</span>
-        <label className="flex items-center gap-2 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={speakAfterPredictions}
-            onChange={(e) => setSpeakAfterPredictions(e.target.checked)}
-            className="form-checkbox h-5 w-5 text-black rounded"
-          />
-          Show after predictions (instead of in action block)
-        </label>
-      </div>
     </div>
   );
 };
