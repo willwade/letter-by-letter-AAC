@@ -1,10 +1,22 @@
 import React from 'react';
-import type { ScanMode, ThemeName, Theme } from '../types';
-import { themes } from '../themes';
+import type { ScanMode, ThemeName, Theme, ScanningStrategy, BlockMode } from '../types';
+import { ScanningSettings } from './settings/ScanningSettings';
+import { AppearanceSettings } from './settings/AppearanceSettings';
+import { PredictionSettings } from './settings/PredictionSettings';
+import { AudioSettings } from './settings/AudioSettings';
+import { GameSettings } from './settings/GameSettings';
+import { LanguageSettings } from './settings/LanguageSettings';
+import { HoldSettings } from './settings/HoldSettings';
 
 interface ControlsProps {
   scanMode: ScanMode;
   setScanMode: (mode: ScanMode) => void;
+  scanningStrategy: ScanningStrategy;
+  setScanningStrategy: (strategy: ScanningStrategy) => void;
+  blockMode: BlockMode;
+  setBlockMode: (mode: BlockMode) => void;
+  blockSize: number;
+  setBlockSize: (size: number) => void;
   scanSpeed: number;
   setScanSpeed: (speed: number) => void;
   firstItemDelay: number;
@@ -170,36 +182,15 @@ const Controls: React.FC<ControlsProps> = ({
   auditoryDevices,
   onUnlockAudioDevices,
   sinkStatus,
+  scanningStrategy,
+  setScanningStrategy,
+  blockMode,
+  setBlockMode,
+  blockSize,
+  setBlockSize,
 }) => {
-  // Local state for game word list input to allow typing commas
-  const [gameWordListInput, setGameWordListInput] = React.useState<string>(gameWordList.join(', '));
-
-  // Update local input when gameWordList changes externally
-  React.useEffect(() => {
-    setGameWordListInput(gameWordList.join(', '));
-  }, [gameWordList]);
-
   const handleStartStop = () => {
     setIsScanning(!isScanning);
-  };
-
-  const handlePreviewVoice = () => {
-    if (!selectedVoiceURI || !window.speechSynthesis) return;
-
-    const selectedVoice = availableVoices.find((v) => v.voiceURI === selectedVoiceURI);
-    if (!selectedVoice) return;
-
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance('This is a test of the selected voice.');
-    utterance.voice = selectedVoice;
-    window.speechSynthesis.speak(utterance);
-  };
-
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      onFileUpload(file);
-    }
   };
 
   return (
@@ -262,757 +253,107 @@ const Controls: React.FC<ControlsProps> = ({
               </div>
 
               <div className="p-6 flex flex-col gap-6">
-                {/* Scan Mode */}
-                <div className="flex flex-col gap-2">
-                  <div className="flex items-center gap-4">
-                    <span className="font-semibold w-32">Mode:</span>
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="radio"
-                        name="scanMode"
-                        value="one-switch"
-                        checked={scanMode === 'one-switch'}
-                        onChange={() => setScanMode('one-switch')}
-                        className="form-radio h-5 w-5 text-black"
-                      />
-                      One-Switch
-                    </label>
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="radio"
-                        name="scanMode"
-                        value="two-switch"
-                        checked={scanMode === 'two-switch'}
-                        onChange={() => setScanMode('two-switch')}
-                        className="form-radio h-5 w-5 text-black"
-                      />
-                      Two-Switch
-                    </label>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <span className="w-32"></span>
-                    <span className="text-sm text-gray-600 italic">
-                      {scanMode === 'one-switch'
-                        ? 'Press Space to select'
-                        : 'Press Space to advance, Enter to select'}
-                    </span>
-                  </div>
-                </div>
+                <ScanningSettings
+                  scanMode={scanMode}
+                  setScanMode={setScanMode}
+                  scanSpeed={scanSpeed}
+                  setScanSpeed={setScanSpeed}
+                  firstItemDelay={firstItemDelay}
+                  setFirstItemDelay={setFirstItemDelay}
+                  holdSpeed={holdSpeed}
+                  setHoldSpeed={setHoldSpeed}
+                  debounceTime={debounceTime}
+                  setDebounceTime={setDebounceTime}
+                  scanningStrategy={scanningStrategy}
+                  setScanningStrategy={setScanningStrategy}
+                  blockMode={blockMode}
+                  setBlockMode={setBlockMode}
+                  blockSize={blockSize}
+                  setBlockSize={setBlockSize}
+                />
 
-                {/* Scan Speed */}
-                {scanMode === 'one-switch' && (
-                  <>
-                    <div className="flex items-center gap-2">
-                      <label htmlFor="scanSpeed" className="font-semibold w-32">
-                        Speed:
-                      </label>
-                      <input
-                        id="scanSpeed"
-                        type="range"
-                        min="200"
-                        max="3000"
-                        step="100"
-                        value={scanSpeed}
-                        onChange={(e) => setScanSpeed(Number(e.target.value))}
-                        className="w-48"
-                      />
-                      <span>{(scanSpeed / 1000).toFixed(1)}s</span>
-                    </div>
+                <HoldSettings
+                  scanMode={scanMode}
+                  enableHoldActions={enableHoldActions}
+                  setEnableHoldActions={setEnableHoldActions}
+                  shortHoldDuration={shortHoldDuration}
+                  setShortHoldDuration={setShortHoldDuration}
+                  longHoldDuration={longHoldDuration}
+                  setLongHoldDuration={setLongHoldDuration}
+                  shortHoldAction={shortHoldAction}
+                  setShortHoldAction={setShortHoldAction}
+                  longHoldAction={longHoldAction}
+                  setLongHoldAction={setLongHoldAction}
+                />
 
-                    {/* First Item Delay */}
-                    <div className="flex items-center gap-2">
-                      <label htmlFor="firstItemDelay" className="font-semibold w-32">
-                        First Item:
-                      </label>
-                      <input
-                        id="firstItemDelay"
-                        type="range"
-                        min="500"
-                        max="5000"
-                        step="100"
-                        value={firstItemDelay}
-                        onChange={(e) => setFirstItemDelay(Number(e.target.value))}
-                        className="w-48"
-                      />
-                      <span>{(firstItemDelay / 1000).toFixed(1)}s</span>
-                    </div>
-                  </>
-                )}
+                <LanguageSettings
+                  selectedLanguage={selectedLanguage}
+                  setSelectedLanguage={setSelectedLanguage}
+                  availableLanguages={availableLanguages}
+                  languageNames={languageNames}
+                  selectedScript={selectedScript}
+                  setSelectedScript={setSelectedScript}
+                  availableScripts={availableScripts}
+                  useUppercase={useUppercase}
+                  setUseUppercase={setUseUppercase}
+                  availableVoices={availableVoices}
+                  selectedVoiceURI={selectedVoiceURI}
+                  setSelectedVoiceURI={setSelectedVoiceURI}
+                  theme={theme}
+                />
 
-                {/* Hold Speed for Two-Switch Mode */}
-                {scanMode === 'two-switch' && (
-                  <div className="flex flex-col gap-2">
-                    <div className="flex items-center gap-2">
-                      <label htmlFor="holdSpeed" className="font-semibold w-32">
-                        Hold Speed:
-                      </label>
-                      <input
-                        id="holdSpeed"
-                        type="range"
-                        min="50"
-                        max="500"
-                        step="25"
-                        value={holdSpeed}
-                        onChange={(e) => setHoldSpeed(Number(e.target.value))}
-                        className="w-48"
-                      />
-                      <span>{holdSpeed}ms</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="w-32"></span>
-                      <span className="text-sm text-gray-600 italic">
-                        Speed when holding down NEXT button
-                      </span>
-                    </div>
-                  </div>
-                )}
+                <PredictionSettings
+                  enablePrediction={enablePrediction}
+                  setEnablePrediction={setEnablePrediction}
+                  showWordPrediction={showWordPrediction}
+                  setShowWordPrediction={setShowWordPrediction}
+                  onFileUpload={onFileUpload}
+                  trainingStatus={trainingStatus}
+                  learnedWordsCount={learnedWordsCount}
+                  onExportLearnedData={onExportLearnedData}
+                  onClearLearnedData={onClearLearnedData}
+                />
 
-                {/* Switch Debounce Time */}
-                <div className="flex flex-col gap-2">
-                  <div className="flex items-center gap-2">
-                    <label htmlFor="debounceTime" className="font-semibold w-32">
-                      Debounce:
-                    </label>
-                    <input
-                      id="debounceTime"
-                      type="range"
-                      min="0"
-                      max="500"
-                      step="50"
-                      value={debounceTime}
-                      onChange={(e) => setDebounceTime(Number(e.target.value))}
-                      className="w-48"
-                    />
-                    <span>{debounceTime}ms</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="w-32"></span>
-                    <span className="text-sm text-gray-600 italic">
-                      Ignore accidental double-presses within this time
-                    </span>
-                  </div>
-                </div>
+                <AppearanceSettings
+                  themeName={themeName}
+                  setThemeName={setThemeName}
+                  theme={theme}
+                  fontFamily={fontFamily}
+                  setFontFamily={setFontFamily}
+                  messageFontSize={messageFontSize}
+                  setMessageFontSize={setMessageFontSize}
+                  scannerFontSize={scannerFontSize}
+                  setScannerFontSize={setScannerFontSize}
+                  borderWidth={borderWidth}
+                  setBorderWidth={setBorderWidth}
+                  isFullscreen={isFullscreen}
+                  onToggleFullscreen={onToggleFullscreen}
+                  hideControlBar={hideControlBar}
+                  setHideControlBar={setHideControlBar}
+                />
 
-                {/* Hold Actions for One-Switch Mode */}
-                {scanMode === 'one-switch' && (
-                  <div className="flex flex-col gap-3 p-4 bg-gray-50 rounded-lg">
-                    <div className="flex items-center gap-4">
-                      <span className="font-semibold w-32">Hold Actions:</span>
-                      <label className="flex items-center gap-2 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={enableHoldActions}
-                          onChange={(e) => setEnableHoldActions(e.target.checked)}
-                          className="form-checkbox h-5 w-5 text-black rounded"
-                        />
-                        Enable hold-to-activate actions
-                      </label>
-                    </div>
+                <AudioSettings
+                  audioEffectsEnabled={audioEffectsEnabled}
+                  setAudioEffectsEnabled={setAudioEffectsEnabled}
+                  auditoryScanningEnabled={auditoryScanningEnabled}
+                  setAuditoryScanningEnabled={setAuditoryScanningEnabled}
+                  auditoryScanningDeviceId={auditoryScanningDeviceId}
+                  setAuditoryScanningDeviceId={setAuditoryScanningDeviceId}
+                  auditoryDevices={auditoryDevices}
+                  onUnlockAudioDevices={onUnlockAudioDevices}
+                  sinkStatus={sinkStatus}
+                  theme={theme}
+                  speakAfterPredictions={speakAfterPredictions}
+                  setSpeakAfterPredictions={setSpeakAfterPredictions}
+                />
 
-                    {enableHoldActions && (
-                      <>
-                        {/* Short Hold - Green Zone */}
-                        <div className="flex flex-col gap-2 ml-8">
-                          <div className="flex items-center gap-2">
-                            <label htmlFor="shortHoldDuration" className="font-semibold w-32">
-                              Green Zone:
-                            </label>
-                            <input
-                              id="shortHoldDuration"
-                              type="range"
-                              min="500"
-                              max="3000"
-                              step="100"
-                              value={shortHoldDuration}
-                              onChange={(e) => setShortHoldDuration(Number(e.target.value))}
-                              className="w-48"
-                            />
-                            <span className="w-16">{(shortHoldDuration / 1000).toFixed(1)}s</span>
-                            <select
-                              value={shortHoldAction}
-                              onChange={(e) => setShortHoldAction(e.target.value)}
-                              className="p-2 border rounded"
-                            >
-                              <option value="SPEAK">Speak</option>
-                              <option value="UNDO">Undo</option>
-                              <option value="CLEAR">Clear</option>
-                              <option value="RESTART">Restart Scan</option>
-                            </select>
-                          </div>
-                        </div>
-
-                        {/* Long Hold - Red Zone */}
-                        <div className="flex flex-col gap-2 ml-8">
-                          <div className="flex items-center gap-2">
-                            <label htmlFor="longHoldDuration" className="font-semibold w-32">
-                              Red Zone:
-                            </label>
-                            <input
-                              id="longHoldDuration"
-                              type="range"
-                              min="1000"
-                              max="5000"
-                              step="100"
-                              value={longHoldDuration}
-                              onChange={(e) => setLongHoldDuration(Number(e.target.value))}
-                              className="w-48"
-                            />
-                            <span className="w-16">{(longHoldDuration / 1000).toFixed(1)}s</span>
-                            <select
-                              value={longHoldAction}
-                              onChange={(e) => setLongHoldAction(e.target.value)}
-                              className="p-2 border rounded"
-                            >
-                              <option value="SPEAK">Speak</option>
-                              <option value="UNDO">Undo</option>
-                              <option value="CLEAR">Clear</option>
-                              <option value="RESTART">Restart Scan</option>
-                            </select>
-                          </div>
-                        </div>
-
-                        <div className="flex flex-col gap-1 ml-8">
-                          <span className="text-sm text-gray-600 italic">
-                            • Quick tap: Normal selection
-                          </span>
-                          <span className="text-sm text-gray-600 italic">
-                            • Hold & release in green: Execute green zone action
-                          </span>
-                          <span className="text-sm text-gray-600 italic">
-                            • Hold & release in red: Execute red zone action
-                          </span>
-                          <span className="text-sm text-gray-600 italic">
-                            • Beep when entering each zone
-                          </span>
-                        </div>
-                      </>
-                    )}
-                  </div>
-                )}
-
-                {/* Language Selection */}
-                <div className="border-t pt-4">
-                  <h3 className="font-bold text-lg mb-3">Language & Alphabet</h3>
-
-                  {/* Language Picker */}
-                  <div className="flex items-center gap-2 mb-3">
-                    <label htmlFor="languagePicker" className="font-semibold w-32">
-                      Language:
-                    </label>
-                    <select
-                      id="languagePicker"
-                      value={selectedLanguage}
-                      onChange={(e) => setSelectedLanguage(e.target.value)}
-                      className="w-64 p-2 border rounded-md"
-                      style={{
-                        backgroundColor: theme.colors.inputBg,
-                        color: theme.colors.inputText,
-                        borderColor: theme.colors.border,
-                      }}
-                    >
-                      {availableLanguages
-                        .sort((a, b) => {
-                          const nameA = languageNames[a] || a.toUpperCase();
-                          const nameB = languageNames[b] || b.toUpperCase();
-                          return nameA.localeCompare(nameB);
-                        })
-                        .map((lang) => (
-                          <option key={lang} value={lang}>
-                            {languageNames[lang] || lang.toUpperCase()}
-                          </option>
-                        ))}
-                    </select>
-                  </div>
-
-                  {/* Script Picker (only show if language has multiple scripts) */}
-                  {availableScripts.length > 0 && (
-                    <div className="flex items-center gap-2 mb-3">
-                      <label htmlFor="scriptPicker" className="font-semibold w-32">
-                        Script:
-                      </label>
-                      <select
-                        id="scriptPicker"
-                        value={selectedScript || ''}
-                        onChange={(e) => setSelectedScript(e.target.value || null)}
-                        className="w-64 p-2 border rounded-md"
-                        style={{
-                          backgroundColor: theme.colors.inputBg,
-                          color: theme.colors.inputText,
-                          borderColor: theme.colors.border,
-                        }}
-                      >
-                        {availableScripts.map((script) => (
-                          <option key={script} value={script}>
-                            {script}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  )}
-
-                  {/* Case Toggle */}
-                  <div className="flex items-center gap-4">
-                    <span className="font-semibold w-32">Case:</span>
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="radio"
-                        name="letterCase"
-                        checked={useUppercase}
-                        onChange={() => setUseUppercase(true)}
-                        className="form-radio h-5 w-5 text-black"
-                      />
-                      Uppercase
-                    </label>
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="radio"
-                        name="letterCase"
-                        checked={!useUppercase}
-                        onChange={() => setUseUppercase(false)}
-                        className="form-radio h-5 w-5 text-black"
-                      />
-                      Lowercase
-                    </label>
-                  </div>
-                </div>
-
-                {/* Voice Picker */}
-                {availableVoices.length > 0 && (
-                  <div className="flex items-center gap-2">
-                    <label htmlFor="voicePicker" className="font-semibold w-32">
-                      Voice:
-                    </label>
-                    <select
-                      id="voicePicker"
-                      value={selectedVoiceURI || ''}
-                      onChange={(e) => setSelectedVoiceURI(e.target.value)}
-                      className="w-64 p-2 border rounded-md"
-                      style={{
-                        backgroundColor: theme.colors.inputBg,
-                        color: theme.colors.inputText,
-                        borderColor: theme.colors.border,
-                      }}
-                    >
-                      {availableVoices.map((voice, index) => (
-                        <option key={`${voice.voiceURI}-${index}`} value={voice.voiceURI}>
-                          {`${voice.name} (${voice.lang})`}
-                        </option>
-                      ))}
-                    </select>
-                    <button
-                      onClick={handlePreviewVoice}
-                      className="p-2 bg-gray-200 text-black rounded-lg hover:bg-gray-300 transition-transform transform active:scale-95"
-                      aria-label="Preview selected voice"
-                      title="Preview Voice"
-                    >
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        className="h-5 w-5"
-                        viewBox="0 0 20 20"
-                        fill="currentColor"
-                      >
-                        <path
-                          fillRule="evenodd"
-                          d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z"
-                          clipRule="evenodd"
-                        />
-                      </svg>
-                    </button>
-                  </div>
-                )}
-
-                {/* Prediction Master Toggle */}
-                <div className="flex items-center gap-4">
-                  <span className="font-semibold w-32">Prediction:</span>
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={enablePrediction}
-                      onChange={(e) => setEnablePrediction(e.target.checked)}
-                      className="form-checkbox h-5 w-5 text-black rounded"
-                    />
-                    Enable
-                  </label>
-                </div>
-
-                {/* Training File Upload */}
-                <div
-                  className={`flex items-center gap-4 transition-opacity ${!enablePrediction ? 'opacity-50' : 'opacity-100'}`}
-                >
-                  <span className="font-semibold w-32">Training File:</span>
-                  <div className="flex flex-col">
-                    <input
-                      type="file"
-                      id="corpusFile"
-                      accept=".txt"
-                      onChange={handleFileChange}
-                      disabled={!enablePrediction}
-                      className="text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-violet-50 file:text-violet-700 hover:file:bg-violet-100 disabled:opacity-50 disabled:cursor-not-allowed"
-                    />
-                    <span className="text-sm text-gray-600 mt-1">{trainingStatus}</span>
-                    <span className="text-xs text-gray-500 italic mt-1">
-                      Upload a .txt file to train the model. Your learned words will be
-                      automatically included.
-                    </span>
-                  </div>
-                </div>
-
-                {/* Word Prediction Toggle */}
-                <div
-                  className={`flex items-center gap-4 transition-opacity ${!enablePrediction ? 'opacity-50' : 'opacity-100'}`}
-                >
-                  <span className="font-semibold w-32"></span> {/* Spacer */}
-                  <label
-                    className={`flex items-center gap-2 ${!enablePrediction ? 'cursor-not-allowed' : 'cursor-pointer'}`}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={showWordPrediction}
-                      onChange={(e) => setShowWordPrediction(e.target.checked)}
-                      disabled={!enablePrediction}
-                      className="form-checkbox h-5 w-5 text-black rounded"
-                    />
-                    Show Words
-                  </label>
-                </div>
-
-                {/* Adaptive Learning Status */}
-                <div
-                  className={`flex items-center gap-4 transition-opacity ${!enablePrediction ? 'opacity-50' : 'opacity-100'}`}
-                >
-                  <span className="font-semibold w-32"></span> {/* Spacer */}
-                  <div className="flex flex-col gap-2">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm text-gray-600">
-                        📚 Learned words: <strong>{learnedWordsCount}</strong>
-                      </span>
-                      <button
-                        onClick={onExportLearnedData}
-                        disabled={!enablePrediction}
-                        className="text-xs py-1 px-3 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                        title="Download complete training data (includes base training corpus + your learned words)"
-                      >
-                        📥 Export Training Data
-                      </button>
-                      {learnedWordsCount > 0 && (
-                        <button
-                          onClick={onClearLearnedData}
-                          disabled={!enablePrediction}
-                          className="text-xs py-1 px-3 bg-red-100 text-red-700 rounded hover:bg-red-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                          title="Clear all learned words and reset the model"
-                        >
-                          🗑️ Clear Learned
-                        </button>
-                      )}
-                    </div>
-                    <span className="text-xs text-gray-500 italic">
-                      The model learns from your word selections. Learned data is automatically
-                      included when you upload training files.
-                    </span>
-                  </div>
-                </div>
-
-                {/* Appearance Section */}
-                <div className="border-t pt-4">
-                  <h3 className="font-bold text-lg mb-3">Appearance</h3>
-
-                  {/* Color Theme */}
-                  <div className="flex items-center gap-2 mb-3">
-                    <label htmlFor="theme" className="font-semibold w-32">
-                      Color Theme:
-                    </label>
-                    <select
-                      id="theme"
-                      value={themeName}
-                      onChange={(e) => setThemeName(e.target.value as ThemeName)}
-                      className="flex-1 p-2 border rounded"
-                      style={{
-                        backgroundColor: theme.colors.inputBg,
-                        color: theme.colors.inputText,
-                        borderColor: theme.colors.border,
-                      }}
-                    >
-                      {Object.values(themes).map((t) => (
-                        <option key={t.name} value={t.name}>
-                          {t.displayName}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* Font Family */}
-                  <div className="flex items-center gap-2 mb-3">
-                    <label htmlFor="fontFamily" className="font-semibold w-32">
-                      Font:
-                    </label>
-                    <select
-                      id="fontFamily"
-                      value={fontFamily}
-                      onChange={(e) => setFontFamily(e.target.value)}
-                      className="flex-1 p-2 border rounded"
-                      style={{
-                        backgroundColor: theme.colors.inputBg,
-                        color: theme.colors.inputText,
-                        borderColor: theme.colors.border,
-                      }}
-                    >
-                      <option value="system-ui">System Default</option>
-                      <option value="'Atkinson Hyperlegible', sans-serif">
-                        Atkinson Hyperlegible
-                      </option>
-                      {/* Playpen Sans automatically uses the correct variant (Arabic, Deva, Thai) based on language */}
-                      <option value="'Playpen Sans', cursive">Playpen Sans</option>
-                      <option value="'Chewy', system-ui">Chewy</option>
-                      <option value="Arial, sans-serif">Arial</option>
-                    </select>
-                  </div>
-
-                  {/* Message Font Size */}
-                  <div className="flex items-center gap-2 mb-3">
-                    <label htmlFor="messageFontSize" className="font-semibold w-32">
-                      Msg Font:
-                    </label>
-                    <input
-                      id="messageFontSize"
-                      type="range"
-                      min="16"
-                      max="150"
-                      step="1"
-                      value={messageFontSize}
-                      onChange={(e) => setMessageFontSize(Number(e.target.value))}
-                      className="w-48"
-                    />
-                    <span>{messageFontSize}px</span>
-                  </div>
-
-                  {/* Scanner Font Size */}
-                  <div className="flex items-center gap-2 mb-3">
-                    <label htmlFor="scannerFontSize" className="font-semibold w-32">
-                      Ltr Font:
-                    </label>
-                    <input
-                      id="scannerFontSize"
-                      type="range"
-                      min="100"
-                      max="800"
-                      step="10"
-                      value={scannerFontSize}
-                      onChange={(e) => setScannerFontSize(Number(e.target.value))}
-                      className="w-48"
-                    />
-                    <span>{scannerFontSize}px</span>
-                  </div>
-
-                  {/* Border Width */}
-                  <div className="flex items-center gap-2 mb-3">
-                    <label htmlFor="borderWidth" className="font-semibold w-32">
-                      Border Width:
-                    </label>
-                    <input
-                      id="borderWidth"
-                      type="range"
-                      min="0"
-                      max="20"
-                      step="1"
-                      value={borderWidth}
-                      onChange={(e) => setBorderWidth(Number(e.target.value))}
-                      className="w-48"
-                    />
-                    <span>{borderWidth}px</span>
-                  </div>
-                  <div className="flex items-center gap-2 mb-3">
-                    <span className="font-semibold w-32"></span>
-                    <span className="text-sm text-gray-600 italic">
-                      Actions (SPEAK, UNDO, CLEAR, SPACE) and predictions get colored borders
-                    </span>
-                  </div>
-
-                  {/* Fullscreen Toggle */}
-                  <div className="flex items-center gap-2 mb-3">
-                    <span className="font-semibold w-32">Display:</span>
-                    <button
-                      onClick={onToggleFullscreen}
-                      className="font-semibold py-2 px-4 bg-gray-200 text-black rounded-lg hover:bg-gray-300 transition-transform transform active:scale-95"
-                    >
-                      {isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}
-                    </button>
-                  </div>
-
-                  {/* Hide Control Bar Toggle */}
-                  <div className="flex items-center gap-4 mb-3">
-                    <span className="font-semibold w-32">Control Bar:</span>
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={hideControlBar}
-                        onChange={(e) => setHideControlBar(e.target.checked)}
-                        className="form-checkbox h-5 w-5 text-black rounded"
-                      />
-                      Hide (use cog icon to access settings)
-                    </label>
-                  </div>
-
-                  {/* Auditory Features Section */}
-                  <div className="border-t pt-4">
-                    <h3 className="font-bold text-lg mb-3">Auditory Features</h3>
-
-                    {/* Audio Effects Toggle */}
-                    <div className="flex items-center gap-4 mb-3">
-                      <span className="font-semibold w-32">UI Sounds:</span>
-                      <label className="flex items-center gap-2 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={audioEffectsEnabled}
-                          onChange={(e) => setAudioEffectsEnabled(e.target.checked)}
-                          className="form-checkbox h-5 w-5 text-black rounded"
-                        />
-                        Play click/beep sounds
-                      </label>
-                    </div>
-
-                    {/* Auditory Scanning Enable Toggle */}
-                    <div className="flex items-center gap-4 mb-3">
-                      <span className="font-semibold w-32">Auditory Scan:</span>
-                      <label className="flex items-center gap-2 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={auditoryScanningEnabled}
-                          onChange={(e) => setAuditoryScanningEnabled(e.target.checked)}
-                          className="form-checkbox h-5 w-5 text-black rounded"
-                        />
-                        Read items while scanning
-                      </label>
-                    </div>
-
-                    {/* Output Device Selector (Only if Auditory Scanning is enabled) */}
-                    {auditoryScanningEnabled && (
-                      <div className="flex flex-col gap-2 mb-3">
-                        <div className="flex items-center gap-2">
-                          <label htmlFor="audioDevicePicker" className="font-semibold w-32">
-                            Scan Output:
-                          </label>
-                          <select
-                            id="audioDevicePicker"
-                            value={auditoryScanningDeviceId || ''}
-                            onChange={(e) => setAuditoryScanningDeviceId(e.target.value || null)}
-                            className="w-64 p-2 border rounded-md"
-                            style={{
-                              backgroundColor: theme.colors.inputBg,
-                              color: theme.colors.inputText,
-                              borderColor: theme.colors.border,
-                            }}
-                          >
-                            <option value="">Default Output</option>
-                            {auditoryDevices.map((device, index) => (
-                              <option key={`${device.deviceId}-${index}`} value={device.deviceId}>
-                                {device.label || `Device ${index + 1}`}
-                              </option>
-                            ))}
-                          </select>
-                          <button
-                            type="button"
-                            onClick={onUnlockAudioDevices}
-                            className="text-sm py-2 px-3 rounded-md transition-colors"
-                            style={{
-                              backgroundColor: theme.colors.buttonBg,
-                              color: theme.colors.buttonText,
-                            }}
-                            onMouseEnter={(e) =>
-                              (e.currentTarget.style.backgroundColor = theme.colors.buttonHover)
-                            }
-                            onMouseLeave={(e) =>
-                              (e.currentTarget.style.backgroundColor = theme.colors.buttonBg)
-                            }
-                          >
-                            Unlock Devices
-                          </button>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="w-32"></span>
-                          <span className="text-sm text-gray-600 italic">
-                            Tip: Select headphones for privacy. Edge may require mic permission to show device names.
-                          </span>
-                        </div>
-                        {sinkStatus && (
-                          <div className="flex items-center gap-2">
-                            <span className="w-32"></span>
-                            <span className="text-xs text-gray-500 italic">
-                              Output routing: {sinkStatus.route} ({sinkStatus.targetSinkId}
-                              {sinkStatus.error ? ` - ${sinkStatus.error}` : ''})
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* SPEAK Button Placement */}
-                  <div className="flex items-center gap-4 mb-3">
-                    <span className="font-semibold w-32">SPEAK Button:</span>
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={speakAfterPredictions}
-                        onChange={(e) => setSpeakAfterPredictions(e.target.checked)}
-                        className="form-checkbox h-5 w-5 text-black rounded"
-                      />
-                      Show after predictions (instead of in action block)
-                    </label>
-                  </div>
-
-                  {/* Game Mode Toggle */}
-                  <div className="flex items-center gap-4 mb-3">
-                    <span className="font-semibold w-32">Game Mode:</span>
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={gameMode}
-                        onChange={(e) => setGameMode(e.target.checked)}
-                        className="form-checkbox h-5 w-5 text-black rounded"
-                      />
-                      Enable
-                    </label>
-                  </div>
-
-                  {/* Game Word List */}
-                  <div className="flex flex-col gap-2 mb-3">
-                    <div className="flex items-center gap-2">
-                      <label htmlFor="gameWordList" className="font-semibold w-32">
-                        Word List:
-                      </label>
-                      <input
-                        id="gameWordList"
-                        type="text"
-                        value={gameWordListInput}
-                        onChange={(e) => {
-                          setGameWordListInput(e.target.value);
-                        }}
-                        onBlur={() => {
-                          // Parse and save when user leaves the field
-                          const words = gameWordListInput
-                            .split(',')
-                            .map((w) => w.trim())
-                            .filter((w) => w.length > 0);
-                          setGameWordList(words);
-                        }}
-                        disabled={!gameMode}
-                        className="flex-1 p-2 border rounded disabled:opacity-50 disabled:cursor-not-allowed"
-                        style={{
-                          backgroundColor: theme.colors.inputBg,
-                          color: theme.colors.inputText,
-                          borderColor: theme.colors.border,
-                        }}
-                        placeholder="hi, hello, cold, hot, tea please"
-                      />
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="w-32"></span>
-                      <span className="text-sm text-gray-600 italic">
-                        Comma-separated words to practice typing
-                      </span>
-                    </div>
-                  </div>
-                </div>
+                <GameSettings
+                  gameMode={gameMode}
+                  setGameMode={setGameMode}
+                  gameWordList={gameWordList}
+                  setGameWordList={setGameWordList}
+                  theme={theme}
+                />
               </div>
 
               <div

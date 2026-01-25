@@ -1,5 +1,9 @@
 export type ScanMode = 'one-switch' | 'two-switch';
 
+export type ScanningStrategy = 'linear' | 'block';
+
+export type BlockMode = 'static' | 'predictive' | 'hybrid';
+
 export type ThemeName =
   | 'default'
   | 'dark'

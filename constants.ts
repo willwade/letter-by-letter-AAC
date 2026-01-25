@@ -6,6 +6,7 @@ export const SPACE = '_';
 export const SPEAK = 'SPEAK';
 export const UNDO = 'UNDO';
 export const CLEAR = 'CLEAR';
+export const BACK = 'BACK';
 
 // SPECIAL_ACTIONS now includes SPEAK by default
 // SPEAK can optionally be moved after predictions via the speakAfterPredictions setting
