@@ -84,10 +84,15 @@ export function generateBlocks(options: LayoutOptions): Block[] {
   // We'll add it if there are words.
   if (predictedWords.length > 0) {
     const items = [...predictedWords, SPACE, UNDO];
+    // Label should show the words directly
+    const wordLabel = predictedWords.join(' ');
+    // Spoken label should read the words
+    const wordSpokenLabel = predictedWords.join(', ');
+
     blocks.push({
       id: `block-${blockCounter++}`,
-      label: 'Predictions',
-      spokenLabel: 'Word Predictions',
+      label: wordLabel,
+      spokenLabel: wordSpokenLabel,
       items,
       type: 'prediction',
     });

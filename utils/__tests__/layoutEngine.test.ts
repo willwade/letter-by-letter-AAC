@@ -99,7 +99,8 @@ describe('layoutEngine', () => {
 
         // Block 0 should be words
         expect(blocks[0].type).toBe('prediction');
-        expect(blocks[0].label).toBe('Predictions');
+        expect(blocks[0].label).toBe('THE AND');
+        expect(blocks[0].spokenLabel).toBe('THE, AND');
         expect(blocks[0].items).toContain('THE');
         expect(blocks[0].items).toContain('AND');
         expect(blocks[0].items).toContain(SPACE);
