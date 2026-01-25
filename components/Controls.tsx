@@ -327,7 +327,7 @@ const Controls: React.FC<ControlsProps> = ({
       {/* Settings Modal - Always rendered regardless of hideControlBar */}
       {showSettingsModal && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 border-0 p-0 w-full h-full cursor-default"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 border-0 p-0 w-full h-full cursor-default"
           onClick={() => setShowSettingsModal(false)}
           onKeyDown={(e) => {
             if (e.key === 'Escape') {
@@ -385,11 +385,12 @@ const Controls: React.FC<ControlsProps> = ({
                   <select
                     value={activeCategory}
                     onChange={(e) => setActiveCategory(e.target.value as SettingsCategory)}
-                    className="w-full p-2 border rounded-md font-semibold"
+                    className="w-full p-2 border rounded-md font-semibold outline-none focus:ring-2 focus:ring-blue-500"
                     style={{
                       backgroundColor: theme.colors.inputBg,
                       color: theme.colors.inputText,
                       borderColor: theme.colors.border,
+                      fontFamily: fontFamily,
                     }}
                   >
                     {SETTINGS_CATEGORIES.map((cat) => (
