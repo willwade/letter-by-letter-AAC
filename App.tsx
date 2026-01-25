@@ -107,6 +107,7 @@ const App: React.FC = () => {
   } = useAuditoryScanning({
     enabled: settings.auditoryScanningEnabled,
     audioDeviceId: settings.auditoryScanningDeviceId,
+    scanSpeed: settings.scanSpeed,
   });
 
   // Use scanning hook (needs predictions to build scan items AND playSound)

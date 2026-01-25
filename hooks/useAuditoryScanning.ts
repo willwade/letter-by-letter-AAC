@@ -2,13 +2,12 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import meSpeak from 'mespeak';
 
 // Module-level promise to prevent concurrent initialization
-// This prevents "Can't overwrite object" errors when React StrictMode
-// causes the effect to run multiple times simultaneously
 let initPromise: Promise<void> | null = null;
 
 export interface UseAuditoryScanningProps {
   enabled: boolean;
   audioDeviceId: string | null;
+  scanSpeed: number; // Used to adapt TTS rate
 }
 
 export interface UseAuditoryScanningReturn {
@@ -30,6 +29,7 @@ export interface UseAuditoryScanningReturn {
 export function useAuditoryScanning({
   enabled,
   audioDeviceId,
+  scanSpeed,
 }: UseAuditoryScanningProps): UseAuditoryScanningReturn {
   const [isReady, setIsReady] = useState(false);
   const [availableDevices, setAvailableDevices] = useState<MediaDeviceInfo[]>([]);
@@ -154,20 +154,12 @@ export function useAuditoryScanning({
 
     // Load meSpeak config
     const loadMeSpeak = () => {
-      console.log('🔧 loadMeSpeak called');
-      console.log('  - isConfigLoaded:', meSpeak.isConfigLoaded());
-      console.log('  - isVoiceLoaded:', meSpeak.isVoiceLoaded('en-us'));
-
-      // If already fully initialized, just set ready
       if (meSpeak.isConfigLoaded() && meSpeak.isVoiceLoaded('en-us')) {
-        console.log('✅ Already initialized');
         setIsReady(true);
         return;
       }
 
-      // If initialization is in progress, the promise will handle it
       if (initPromise) {
-        console.log('⏳ Initialization already in progress');
         return;
       }
 
@@ -175,36 +167,26 @@ export function useAuditoryScanning({
         ? import.meta.env.BASE_URL
         : `${import.meta.env.BASE_URL}/`;
 
-      console.log('📂 Base URL:', baseUrl);
-      console.log('📄 Config URL:', `${baseUrl}mespeak/mespeak_config.json`);
-      console.log('📄 Voice URL:', `${baseUrl}mespeak/voices/en/en-us.json`);
-
-      // Create initialization promise
       initPromise = (async () => {
         try {
           if (!meSpeak.isConfigLoaded()) {
-            console.log('🔄 Loading config...');
             const configRes = await fetch(`${baseUrl}mespeak/mespeak_config.json`);
             if (!configRes.ok) {
               throw new Error(`Config request failed: ${configRes.status}`);
             }
             const configJson = await configRes.json();
             meSpeak.loadConfig(configJson);
-            console.log('✅ Config loaded successfully');
           }
 
           if (!meSpeak.isVoiceLoaded('en-us')) {
-            console.log('🔄 Loading voice...');
             const voiceRes = await fetch(`${baseUrl}mespeak/voices/en/en-us.json`);
             if (!voiceRes.ok) {
               throw new Error(`Voice request failed: ${voiceRes.status}`);
             }
             const voiceJson = await voiceRes.json();
             meSpeak.loadVoice(voiceJson);
-            console.log('✅ Voice loaded successfully');
           }
 
-          console.log('✅ meSpeak initialization complete!');
           setIsReady(true);
         } catch (error) {
           console.error('❌ Failed to initialize meSpeak:', error);
@@ -213,18 +195,13 @@ export function useAuditoryScanning({
         }
       })();
 
-      // Clear the promise after completion (success or failure)
       initPromise.finally(() => {
         initPromise = null;
       });
     };
 
     loadMeSpeak();
-
-    // Only request permission/enumerate if we can (requires interaction usually, but we check what's available)
     refreshDevices();
-
-    // Listen for device changes
     navigator.mediaDevices.ondevicechange = refreshDevices;
 
     return () => {
@@ -237,56 +214,86 @@ export function useAuditoryScanning({
     void applySinkId(audioDeviceId);
   }, [audioDeviceId, applySinkId]);
 
-  const generateAudioBuffer = useCallback(async (text: string): Promise<AudioBuffer | null> => {
-    if (!text || !isReady || !audioContextRef.current) return null;
+  // Calculate TTS rate based on scanSpeed and text length
+  const calculateRate = useCallback(
+    (text: string): number => {
+      // Estimate word count (split by spaces/punctuation)
+      const words = text.trim().split(/[\s,.-]+/).filter((w) => w.length > 0).length;
+      if (words === 0) return 175; // Default
 
-    // Normalize text for cache key
-    const cacheKey = text;
-    if (audioCacheRef.current.has(cacheKey)) {
-      return audioCacheRef.current.get(cacheKey)!;
-    }
+      // Target duration: slightly less than scan speed to finish before next item
+      // Safety factor 0.8
+      const targetDurationMs = scanSpeed * 0.8;
+      const targetDurationMin = targetDurationMs / 60000; // minutes
 
-    try {
-      // meSpeak.speak with rawdata: true returns an ArrayBuffer (WAV)
-      // We need to ensure we pass a string.
-      const wavData = meSpeak.speak(text, { rawdata: 'array' });
+      // WPM = words / minutes
+      let targetWPM = words / targetDurationMin;
 
-      if (!wavData) {
+      // Clamp limits
+      // Minimum 150 (normal-ish), Max 450 (very fast but intelligible)
+      targetWPM = Math.max(150, Math.min(targetWPM, 450));
+
+      return Math.round(targetWPM);
+    },
+    [scanSpeed]
+  );
+
+  const generateAudioBuffer = useCallback(
+    async (text: string): Promise<AudioBuffer | null> => {
+      if (!text || !isReady || !audioContextRef.current) return null;
+
+      const rate = calculateRate(text);
+
+      // Normalize text for cache key, include rate
+      const cacheKey = `${text}:${rate}`;
+      if (audioCacheRef.current.has(cacheKey)) {
+        return audioCacheRef.current.get(cacheKey)!;
+      }
+
+      try {
+        // meSpeak.speak with rawdata: true returns an ArrayBuffer (WAV)
+        // Pass speed option
+        const wavData = meSpeak.speak(text, { rawdata: 'array', speed: rate });
+
+        if (!wavData) {
+          return null;
+        }
+
+        let arrayBuffer: ArrayBuffer | null = null;
+        if (wavData instanceof ArrayBuffer) {
+          arrayBuffer = wavData;
+        } else if (
+          typeof SharedArrayBuffer !== 'undefined' &&
+          wavData instanceof SharedArrayBuffer
+        ) {
+          const view = new Uint8Array(wavData);
+          const copy = new Uint8Array(view.length);
+          copy.set(view);
+          arrayBuffer = copy.buffer as ArrayBuffer;
+        } else if (wavData instanceof Uint8Array) {
+          const copy = new Uint8Array(wavData.length);
+          copy.set(wavData);
+          arrayBuffer = copy.buffer as ArrayBuffer;
+        } else if (Array.isArray(wavData)) {
+          arrayBuffer = Uint8Array.from(wavData).buffer as ArrayBuffer;
+        }
+
+        if (!arrayBuffer) {
+          return null;
+        }
+
+        // Decode the WAV data into an AudioBuffer
+        const audioBuffer = await audioContextRef.current.decodeAudioData(arrayBuffer);
+
+        audioCacheRef.current.set(cacheKey, audioBuffer);
+        return audioBuffer;
+      } catch (e) {
+        console.error('Error generating audio for:', text, e);
         return null;
       }
-
-      let arrayBuffer: ArrayBuffer | null = null;
-      if (wavData instanceof ArrayBuffer) {
-        arrayBuffer = wavData;
-      } else if (typeof SharedArrayBuffer !== 'undefined' && wavData instanceof SharedArrayBuffer) {
-        const view = new Uint8Array(wavData);
-        const copy = new Uint8Array(view.length);
-        copy.set(view);
-        arrayBuffer = copy.buffer as ArrayBuffer;
-      } else if (wavData instanceof Uint8Array) {
-        const copy = new Uint8Array(wavData.length);
-        copy.set(wavData);
-        arrayBuffer = copy.buffer as ArrayBuffer;
-      } else if (Array.isArray(wavData)) {
-        arrayBuffer = Uint8Array.from(wavData).buffer as ArrayBuffer;
-      }
-
-      if (!arrayBuffer) {
-        return null;
-      }
-
-      // Decode the WAV data into an AudioBuffer
-      // decodeAudioData requires a copy of the buffer in some browsers if it detaches it?
-      // safe to just pass it.
-      const audioBuffer = await audioContextRef.current.decodeAudioData(arrayBuffer);
-
-      audioCacheRef.current.set(cacheKey, audioBuffer);
-      return audioBuffer;
-    } catch (e) {
-      console.error('Error generating audio for:', text, e);
-      return null;
-    }
-  }, [isReady]);
+    },
+    [isReady, calculateRate]
+  );
 
   // Queue Processing Loop
   const processQueue = useCallback(async () => {
@@ -299,8 +306,16 @@ export function useAuditoryScanning({
     try {
       // Process one item
       const item = requestQueueRef.current.shift();
-      if (item && !audioCacheRef.current.has(item)) {
-        await generateAudioBuffer(item);
+      if (item) {
+        // Check cache with calculated rate (must be same rate as generation)
+        // Since addToCache adds simple text, we need to use current scanSpeed
+        // But what if speed changes between add and process?
+        // It's acceptable to use current speed.
+        const rate = calculateRate(item);
+        const cacheKey = `${item}:${rate}`;
+        if (!audioCacheRef.current.has(cacheKey)) {
+          await generateAudioBuffer(item);
+        }
       }
     } catch (err) {
       console.warn('Queue processing error:', err);
@@ -311,151 +326,143 @@ export function useAuditoryScanning({
         setTimeout(processQueue, 50);
       }
     }
-  }, [isReady, generateAudioBuffer]);
+  }, [isReady, generateAudioBuffer, calculateRate]);
 
   // Pre-generate buffers for a list of items using a queue
-  const addToCache = useCallback((items: string[]) => {
-    if (!enabled || !isReady) return;
+  const addToCache = useCallback(
+    (items: string[]) => {
+      if (!enabled || !isReady) return;
 
-    // Add items to queue if not already cached and not already in queue
-    let newItemsAdded = false;
-    // Prioritize first 5 items, then queue the rest?
-    // For now, just queue them all. The scanner moves slower than 50ms usually.
-    for (const item of items) {
-      if (!audioCacheRef.current.has(item) && !requestQueueRef.current.includes(item)) {
-        requestQueueRef.current.push(item);
-        newItemsAdded = true;
+      let newItemsAdded = false;
+      for (const item of items) {
+        // Check if already queued or cached (with current speed)
+        const rate = calculateRate(item);
+        const cacheKey = `${item}:${rate}`;
+
+        if (!audioCacheRef.current.has(cacheKey) && !requestQueueRef.current.includes(item)) {
+          requestQueueRef.current.push(item);
+          newItemsAdded = true;
+        }
       }
-    }
 
-    if (newItemsAdded) {
-      processQueue();
-    }
-  }, [enabled, isReady, processQueue]);
+      if (newItemsAdded) {
+        processQueue();
+      }
+    },
+    [enabled, isReady, processQueue, calculateRate]
+  );
 
-  const playAudioBuffer = useCallback((buffer: AudioBuffer) => {
-    if (!audioContextRef.current) return;
+  const playAudioBuffer = useCallback(
+    (buffer: AudioBuffer) => {
+      if (!audioContextRef.current) return;
 
-    // Resume AudioContext if suspended (browsers suspend until user interaction)
-    if (audioContextRef.current.state === 'suspended') {
-      audioContextRef.current.resume();
-    }
+      if (audioContextRef.current.state === 'suspended') {
+        audioContextRef.current.resume();
+      }
 
-    // Stop previous source if playing
-    if (currentSourceRef.current) {
+      if (currentSourceRef.current) {
         try {
-            currentSourceRef.current.stop();
+          currentSourceRef.current.stop();
         } catch {
-            // ignore if already stopped
+          // ignore
         }
-    }
+      }
 
-    const source = audioContextRef.current.createBufferSource();
-    source.buffer = buffer;
-    const outputNode = getOutputNode();
-    if (!outputNode) return;
-    source.connect(outputNode);
-    source.start(0);
-    currentSourceRef.current = source;
+      const source = audioContextRef.current.createBufferSource();
+      source.buffer = buffer;
+      const outputNode = getOutputNode();
+      if (!outputNode) return;
+      source.connect(outputNode);
+      source.start(0);
+      currentSourceRef.current = source;
 
-    source.onended = () => {
+      source.onended = () => {
         if (currentSourceRef.current === source) {
-            currentSourceRef.current = null;
+          currentSourceRef.current = null;
         }
-    };
-  }, [getOutputNode]);
+      };
+    },
+    [getOutputNode]
+  );
 
-  const playMessageEarcon = useCallback(async (variant: 'start' | 'end' = 'start'): Promise<void> => {
-    if (!audioContextRef.current) return;
+  const playMessageEarcon = useCallback(
+    async (variant: 'start' | 'end' = 'start'): Promise<void> => {
+      if (!audioContextRef.current) return;
 
-    const ctx = audioContextRef.current;
-    if (ctx.state === 'suspended') {
-      await ctx.resume();
-    }
+      const ctx = audioContextRef.current;
+      if (ctx.state === 'suspended') {
+        await ctx.resume();
+      }
 
-    const now = ctx.currentTime;
-    const gain = ctx.createGain();
-    gain.gain.setValueAtTime(0, now);
-    gain.gain.linearRampToValueAtTime(0.18, now + 0.01);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.14);
-    const outputNode = getOutputNode();
-    if (!outputNode) return;
-    gain.connect(outputNode);
+      const now = ctx.currentTime;
+      const gain = ctx.createGain();
+      gain.gain.setValueAtTime(0, now);
+      gain.gain.linearRampToValueAtTime(0.18, now + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.14);
+      const outputNode = getOutputNode();
+      if (!outputNode) return;
+      gain.connect(outputNode);
 
-    const osc = ctx.createOscillator();
-    osc.type = 'sine';
-    if (variant === 'start') {
-      osc.frequency.setValueAtTime(660, now);
-      osc.frequency.linearRampToValueAtTime(990, now + 0.1);
-    } else {
-      osc.frequency.setValueAtTime(990, now);
-      osc.frequency.linearRampToValueAtTime(660, now + 0.1);
-    }
-    osc.connect(gain);
+      const osc = ctx.createOscillator();
+      osc.type = 'sine';
+      if (variant === 'start') {
+        osc.frequency.setValueAtTime(660, now);
+        osc.frequency.linearRampToValueAtTime(990, now + 0.1);
+      } else {
+        osc.frequency.setValueAtTime(990, now);
+        osc.frequency.linearRampToValueAtTime(660, now + 0.1);
+      }
+      osc.connect(gain);
 
-    return new Promise((resolve) => {
-      osc.onended = () => resolve();
-      osc.start(now);
-      osc.stop(now + 0.15);
-    });
-  }, [getOutputNode]);
+      return new Promise((resolve) => {
+        osc.onended = () => resolve();
+        osc.start(now);
+        osc.stop(now + 0.15);
+      });
+    },
+    [getOutputNode]
+  );
 
-  const playItem = useCallback(async (text: string) => {
-    console.log('🔊 playItem called:', { text, enabled, isReady });
-    if (!enabled || !text) {
-      console.log('⚠️ playItem skipped:', { enabled, hasText: !!text });
-      return;
-    }
+  const playItem = useCallback(
+    async (text: string) => {
+      if (!enabled || !text) return;
+      if (!isReady) return;
 
-    // If not ready, skip
-    if (!isReady) {
-      console.log('⚠️ playItem not ready yet');
-      return;
-    }
+      const rate = calculateRate(text);
+      const cacheKey = `${text}:${rate}`;
+      let buffer = audioCacheRef.current.get(cacheKey);
 
-    let buffer = audioCacheRef.current.get(text);
-
-    // If not in cache, force generation immediately (bypass queue for responsiveness)
-    if (!buffer) {
-        console.log('🔄 Generating audio for:', text);
-        // Remove from queue if it was there to avoid double work
+      // If not in cache, force generation immediately
+      if (!buffer) {
+        console.log(`🔄 Generating audio for: "${text}" at rate ${rate} (Scan: ${scanSpeed}ms)`);
         const queueIndex = requestQueueRef.current.indexOf(text);
         if (queueIndex > -1) {
-            requestQueueRef.current.splice(queueIndex, 1);
+          requestQueueRef.current.splice(queueIndex, 1);
         }
         buffer = await generateAudioBuffer(text);
-    }
+      }
 
-    if (buffer) {
-        console.log('▶️ Playing audio for:', text);
+      if (buffer) {
         playAudioBuffer(buffer);
-    } else {
-      console.log('❌ Failed to generate audio for:', text);
-    }
-  }, [enabled, isReady, generateAudioBuffer, playAudioBuffer]);
+      }
+    },
+    [enabled, isReady, generateAudioBuffer, playAudioBuffer, calculateRate, scanSpeed]
+  );
 
-  const playMessage = useCallback(async (message: string): Promise<void> => {
-      // This will handle the sequence playing logic
-      // We need to implement the parsing logic here or helper
-      // and play them in sequence.
-
-      // For now, let's just implement a simple queue player?
-      // Or we can rely on onended chaining.
-
-      // Let's defer the message parsing logic to the integration step
-      // or implement it right now as requested in the plan.
-      // But the hook return signature asks for 'playMessage'.
-
+  const playMessage = useCallback(
+    async (message: string): Promise<void> => {
       if (!enabled || !message) return;
 
-      // Stop current scanning audio
       if (currentSourceRef.current) {
-          try { currentSourceRef.current.stop(); } catch { /* ignore */ }
+        try {
+          currentSourceRef.current.stop();
+        } catch {
+          /* ignore */
+        }
       }
 
       await playMessageEarcon('start');
 
-      // Parse message
       const parts: string[] = [];
       const isSpaceLast = message.endsWith(' ');
       const words = message.trim().split(/\s+/);
@@ -463,57 +470,63 @@ export function useAuditoryScanning({
       if (message.trim().length === 0) return;
 
       if (isSpaceLast) {
-          // "Hello World " -> "Hello", "World"
-          parts.push(...words);
+        parts.push(...words);
       } else {
-          // "Hello Worl" -> "Hello", "W", "o", "r", "l"
-          const lastWord = words.pop() || '';
-          parts.push(...words);
-          parts.push(...lastWord.split(''));
+        const lastWord = words.pop() || '';
+        parts.push(...words);
+        parts.push(...lastWord.split(''));
       }
 
-      // Generate all needed buffers first (or play as we go?)
-      // Better to play sequence.
-
       return new Promise<void>((resolve) => {
-          const playSequence = async (index: number) => {
-              if (index >= parts.length) {
-                  await playMessageEarcon('end');
-                  resolve();
-                  return;
-              }
+        const playSequence = async (index: number) => {
+          if (index >= parts.length) {
+            await playMessageEarcon('end');
+            resolve();
+            return;
+          }
 
-              const text = parts[index];
-              let buffer = audioCacheRef.current?.get(text);
-              if (!buffer) {
-                  buffer = await generateAudioBuffer(text);
-              }
+          const text = parts[index];
+          // Use default rate for message playback (175) to be consistent
+          // We can't rely on generateAudioBuffer's dynamic rate here because
+          // calculateRate uses scanSpeed, which might be very fast.
+          // Message playback should be intelligible at standard speed.
 
-              if (buffer && audioContextRef.current) {
-                  const source = audioContextRef.current.createBufferSource();
-                  source.buffer = buffer;
-                  const outputNode = getOutputNode();
-                  if (!outputNode) {
-                    playSequence(index + 1);
-                    return;
-                  }
-                  source.connect(outputNode);
-                  source.start(0);
-                  currentSourceRef.current = source;
+          // However, to keep it simple and reuse the generator (which is bound to rate),
+          // we might just accept the current rate.
+          // Or we can manually call mespeak if we want fixed rate, but that bypasses our buffer logic.
 
-                  source.onended = () => {
-                      playSequence(index + 1);
-                  };
-              } else {
-                  // Skip if failed
-                  playSequence(index + 1);
-              }
-          };
+          // Let's assume for now that message playback using the adaptive rate is acceptable/better
+          // if the user has high scan speed, they probably process audio fast too.
+          // If not, we can refactor calculateRate to take an optional 'forceRate' param.
 
-          playSequence(0);
+          // For now, reuse standard generation:
+          let buffer = await generateAudioBuffer(text);
+
+          if (buffer && audioContextRef.current) {
+            const source = audioContextRef.current.createBufferSource();
+            source.buffer = buffer;
+            const outputNode = getOutputNode();
+            if (!outputNode) {
+              playSequence(index + 1);
+              return;
+            }
+            source.connect(outputNode);
+            source.start(0);
+            currentSourceRef.current = source;
+
+            source.onended = () => {
+              playSequence(index + 1);
+            };
+          } else {
+            playSequence(index + 1);
+          }
+        };
+
+        playSequence(0);
       });
-
-  }, [enabled, generateAudioBuffer, getOutputNode, playMessageEarcon]);
+    },
+    [enabled, generateAudioBuffer, getOutputNode, playMessageEarcon]
+  );
 
   return {
     playItem,
@@ -523,7 +536,7 @@ export function useAuditoryScanning({
     requestAudioDeviceAccess,
     applySinkIdWithGesture,
     sinkStatus,
-    setAudioDeviceId: () => {}, // Handled by prop, but we can expose a setter if we move state inside
-    isReady
+    setAudioDeviceId: () => {},
+    isReady,
   };
 }

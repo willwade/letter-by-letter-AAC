@@ -121,7 +121,7 @@ export function generateBlocks(options: LayoutOptions): Block[] {
       blocks.push({
         id: `block-${blockCounter++}`,
         label: label,
-        spokenLabel: 'Top Letters: ' + spokenLabel, // Explicitly announce it's top letters? Or just read them.
+        spokenLabel: 'Top: ' + spokenLabel, // Shortened from "Top Letters:"
         items: hotLetters,
         type: 'prediction',
       });
