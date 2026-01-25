@@ -1,12 +1,11 @@
-import React from 'react';
+import React, { useState } from 'react';
 import type { ScanMode, ThemeName, Theme, ScanningStrategy, BlockMode } from '../types';
-import { ScanningSettings } from './settings/ScanningSettings';
+import { ModeSettings } from './settings/ModeSettings';
+import { LayoutSettings } from './settings/LayoutSettings';
+import { LanguageSettings } from './settings/LanguageSettings';
 import { AppearanceSettings } from './settings/AppearanceSettings';
-import { PredictionSettings } from './settings/PredictionSettings';
 import { AudioSettings } from './settings/AudioSettings';
 import { GameSettings } from './settings/GameSettings';
-import { LanguageSettings } from './settings/LanguageSettings';
-import { HoldSettings } from './settings/HoldSettings';
 
 interface ControlsProps {
   scanMode: ScanMode;
@@ -101,6 +100,17 @@ interface ControlsProps {
   } | null;
 }
 
+const SETTINGS_CATEGORIES = [
+  { id: 'mode', label: 'Mode' },
+  { id: 'layout', label: 'Layout' },
+  { id: 'language', label: 'Language' },
+  { id: 'appearance', label: 'Appearance' },
+  { id: 'audio', label: 'Audio' },
+  { id: 'game', label: 'Game' },
+] as const;
+
+type SettingsCategory = typeof SETTINGS_CATEGORIES[number]['id'];
+
 const Controls: React.FC<ControlsProps> = ({
   scanMode,
   setScanMode,
@@ -189,8 +199,127 @@ const Controls: React.FC<ControlsProps> = ({
   blockSize,
   setBlockSize,
 }) => {
+  const [activeCategory, setActiveCategory] = useState<SettingsCategory>('mode');
+
   const handleStartStop = () => {
     setIsScanning(!isScanning);
+  };
+
+  const renderActiveSettings = () => {
+    switch (activeCategory) {
+      case 'mode':
+        return (
+          <ModeSettings
+            scanMode={scanMode}
+            setScanMode={setScanMode}
+            scanSpeed={scanSpeed}
+            setScanSpeed={setScanSpeed}
+            firstItemDelay={firstItemDelay}
+            setFirstItemDelay={setFirstItemDelay}
+            holdSpeed={holdSpeed}
+            setHoldSpeed={setHoldSpeed}
+            debounceTime={debounceTime}
+            setDebounceTime={setDebounceTime}
+            enableHoldActions={enableHoldActions}
+            setEnableHoldActions={setEnableHoldActions}
+            shortHoldDuration={shortHoldDuration}
+            setShortHoldDuration={setShortHoldDuration}
+            longHoldDuration={longHoldDuration}
+            setLongHoldDuration={setLongHoldDuration}
+            shortHoldAction={shortHoldAction}
+            setShortHoldAction={setShortHoldAction}
+            longHoldAction={longHoldAction}
+            setLongHoldAction={setLongHoldAction}
+          />
+        );
+      case 'layout':
+        return (
+          <LayoutSettings
+            scanningStrategy={scanningStrategy}
+            setScanningStrategy={setScanningStrategy}
+            blockMode={blockMode}
+            setBlockMode={setBlockMode}
+            blockSize={blockSize}
+            setBlockSize={setBlockSize}
+            speakAfterPredictions={speakAfterPredictions}
+            setSpeakAfterPredictions={setSpeakAfterPredictions}
+          />
+        );
+      case 'language':
+        return (
+          <LanguageSettings
+            selectedLanguage={selectedLanguage}
+            setSelectedLanguage={setSelectedLanguage}
+            availableLanguages={availableLanguages}
+            languageNames={languageNames}
+            selectedScript={selectedScript}
+            setSelectedScript={setSelectedScript}
+            availableScripts={availableScripts}
+            useUppercase={useUppercase}
+            setUseUppercase={setUseUppercase}
+            availableVoices={availableVoices}
+            selectedVoiceURI={selectedVoiceURI}
+            setSelectedVoiceURI={setSelectedVoiceURI}
+            theme={theme}
+            enablePrediction={enablePrediction}
+            setEnablePrediction={setEnablePrediction}
+            showWordPrediction={showWordPrediction}
+            setShowWordPrediction={setShowWordPrediction}
+            onFileUpload={onFileUpload}
+            trainingStatus={trainingStatus}
+            learnedWordsCount={learnedWordsCount}
+            onExportLearnedData={onExportLearnedData}
+            onClearLearnedData={onClearLearnedData}
+          />
+        );
+      case 'appearance':
+        return (
+          <AppearanceSettings
+            themeName={themeName}
+            setThemeName={setThemeName}
+            theme={theme}
+            fontFamily={fontFamily}
+            setFontFamily={setFontFamily}
+            messageFontSize={messageFontSize}
+            setMessageFontSize={setMessageFontSize}
+            scannerFontSize={scannerFontSize}
+            setScannerFontSize={setScannerFontSize}
+            borderWidth={borderWidth}
+            setBorderWidth={setBorderWidth}
+            isFullscreen={isFullscreen}
+            onToggleFullscreen={onToggleFullscreen}
+            hideControlBar={hideControlBar}
+            setHideControlBar={setHideControlBar}
+          />
+        );
+      case 'audio':
+        return (
+          <AudioSettings
+            audioEffectsEnabled={audioEffectsEnabled}
+            setAudioEffectsEnabled={setAudioEffectsEnabled}
+            auditoryScanningEnabled={auditoryScanningEnabled}
+            setAuditoryScanningEnabled={setAuditoryScanningEnabled}
+            auditoryScanningDeviceId={auditoryScanningDeviceId}
+            setAuditoryScanningDeviceId={setAuditoryScanningDeviceId}
+            auditoryDevices={auditoryDevices}
+            onUnlockAudioDevices={onUnlockAudioDevices}
+            sinkStatus={sinkStatus}
+            theme={theme}
+          />
+        );
+      case 'game':
+        return (
+          <GameSettings
+            gameMode={gameMode}
+            setGameMode={setGameMode}
+            gameWordList={gameWordList}
+            setGameWordList={setGameWordList}
+            theme={theme}
+          />
+        );
+      default:
+        return null;
+    }
   };
 
   return (
@@ -211,24 +340,21 @@ const Controls: React.FC<ControlsProps> = ({
         >
           {/* Wrapper div to stop propagation without role conflict */}
           <div
-            className="rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto m-4 pointer-events-auto"
+            className="rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] flex flex-col m-4 pointer-events-auto"
             onClick={(e) => e.stopPropagation()}
             onKeyDown={(e) => e.stopPropagation()}
             role="presentation"
           >
-            {/* Actual dialog container */}
+            {/* Header / Tabs */}
             <div
-              style={{ backgroundColor: theme.colors.modalBg, color: theme.colors.modalText }}
-              role="dialog"
-              aria-modal="true"
+              className="rounded-t-lg"
+              style={{
+                backgroundColor: theme.colors.modalBg,
+                color: theme.colors.modalText,
+                borderBottom: `1px solid ${theme.colors.border}`,
+              }}
             >
-              <div
-                className="sticky top-0 p-4 flex justify-between items-center"
-                style={{
-                  backgroundColor: theme.colors.modalBg,
-                  borderBottom: `1px solid ${theme.colors.border}`,
-                }}
-              >
+              <div className="p-4 flex justify-between items-center">
                 <h2 className="text-2xl font-bold">Settings</h2>
                 <button
                   onClick={() => setShowSettingsModal(false)}
@@ -252,134 +378,82 @@ const Controls: React.FC<ControlsProps> = ({
                 </button>
               </div>
 
-              <div className="p-6 flex flex-col gap-6">
-                <ScanningSettings
-                  scanMode={scanMode}
-                  setScanMode={setScanMode}
-                  scanSpeed={scanSpeed}
-                  setScanSpeed={setScanSpeed}
-                  firstItemDelay={firstItemDelay}
-                  setFirstItemDelay={setFirstItemDelay}
-                  holdSpeed={holdSpeed}
-                  setHoldSpeed={setHoldSpeed}
-                  debounceTime={debounceTime}
-                  setDebounceTime={setDebounceTime}
-                  scanningStrategy={scanningStrategy}
-                  setScanningStrategy={setScanningStrategy}
-                  blockMode={blockMode}
-                  setBlockMode={setBlockMode}
-                  blockSize={blockSize}
-                  setBlockSize={setBlockSize}
-                />
+              {/* Navigation */}
+              <div className="px-4 pb-0">
+                {/* Mobile Dropdown (visible only on small screens) */}
+                <div className="md:hidden mb-4">
+                  <select
+                    value={activeCategory}
+                    onChange={(e) => setActiveCategory(e.target.value as SettingsCategory)}
+                    className="w-full p-2 border rounded-md font-semibold"
+                    style={{
+                      backgroundColor: theme.colors.inputBg,
+                      color: theme.colors.inputText,
+                      borderColor: theme.colors.border,
+                    }}
+                  >
+                    {SETTINGS_CATEGORIES.map((cat) => (
+                      <option key={cat.id} value={cat.id}>
+                        {cat.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
-                <HoldSettings
-                  scanMode={scanMode}
-                  enableHoldActions={enableHoldActions}
-                  setEnableHoldActions={setEnableHoldActions}
-                  shortHoldDuration={shortHoldDuration}
-                  setShortHoldDuration={setShortHoldDuration}
-                  longHoldDuration={longHoldDuration}
-                  setLongHoldDuration={setLongHoldDuration}
-                  shortHoldAction={shortHoldAction}
-                  setShortHoldAction={setShortHoldAction}
-                  longHoldAction={longHoldAction}
-                  setLongHoldAction={setLongHoldAction}
-                />
-
-                <LanguageSettings
-                  selectedLanguage={selectedLanguage}
-                  setSelectedLanguage={setSelectedLanguage}
-                  availableLanguages={availableLanguages}
-                  languageNames={languageNames}
-                  selectedScript={selectedScript}
-                  setSelectedScript={setSelectedScript}
-                  availableScripts={availableScripts}
-                  useUppercase={useUppercase}
-                  setUseUppercase={setUseUppercase}
-                  availableVoices={availableVoices}
-                  selectedVoiceURI={selectedVoiceURI}
-                  setSelectedVoiceURI={setSelectedVoiceURI}
-                  theme={theme}
-                />
-
-                <PredictionSettings
-                  enablePrediction={enablePrediction}
-                  setEnablePrediction={setEnablePrediction}
-                  showWordPrediction={showWordPrediction}
-                  setShowWordPrediction={setShowWordPrediction}
-                  onFileUpload={onFileUpload}
-                  trainingStatus={trainingStatus}
-                  learnedWordsCount={learnedWordsCount}
-                  onExportLearnedData={onExportLearnedData}
-                  onClearLearnedData={onClearLearnedData}
-                />
-
-                <AppearanceSettings
-                  themeName={themeName}
-                  setThemeName={setThemeName}
-                  theme={theme}
-                  fontFamily={fontFamily}
-                  setFontFamily={setFontFamily}
-                  messageFontSize={messageFontSize}
-                  setMessageFontSize={setMessageFontSize}
-                  scannerFontSize={scannerFontSize}
-                  setScannerFontSize={setScannerFontSize}
-                  borderWidth={borderWidth}
-                  setBorderWidth={setBorderWidth}
-                  isFullscreen={isFullscreen}
-                  onToggleFullscreen={onToggleFullscreen}
-                  hideControlBar={hideControlBar}
-                  setHideControlBar={setHideControlBar}
-                />
-
-                <AudioSettings
-                  audioEffectsEnabled={audioEffectsEnabled}
-                  setAudioEffectsEnabled={setAudioEffectsEnabled}
-                  auditoryScanningEnabled={auditoryScanningEnabled}
-                  setAuditoryScanningEnabled={setAuditoryScanningEnabled}
-                  auditoryScanningDeviceId={auditoryScanningDeviceId}
-                  setAuditoryScanningDeviceId={setAuditoryScanningDeviceId}
-                  auditoryDevices={auditoryDevices}
-                  onUnlockAudioDevices={onUnlockAudioDevices}
-                  sinkStatus={sinkStatus}
-                  theme={theme}
-                  speakAfterPredictions={speakAfterPredictions}
-                  setSpeakAfterPredictions={setSpeakAfterPredictions}
-                />
-
-                <GameSettings
-                  gameMode={gameMode}
-                  setGameMode={setGameMode}
-                  gameWordList={gameWordList}
-                  setGameWordList={setGameWordList}
-                  theme={theme}
-                />
+                {/* Desktop Tabs (hidden on small screens) */}
+                <div className="hidden md:flex space-x-1 overflow-x-auto">
+                  {SETTINGS_CATEGORIES.map((cat) => (
+                    <button
+                      key={cat.id}
+                      onClick={() => setActiveCategory(cat.id)}
+                      className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors border-b-2 ${
+                        activeCategory === cat.id
+                          ? 'border-blue-500 text-blue-600 bg-blue-50'
+                          : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                      }`}
+                    >
+                      {cat.label}
+                    </button>
+                  ))}
+                </div>
               </div>
+            </div>
 
-              <div
-                className="sticky bottom-0 p-4 flex justify-end"
+            {/* Content Area */}
+            <div
+              className="flex-1 overflow-y-auto p-6"
+              style={{
+                backgroundColor: theme.colors.modalBg,
+                color: theme.colors.modalText,
+              }}
+            >
+              {renderActiveSettings()}
+            </div>
+
+            {/* Footer */}
+            <div
+              className="rounded-b-lg p-4 flex justify-end"
+              style={{
+                backgroundColor: theme.colors.modalBg,
+                borderTop: `1px solid ${theme.colors.border}`,
+              }}
+            >
+              <button
+                onClick={() => setShowSettingsModal(false)}
+                className="text-lg font-bold py-2 px-6 rounded-lg transition-transform transform active:scale-95"
                 style={{
-                  backgroundColor: theme.colors.modalBg,
-                  borderTop: `1px solid ${theme.colors.border}`,
+                  backgroundColor: theme.colors.buttonBg,
+                  color: theme.colors.buttonText,
                 }}
+                onMouseEnter={(e) =>
+                  (e.currentTarget.style.backgroundColor = theme.colors.buttonHover)
+                }
+                onMouseLeave={(e) =>
+                  (e.currentTarget.style.backgroundColor = theme.colors.buttonBg)
+                }
               >
-                <button
-                  onClick={() => setShowSettingsModal(false)}
-                  className="text-lg font-bold py-2 px-6 rounded-lg transition-transform transform active:scale-95"
-                  style={{
-                    backgroundColor: theme.colors.buttonBg,
-                    color: theme.colors.buttonText,
-                  }}
-                  onMouseEnter={(e) =>
-                    (e.currentTarget.style.backgroundColor = theme.colors.buttonHover)
-                  }
-                  onMouseLeave={(e) =>
-                    (e.currentTarget.style.backgroundColor = theme.colors.buttonBg)
-                  }
-                >
-                  Close
-                </button>
-              </div>
+                Close
+              </button>
             </div>
           </div>
         </div>
