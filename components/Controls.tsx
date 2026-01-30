@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import type { ScanMode, ThemeName, Theme, ScanningStrategy, BlockMode } from '../types';
+import type { ScanMode, ThemeName, Theme, ScanningStrategy, BlockMode, ReactionTimeStats } from '../types';
 import { ModeSettings } from './settings/ModeSettings';
 import { LayoutSettings } from './settings/LayoutSettings';
 import { LanguageSettings } from './settings/LanguageSettings';
 import { AppearanceSettings } from './settings/AppearanceSettings';
 import { AudioSettings } from './settings/AudioSettings';
 import { GameSettings } from './settings/GameSettings';
+import { ErrorCorrectionSettings } from './settings/ErrorCorrectionSettings';
 
 interface ControlsProps {
   scanMode: ScanMode;
@@ -98,6 +99,20 @@ interface ControlsProps {
     targetSinkId: string;
     error?: string;
   } | null;
+  // Error Correction props
+  errorCorrectionEnabled: boolean;
+  setErrorCorrectionEnabled: (enabled: boolean) => void;
+  errorCorrectionThreshold: number;
+  setErrorCorrectionThreshold: (threshold: number) => void;
+  showConfidenceIndicator: boolean;
+  setShowConfidenceIndicator: (show: boolean) => void;
+  enableInference: boolean;
+  setEnableInference: (enabled: boolean) => void;
+  confidenceThreshold: number;
+  setConfidenceThreshold: (threshold: number) => void;
+  reactionTimeStats: ReactionTimeStats | null;
+  setReactionTimeStats: (stats: ReactionTimeStats | null) => void;
+  onStartReactionTimeTest: () => void;
 }
 
 const SETTINGS_CATEGORIES = [
@@ -107,6 +122,7 @@ const SETTINGS_CATEGORIES = [
   { id: 'appearance', label: 'Appearance' },
   { id: 'audio', label: 'Audio' },
   { id: 'game', label: 'Game' },
+  { id: 'errorCorrection', label: 'Error Correction' },
 ] as const;
 
 type SettingsCategory = typeof SETTINGS_CATEGORIES[number]['id'];
@@ -198,6 +214,19 @@ const Controls: React.FC<ControlsProps> = ({
   setBlockMode,
   blockSize,
   setBlockSize,
+  errorCorrectionEnabled,
+  setErrorCorrectionEnabled,
+  errorCorrectionThreshold,
+  setErrorCorrectionThreshold,
+  showConfidenceIndicator,
+  setShowConfidenceIndicator,
+  enableInference,
+  setEnableInference,
+  confidenceThreshold,
+  setConfidenceThreshold,
+  reactionTimeStats,
+  setReactionTimeStats,
+  onStartReactionTimeTest,
 }) => {
   const [activeCategory, setActiveCategory] = useState<SettingsCategory>('mode');
 
@@ -314,6 +343,25 @@ const Controls: React.FC<ControlsProps> = ({
             setGameMode={setGameMode}
             gameWordList={gameWordList}
             setGameWordList={setGameWordList}
+            theme={theme}
+          />
+        );
+      case 'errorCorrection':
+        return (
+          <ErrorCorrectionSettings
+            errorCorrectionEnabled={errorCorrectionEnabled}
+            setErrorCorrectionEnabled={setErrorCorrectionEnabled}
+            errorCorrectionThreshold={errorCorrectionThreshold}
+            setErrorCorrectionThreshold={setErrorCorrectionThreshold}
+            showConfidenceIndicator={showConfidenceIndicator}
+            setShowConfidenceIndicator={setShowConfidenceIndicator}
+            enableInference={enableInference}
+            setEnableInference={setEnableInference}
+            confidenceThreshold={confidenceThreshold}
+            setConfidenceThreshold={setConfidenceThreshold}
+            reactionTimeStats={reactionTimeStats}
+            setReactionTimeStats={setReactionTimeStats}
+            onStartReactionTimeTest={onStartReactionTimeTest}
             theme={theme}
           />
         );

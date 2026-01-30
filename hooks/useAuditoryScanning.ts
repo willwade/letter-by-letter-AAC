@@ -103,13 +103,22 @@ export function useAuditoryScanning({
 
     const tryMediaElementSink = async () => {
       if (elementWithSink && typeof elementWithSink.setSinkId === 'function') {
-        await elementWithSink.setSinkId(targetSink);
-        useMediaElementRoutingRef.current = true;
-        mediaElement?.play().catch(() => {
-          // Autoplay may be blocked; audio will resume on user gesture.
-        });
-        setSinkStatus({ route: 'element', targetSinkId: targetSink });
-        return true;
+        try {
+          await elementWithSink.setSinkId(targetSink);
+          useMediaElementRoutingRef.current = true;
+          mediaElement?.play().catch(() => {
+            // Autoplay may be blocked; audio will resume on user gesture.
+          });
+          setSinkStatus({ route: 'element', targetSinkId: targetSink });
+          return true;
+        } catch (err) {
+          // Device not found or not available, just log and continue
+          const errorMsg = (err as Error).message || String(err);
+          if (!errorMsg.includes('not found')) {
+            console.info('Audio sink device not available:', errorMsg);
+          }
+          return false;
+        }
       }
       return false;
     };
@@ -120,12 +129,16 @@ export function useAuditoryScanning({
       useMediaElementRoutingRef.current = false;
       setSinkStatus({ route: 'unsupported', targetSinkId: targetSink });
     } catch (err) {
-      console.error('Failed to set sink ID:', err);
+      // Only log unexpected errors, not "device not found" which is expected
+      const errorMsg = (err as Error).message || String(err);
+      if (!errorMsg.includes('not found')) {
+        console.error('Unexpected error setting sink ID:', err);
+      }
       useMediaElementRoutingRef.current = false;
       setSinkStatus({
         route: 'error',
         targetSinkId: targetSink,
-        error: err instanceof Error ? err.message : String(err),
+        error: errorMsg,
       });
     }
   }, []);

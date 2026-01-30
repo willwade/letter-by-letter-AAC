@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import type { ScanMode, ThemeName, ScanningStrategy, BlockMode } from '../types';
+import type { ScanMode, ThemeName, ScanningStrategy, BlockMode, ReactionTimeStats } from '../types';
 
 /**
  * Custom hook to manage all app settings with localStorage persistence.
@@ -157,6 +157,34 @@ export function useSettings() {
     return localStorage.getItem('useUppercase') === 'true';
   });
 
+  // Error Correction & Inference settings
+  const [errorCorrectionEnabled, setErrorCorrectionEnabled] = useState<boolean>(() => {
+    return localStorage.getItem('errorCorrectionEnabled') === 'true';
+  });
+
+  const [errorCorrectionThreshold, setErrorCorrectionThreshold] = useState<number>(() => {
+    const saved = localStorage.getItem('errorCorrectionThreshold');
+    return saved ? Number(saved) : 0.6;
+  });
+
+  const [showConfidenceIndicator, setShowConfidenceIndicator] = useState<boolean>(() => {
+    return localStorage.getItem('showConfidenceIndicator') === 'true';
+  });
+
+  const [enableInference, setEnableInference] = useState<boolean>(() => {
+    return localStorage.getItem('enableInference') === 'true';
+  });
+
+  const [confidenceThreshold, setConfidenceThreshold] = useState<number>(() => {
+    const saved = localStorage.getItem('confidenceThreshold');
+    return saved ? Number(saved) : 0.6;
+  });
+
+  const [reactionTimeStats, setReactionTimeStats] = useState<ReactionTimeStats | null>(() => {
+    const saved = localStorage.getItem('reactionTimeStats');
+    return saved ? JSON.parse(saved) : null;
+  });
+
   // Persist all settings to localStorage
   // Using a single useEffect to batch all localStorage writes
   useEffect(() => {
@@ -194,6 +222,16 @@ export function useSettings() {
     localStorage.setItem('currentGameWordIndex', currentGameWordIndex.toString());
     localStorage.setItem('selectedLanguage', selectedLanguage);
     localStorage.setItem('useUppercase', useUppercase.toString());
+    localStorage.setItem('errorCorrectionEnabled', errorCorrectionEnabled.toString());
+    localStorage.setItem('errorCorrectionThreshold', errorCorrectionThreshold.toString());
+    localStorage.setItem('showConfidenceIndicator', showConfidenceIndicator.toString());
+    localStorage.setItem('enableInference', enableInference.toString());
+    localStorage.setItem('confidenceThreshold', confidenceThreshold.toString());
+    if (reactionTimeStats) {
+      localStorage.setItem('reactionTimeStats', JSON.stringify(reactionTimeStats));
+    } else {
+      localStorage.removeItem('reactionTimeStats');
+    }
 
     if (selectedVoiceURI) {
       localStorage.setItem('selectedVoiceURI', selectedVoiceURI);
@@ -236,6 +274,12 @@ export function useSettings() {
     selectedLanguage,
     selectedScript,
     useUppercase,
+    errorCorrectionEnabled,
+    errorCorrectionThreshold,
+    showConfidenceIndicator,
+    enableInference,
+    confidenceThreshold,
+    reactionTimeStats,
   ]);
 
   return {
@@ -322,5 +366,19 @@ export function useSettings() {
     setSelectedScript,
     useUppercase,
     setUseUppercase,
+
+    // Error Correction & Inference settings
+    errorCorrectionEnabled,
+    setErrorCorrectionEnabled,
+    errorCorrectionThreshold,
+    setErrorCorrectionThreshold,
+    showConfidenceIndicator,
+    setShowConfidenceIndicator,
+    enableInference,
+    setEnableInference,
+    confidenceThreshold,
+    setConfidenceThreshold,
+    reactionTimeStats,
+    setReactionTimeStats,
   };
 }

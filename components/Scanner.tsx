@@ -10,6 +10,8 @@ interface ScannerProps {
   borderWidth: number;
   predictedLetters: string[];
   predictedWords: string[];
+  // Error correction props
+  suggestions?: any[];
 }
 
 const Scanner: React.FC<ScannerProps> = ({
@@ -20,6 +22,7 @@ const Scanner: React.FC<ScannerProps> = ({
   borderWidth,
   predictedLetters,
   predictedWords,
+  suggestions = [],
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const itemRef = useRef<HTMLSpanElement>(null);
@@ -106,6 +109,18 @@ const Scanner: React.FC<ScannerProps> = ({
   const isPrediction =
     predictedLetters.includes(currentItem) || predictedWords.includes(currentItem);
 
+  // Handle error correction items
+  const isSuggestionItem = currentItem.startsWith('ec-suggestion-');
+  const isDismissItem = currentItem === 'ec-dismiss';
+
+  let displayText = currentItem;
+  if (isSuggestionItem) {
+    const index = parseInt(currentItem.split('-')[2], 10);
+    displayText = suggestions[index]?.text || currentItem;
+  } else if (isDismissItem) {
+    displayText = 'Dismiss Suggestions';
+  }
+
   // Determine text stroke (outline) style for the letter itself
   let textStroke = '';
   if (borderWidth > 0) {
@@ -113,6 +128,8 @@ const Scanner: React.FC<ScannerProps> = ({
       textStroke = `${borderWidth}px ${theme.colors.actionBorder}`;
     } else if (isPrediction) {
       textStroke = `${borderWidth}px ${theme.colors.predictionBorder}`;
+    } else if (isSuggestionItem || isDismissItem) {
+      textStroke = `${borderWidth}px #FFA500`; // Orange for error correction
     }
   }
 
@@ -139,7 +156,7 @@ const Scanner: React.FC<ScannerProps> = ({
           display: 'inline-block',
         }}
       >
-        {currentItem}
+        {displayText}
       </span>
     </div>
   );

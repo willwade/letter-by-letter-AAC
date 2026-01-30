@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { SPECIAL_ACTIONS, SPEAK, SPACE, UNDO, CLEAR, BACK } from '../constants';
-import { ScanningStrategy, BlockMode } from '../types';
+import { ScanningStrategy, BlockMode, ErrorCorrectionSuggestion } from '../types';
 import { generateBlocks, Block } from '../utils/layoutEngine';
 
 interface UseScanningProps {
@@ -22,11 +22,17 @@ interface UseScanningProps {
   scanningStrategy: ScanningStrategy;
   blockMode: BlockMode;
   blockSize: number;
+  // Error correction props
+  suggestions?: ErrorCorrectionSuggestion[];
+  showSuggestions?: boolean;
+  // Timing tracking callback
+  onItemChange?: (itemIndex: number) => void;
 }
 
 interface SelectionResult {
-  action: 'select' | 'enter-block' | 'exit-block' | 'none';
+  action: 'select' | 'enter-block' | 'exit-block' | 'none' | 'apply-suggestion' | 'dismiss-suggestions';
   value?: string;
+  suggestionIndex?: number;
 }
 
 interface UseScanningReturn {
@@ -63,6 +69,9 @@ export function useScanning({
   scanningStrategy,
   blockMode,
   blockSize,
+  suggestions = [],
+  showSuggestions = false,
+  onItemChange,
 }: UseScanningProps): UseScanningReturn {
   const [scanIndex, setScanIndex] = useState<number>(0);
   const [scanItems, setScanItems] = useState<string[]>([...alphabet]);
@@ -91,6 +100,15 @@ export function useScanning({
     if (effectiveStrategy === 'linear') {
       const newScanItems: string[] = [];
       const predictionEnabledAndReady = enablePrediction && predictor;
+
+      // Add error correction suggestions at the start if available
+      // Prefix with "ec:" to identify them as error correction items
+      if (showSuggestions && suggestions.length > 0) {
+        suggestions.forEach((suggestion, index) => {
+          newScanItems.push(`ec-suggestion-${index}`);
+        });
+        // Removed "ec-dismiss" - suggestions auto-dismiss on any selection
+      }
 
       // Game Mode logic (simplified for brevity, matching original)
       if (gameMode && currentGameTarget) {
@@ -131,6 +149,12 @@ export function useScanning({
       // For linear, spoken items are mostly same as display items, with some exceptions
       setScanItemsSpoken(
         newScanItems.map((item) => {
+          // Handle error correction items
+          if (item.startsWith('ec-suggestion-')) {
+            const index = parseInt(item.split('-')[2], 10);
+            return suggestions[index]?.text || item;
+          }
+
           if (item === '_') return 'Space';
           if (item === SPEAK) return 'Speak';
           if (item === UNDO) return 'Undo';
@@ -157,17 +181,25 @@ export function useScanning({
         // Items stage
         const block = generatedBlocks[activeBlockIndex];
         if (block) {
-          setScanItems([...block.items, BACK]);
-          setScanItemsSpoken([
-            ...block.items.map((item) => {
-              if (item === '_') return 'Space';
-              if (item === SPEAK) return 'Speak';
-              if (item === UNDO) return 'Undo';
-              if (item === CLEAR) return 'Clear';
-              return item;
-            }),
-            'Go Back',
-          ]);
+          // Add error correction suggestions at the start of items
+          const itemsWithSuggestions = [...block.items];
+          const spokenItemsWithSuggestions = block.items.map((item) => {
+            if (item === '_') return 'Space';
+            if (item === SPEAK) return 'Speak';
+            if (item === UNDO) return 'Undo';
+            if (item === CLEAR) return 'Clear';
+            return item;
+          });
+
+          if (showSuggestions && suggestions.length > 0) {
+            suggestions.forEach((suggestion, index) => {
+              itemsWithSuggestions.unshift(`ec-suggestion-${index}`);
+              spokenItemsWithSuggestions.unshift(suggestion.text);
+            });
+          }
+
+          setScanItems([...itemsWithSuggestions, BACK]);
+          setScanItemsSpoken([...spokenItemsWithSuggestions, 'Go Back']);
         } else {
           // Fallback if index invalid (e.g. config changed)
           setScanStage('blocks');
@@ -200,6 +232,8 @@ export function useScanning({
     blockSize,
     scanStage,
     activeBlockIndex,
+    suggestions,
+    showSuggestions,
   ]);
 
   // Auto-advance scanning interval
@@ -232,6 +266,13 @@ export function useScanning({
     showSettingsModal,
   ]);
 
+  // Track scan index changes for timing
+  useEffect(() => {
+    if (onItemChange && scanIndex >= 0) {
+      onItemChange(scanIndex);
+    }
+  }, [scanIndex, onItemChange]);
+
   const currentItem = scanItems[scanIndex] ?? '';
 
   // Determine the spoken representation of the current item
@@ -263,6 +304,12 @@ export function useScanning({
       const effectiveStrategy = gameMode ? 'linear' : scanningStrategy;
 
       if (effectiveStrategy === 'linear') {
+        // Handle error correction actions
+        if (item.startsWith('ec-suggestion-')) {
+          const index = parseInt(item.split('-')[2], 10);
+          return { action: 'apply-suggestion', suggestionIndex: index };
+        }
+
         return { action: 'select', value: item };
       }
 

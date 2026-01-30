@@ -3,6 +3,8 @@ import { ALPHABET } from './constants';
 import Display from './components/Display';
 import Scanner from './components/Scanner';
 import Controls from './components/Controls';
+import { ReactionTimeTest } from './components/ReactionTimeTest';
+import { ConfidenceIndicator } from './components/ConfidenceIndicator';
 import { getUppercase, getLowercase, getScripts, getIndexData } from 'worldalphabets';
 import { getTheme } from './themes';
 import { resolveFontFamily } from './utils/fontMapping';
@@ -14,6 +16,8 @@ import { useAudio } from './hooks/useAudio';
 import { useTTS } from './hooks/useTTS';
 import { useAuditoryScanning } from './hooks/useAuditoryScanning';
 import { useSelectionLogic } from './hooks/useSelectionLogic';
+import { useErrorCorrection } from './hooks/useErrorCorrection';
+import { useReactionTimeInference } from './hooks/useReactionTimeInference';
 
 const App: React.FC = () => {
   // MIGRATION: Use settings hook (gradually migrating settings here)
@@ -30,6 +34,8 @@ const App: React.FC = () => {
 
   const [isFullscreen, setIsFullscreen] = useState<boolean>(!!document.fullscreenElement);
   const [showSettingsModal, setShowSettingsModal] = useState<boolean>(false);
+  const [showReactionTimeTest, setShowReactionTimeTest] = useState<boolean>(false);
+  const [lastSelected, setLastSelected] = useState<string>('');
 
   // Language and alphabet state (complex dependencies, not fully migrated)
   const [alphabet, setAlphabet] = useState<string[]>(initialAlphabet);
@@ -110,6 +116,31 @@ const App: React.FC = () => {
     scanSpeed: settings.scanSpeed,
   });
 
+  // Error Correction Hook
+  const { suggestions, showSuggestions, dismissSuggestions, applySuggestion } = useErrorCorrection({
+    predictor,
+    message,
+    lastSelected,
+    enableCorrection: settings.errorCorrectionEnabled,
+    threshold: settings.errorCorrectionThreshold,
+    scanItems: tempScanItems,
+  });
+
+  // Reaction Time Inference Hook
+  const {
+    recordItemStart,
+    recordSelection,
+    currentInference,
+    getRecommendedScanSpeed,
+    isScanSpeedAppropriate,
+  } = useReactionTimeInference({
+    stats: settings.reactionTimeStats,
+    enableInference: settings.enableInference,
+    confidenceThreshold: settings.confidenceThreshold,
+    scanMode: settings.scanMode,
+    scanSpeed: settings.scanSpeed,
+  });
+
   // Use scanning hook (needs predictions to build scan items AND playSound)
   const {
     scanIndex,
@@ -139,6 +170,9 @@ const App: React.FC = () => {
     scanningStrategy: settings.scanningStrategy,
     blockMode: settings.blockMode,
     blockSize: settings.blockSize,
+    suggestions,
+    showSuggestions,
+    onItemChange: recordItemStart,
   });
 
   // Update temp scan items when scanning hook updates them
@@ -327,13 +361,43 @@ const App: React.FC = () => {
         return;
       }
 
+      // Handle error correction actions
+      if (selection.action === 'apply-suggestion' && selection.suggestionIndex !== undefined) {
+        const suggestion = suggestions[selection.suggestionIndex];
+        if (suggestion) {
+          const correctedMessage = applySuggestion(suggestion);
+          setMessage(correctedMessage);
+          if (predictor) {
+            predictor.resetContext();
+            predictor.addToContext(correctedMessage.toLowerCase());
+          }
+          // Mark this correction as applied so it won't be suggested again
+          // The useErrorCorrection hook will handle this via message change
+          dismissSuggestions();
+        }
+        return;
+      }
+
       // If nothing to do (shouldn't happen)
       if (selection.action === 'none') return;
 
       // Use the resolved value from the selection
       const selectedItem = selection.value || item;
 
+      // Record reaction time inference before processing selection
+      const inference = recordSelection(scanIndex, selectedItem, scanItems);
+
+      // Check if inference suggests a different item
+      if (settings.enableInference && inference.intendedItem && inference.intendedItem !== selectedItem) {
+        // Low confidence - use the inferred item instead
+        handleSelectionLogic(inference.intendedItem);
+        setLastSelected(inference.intendedItem);
+        return;
+      }
+
+      // Process selection normally
       handleSelectionLogic(selectedItem);
+      setLastSelected(selectedItem);
 
       // Play auditory feedback for message if enabled
       if (settings.auditoryScanningEnabled) {
@@ -350,6 +414,15 @@ const App: React.FC = () => {
       processSelection,
       handleSelectionLogic,
       settings.auditoryScanningEnabled,
+      recordSelection,
+      scanIndex,
+      scanItems,
+      settings.enableInference,
+      suggestions,
+      applySuggestion,
+      dismissSuggestions,
+      setMessage,
+      predictor,
     ]
   );
 
@@ -580,6 +653,7 @@ const App: React.FC = () => {
             borderWidth={settings.borderWidth}
             predictedLetters={predictedLetters}
             predictedWords={predictedWords}
+            suggestions={suggestions}
           />
           {/* Hold Progress Indicator */}
           {isHolding && settings.enableHoldActions && (
@@ -699,7 +773,55 @@ const App: React.FC = () => {
         setBlockMode={settings.setBlockMode}
         blockSize={settings.blockSize}
         setBlockSize={settings.setBlockSize}
+        errorCorrectionEnabled={settings.errorCorrectionEnabled}
+        setErrorCorrectionEnabled={settings.setErrorCorrectionEnabled}
+        errorCorrectionThreshold={settings.errorCorrectionThreshold}
+        setErrorCorrectionThreshold={settings.setErrorCorrectionThreshold}
+        showConfidenceIndicator={settings.showConfidenceIndicator}
+        setShowConfidenceIndicator={settings.setShowConfidenceIndicator}
+        enableInference={settings.enableInference}
+        setEnableInference={settings.setEnableInference}
+        confidenceThreshold={settings.confidenceThreshold}
+        setConfidenceThreshold={settings.setConfidenceThreshold}
+        reactionTimeStats={settings.reactionTimeStats}
+        setReactionTimeStats={settings.setReactionTimeStats}
+        onStartReactionTimeTest={() => setShowReactionTimeTest(true)}
       />
+
+      {/* Reaction Time Test Modal */}
+      {showReactionTimeTest && (
+        <ReactionTimeTest
+          playSound={playSound}
+          onComplete={(result, switchType) => {
+            settings.setReactionTimeStats(result);
+            setShowReactionTimeTest(false);
+          }}
+          onCancel={() => setShowReactionTimeTest(false)}
+          theme={theme}
+        />
+      )}
+
+      {/* Confidence Indicator */}
+      {settings.showConfidenceIndicator && currentInference && (
+        <div
+          style={{
+            position: 'fixed',
+            bottom: '10px',
+            right: '10px',
+            zIndex: 40,
+            opacity: 0.7,
+            fontSize: '0.7rem',
+          }}
+        >
+          <ConfidenceIndicator
+            confidence={currentInference.confidence}
+            showWarning={!isScanSpeedAppropriate()}
+            recommendedSpeed={getRecommendedScanSpeed()}
+            currentSpeed={settings.scanSpeed}
+            theme={theme}
+          />
+        </div>
+      )}
     </div>
   );
 };
