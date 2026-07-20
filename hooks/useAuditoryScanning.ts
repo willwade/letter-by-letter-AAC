@@ -4,15 +4,27 @@ import meSpeak from 'mespeak';
 // Module-level promise to prevent concurrent initialization
 let initPromise: Promise<void> | null = null;
 
+// Per-call override options for meSpeak synthesis. Lets the message-bar path
+// use message-specific pitch/rate even when the hook was configured with
+// cue-specific defaults.
+export interface MeSpeakOverride {
+  pitch?: number;
+  rate?: number;
+}
+
 export interface UseAuditoryScanningProps {
   enabled: boolean;
   audioDeviceId: string | null;
   scanSpeed: number; // Used to adapt TTS rate
+  // User-controlled meSpeak params. When provided, pitch is applied to every
+  // utterance and rate replaces the auto-from-scan-speed calculation.
+  pitch?: number; // 0-99 (meSpeak scale), default 50
+  rate?: number; // words-per-minute, default 175
 }
 
 export interface UseAuditoryScanningReturn {
   playItem: (text: string) => void;
-  playMessage: (message: string) => Promise<void>;
+  playMessage: (message: string, overrides?: MeSpeakOverride) => Promise<void>;
   addToCache: (items: string[]) => void;
   availableDevices: MediaDeviceInfo[];
   requestAudioDeviceAccess: () => Promise<void>;
@@ -30,6 +42,8 @@ export function useAuditoryScanning({
   enabled,
   audioDeviceId,
   scanSpeed,
+  pitch,
+  rate,
 }: UseAuditoryScanningProps): UseAuditoryScanningReturn {
   const [isReady, setIsReady] = useState(false);
   const [availableDevices, setAvailableDevices] = useState<MediaDeviceInfo[]>([]);
@@ -214,9 +228,13 @@ export function useAuditoryScanning({
     void applySinkId(audioDeviceId);
   }, [audioDeviceId, applySinkId]);
 
-  // Calculate TTS rate based on scanSpeed and text length
+  // Calculate TTS rate (words-per-minute). When the user has set a fixed rate
+  // via settings, use it verbatim. Otherwise fall back to the original heuristic
+  // that fits the utterance into the scan-speed window.
   const calculateRate = useCallback(
     (text: string): number => {
+      if (rate !== undefined && rate > 0) return rate;
+
       // Estimate word count (split by spaces/punctuation)
       const words = text.trim().split(/[\s,.-]+/).filter((w) => w.length > 0).length;
       if (words === 0) return 175; // Default
@@ -235,25 +253,34 @@ export function useAuditoryScanning({
 
       return Math.round(targetWPM);
     },
-    [scanSpeed]
+    [scanSpeed, rate]
   );
 
   const generateAudioBuffer = useCallback(
-    async (text: string): Promise<AudioBuffer | null> => {
+    async (text: string, overrides?: MeSpeakOverride): Promise<AudioBuffer | null> => {
       if (!text || !isReady || !audioContextRef.current) return null;
 
-      const rate = calculateRate(text);
+      const effectiveRate =
+        overrides?.rate !== undefined ? overrides.rate : calculateRate(text);
+      // meSpeak pitch defaults to 50 on the 0-99 scale; honor an override if set.
+      const effectivePitch =
+        overrides?.pitch !== undefined ? overrides.pitch : pitch !== undefined ? pitch : 50;
 
-      // Normalize text for cache key, include rate
-      const cacheKey = `${text}:${rate}`;
+      // Normalize text for cache key, include rate + pitch so changing either
+      // invalidates the cache.
+      const cacheKey = `${text}:${effectiveRate}:${effectivePitch}`;
       if (audioCacheRef.current.has(cacheKey)) {
         return audioCacheRef.current.get(cacheKey)!;
       }
 
       try {
         // meSpeak.speak with rawdata: true returns an ArrayBuffer (WAV)
-        // Pass speed option
-        const wavData = meSpeak.speak(text, { rawdata: 'array', speed: rate });
+        // Pass speed + pitch options.
+        const wavData = meSpeak.speak(text, {
+          rawdata: 'array',
+          speed: effectiveRate,
+          pitch: effectivePitch,
+        });
 
         if (!wavData) {
           return null;
@@ -292,7 +319,7 @@ export function useAuditoryScanning({
         return null;
       }
     },
-    [isReady, calculateRate]
+    [isReady, calculateRate, pitch]
   );
 
   // Queue Processing Loop
@@ -450,7 +477,7 @@ export function useAuditoryScanning({
   );
 
   const playMessage = useCallback(
-    async (message: string): Promise<void> => {
+    async (message: string, overrides?: MeSpeakOverride): Promise<void> => {
       if (!enabled || !message) return;
 
       if (currentSourceRef.current) {
@@ -486,21 +513,9 @@ export function useAuditoryScanning({
           }
 
           const text = parts[index];
-          // Use default rate for message playback (175) to be consistent
-          // We can't rely on generateAudioBuffer's dynamic rate here because
-          // calculateRate uses scanSpeed, which might be very fast.
-          // Message playback should be intelligible at standard speed.
-
-          // However, to keep it simple and reuse the generator (which is bound to rate),
-          // we might just accept the current rate.
-          // Or we can manually call mespeak if we want fixed rate, but that bypasses our buffer logic.
-
-          // Let's assume for now that message playback using the adaptive rate is acceptable/better
-          // if the user has high scan speed, they probably process audio fast too.
-          // If not, we can refactor calculateRate to take an optional 'forceRate' param.
-
-          // For now, reuse standard generation:
-          let buffer = await generateAudioBuffer(text);
+          // Reuse the same generator; when overrides are supplied (message-bar
+          // meSpeak path), they take precedence over the hook-level cue defaults.
+          let buffer = await generateAudioBuffer(text, overrides);
 
           if (buffer && audioContextRef.current) {
             const source = audioContextRef.current.createBufferSource();

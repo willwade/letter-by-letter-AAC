@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import type { ScanMode, ThemeName, ScanningStrategy, BlockMode, Switch1Input } from '../types';
+import type { ScanMode, ThemeName, ScanningStrategy, BlockMode, Switch1Input, TTSEngine } from '../types';
 
 /**
  * Custom hook to manage all app settings with localStorage persistence.
@@ -101,6 +101,57 @@ export function useSettings() {
     return localStorage.getItem('auditoryScanningDeviceId') || null;
   });
 
+  // Message bar voice settings (what reads out the composed message)
+  // Defaults to Web Speech so the message bar sounds different from meSpeak cues.
+  const [messageVoiceEngine, setMessageVoiceEngine] = useState<TTSEngine>(() => {
+    return (localStorage.getItem('messageVoiceEngine') as TTSEngine) || 'webspeech';
+  });
+  const [messageWebspeechVoiceURI, setMessageWebspeechVoiceURI] = useState<string | null>(() => {
+    return localStorage.getItem('messageWebspeechVoiceURI') || null;
+  });
+  const [messageWebspeechPitch, setMessageWebspeechPitch] = useState<number>(() => {
+    const saved = localStorage.getItem('messageWebspeechPitch');
+    return saved ? Number(saved) : 1;
+  });
+  const [messageWebspeechRate, setMessageWebspeechRate] = useState<number>(() => {
+    const saved = localStorage.getItem('messageWebspeechRate');
+    return saved ? Number(saved) : 1;
+  });
+  const [messageMespeakPitch, setMessageMespeakPitch] = useState<number>(() => {
+    const saved = localStorage.getItem('messageMespeakPitch');
+    return saved ? Number(saved) : 50;
+  });
+  const [messageMespeakRate, setMessageMespeakRate] = useState<number>(() => {
+    const saved = localStorage.getItem('messageMespeakRate');
+    return saved ? Number(saved) : 175;
+  });
+
+  // Cue voice settings (what reads each scanned item)
+  // Defaults to meSpeak so cues sound different from the Web Speech message bar.
+  const [cueVoiceEngine, setCueVoiceEngine] = useState<TTSEngine>(() => {
+    return (localStorage.getItem('cueVoiceEngine') as TTSEngine) || 'mespeak';
+  });
+  const [cueWebspeechVoiceURI, setCueWebspeechVoiceURI] = useState<string | null>(() => {
+    return localStorage.getItem('cueWebspeechVoiceURI') || null;
+  });
+  const [cueWebspeechPitch, setCueWebspeechPitch] = useState<number>(() => {
+    const saved = localStorage.getItem('cueWebspeechPitch');
+    return saved ? Number(saved) : 1;
+  });
+  const [cueWebspeechRate, setCueWebspeechRate] = useState<number>(() => {
+    const saved = localStorage.getItem('cueWebspeechRate');
+    return saved ? Number(saved) : 1;
+  });
+  const [cueMespeakPitch, setCueMespeakPitch] = useState<number>(() => {
+    const saved = localStorage.getItem('cueMespeakPitch');
+    return saved ? Number(saved) : 50;
+  });
+  // Replaces the previous auto-rate-from-scan-speed logic with a user-fixed WPM.
+  const [cueMespeakRate, setCueMespeakRate] = useState<number>(() => {
+    const saved = localStorage.getItem('cueMespeakRate');
+    return saved ? Number(saved) : 175;
+  });
+
   // UI settings
   const [hideControlBar, setHideControlBar] = useState<boolean>(() => {
     return localStorage.getItem('hideControlBar') === 'true';
@@ -182,6 +233,26 @@ export function useSettings() {
     localStorage.setItem('borderWidth', borderWidth.toString());
     localStorage.setItem('audioEffectsEnabled', audioEffectsEnabled.toString());
     localStorage.setItem('auditoryScanningEnabled', auditoryScanningEnabled.toString());
+    localStorage.setItem('messageVoiceEngine', messageVoiceEngine);
+    if (messageWebspeechVoiceURI) {
+      localStorage.setItem('messageWebspeechVoiceURI', messageWebspeechVoiceURI);
+    } else {
+      localStorage.removeItem('messageWebspeechVoiceURI');
+    }
+    localStorage.setItem('messageWebspeechPitch', messageWebspeechPitch.toString());
+    localStorage.setItem('messageWebspeechRate', messageWebspeechRate.toString());
+    localStorage.setItem('messageMespeakPitch', messageMespeakPitch.toString());
+    localStorage.setItem('messageMespeakRate', messageMespeakRate.toString());
+    localStorage.setItem('cueVoiceEngine', cueVoiceEngine);
+    if (cueWebspeechVoiceURI) {
+      localStorage.setItem('cueWebspeechVoiceURI', cueWebspeechVoiceURI);
+    } else {
+      localStorage.removeItem('cueWebspeechVoiceURI');
+    }
+    localStorage.setItem('cueWebspeechPitch', cueWebspeechPitch.toString());
+    localStorage.setItem('cueWebspeechRate', cueWebspeechRate.toString());
+    localStorage.setItem('cueMespeakPitch', cueMespeakPitch.toString());
+    localStorage.setItem('cueMespeakRate', cueMespeakRate.toString());
     if (auditoryScanningDeviceId) {
       localStorage.setItem('auditoryScanningDeviceId', auditoryScanningDeviceId);
     } else {
@@ -229,6 +300,18 @@ export function useSettings() {
     audioEffectsEnabled,
     auditoryScanningEnabled,
     auditoryScanningDeviceId,
+    messageVoiceEngine,
+    messageWebspeechVoiceURI,
+    messageWebspeechPitch,
+    messageWebspeechRate,
+    messageMespeakPitch,
+    messageMespeakRate,
+    cueVoiceEngine,
+    cueWebspeechVoiceURI,
+    cueWebspeechPitch,
+    cueWebspeechRate,
+    cueMespeakPitch,
+    cueMespeakRate,
     hideControlBar,
     speakAfterPredictions,
     enableHoldActions,
@@ -296,6 +379,34 @@ export function useSettings() {
     setAuditoryScanningEnabled,
     auditoryScanningDeviceId,
     setAuditoryScanningDeviceId,
+
+    // Message bar voice settings
+    messageVoiceEngine,
+    setMessageVoiceEngine,
+    messageWebspeechVoiceURI,
+    setMessageWebspeechVoiceURI,
+    messageWebspeechPitch,
+    setMessageWebspeechPitch,
+    messageWebspeechRate,
+    setMessageWebspeechRate,
+    messageMespeakPitch,
+    setMessageMespeakPitch,
+    messageMespeakRate,
+    setMessageMespeakRate,
+
+    // Cue voice settings
+    cueVoiceEngine,
+    setCueVoiceEngine,
+    cueWebspeechVoiceURI,
+    setCueWebspeechVoiceURI,
+    cueWebspeechPitch,
+    setCueWebspeechPitch,
+    cueWebspeechRate,
+    setCueWebspeechRate,
+    cueMespeakPitch,
+    setCueMespeakPitch,
+    cueMespeakRate,
+    setCueMespeakRate,
 
     // UI settings
     hideControlBar,

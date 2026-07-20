@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import type { ScanMode, ThemeName, Theme, ScanningStrategy, BlockMode, Switch1Input } from '../types';
+import type { ScanMode, ThemeName, Theme, ScanningStrategy, BlockMode, Switch1Input, TTSEngine } from '../types';
 import { ModeSettings } from './settings/ModeSettings';
 import { LayoutSettings } from './settings/LayoutSettings';
 import { LanguageSettings } from './settings/LanguageSettings';
@@ -100,6 +100,34 @@ interface ControlsProps {
     targetSinkId: string;
     error?: string;
   } | null;
+
+  // Message Bar Voice
+  messageVoiceEngine: TTSEngine;
+  setMessageVoiceEngine: (engine: TTSEngine) => void;
+  messageWebspeechVoiceURI: string | null;
+  setMessageWebspeechVoiceURI: (uri: string | null) => void;
+  messageWebspeechPitch: number;
+  setMessageWebspeechPitch: (pitch: number) => void;
+  messageWebspeechRate: number;
+  setMessageWebspeechRate: (rate: number) => void;
+  messageMespeakPitch: number;
+  setMessageMespeakPitch: (pitch: number) => void;
+  messageMespeakRate: number;
+  setMessageMespeakRate: (rate: number) => void;
+
+  // Cue Voice
+  cueVoiceEngine: TTSEngine;
+  setCueVoiceEngine: (engine: TTSEngine) => void;
+  cueWebspeechVoiceURI: string | null;
+  setCueWebspeechVoiceURI: (uri: string | null) => void;
+  cueWebspeechPitch: number;
+  setCueWebspeechPitch: (pitch: number) => void;
+  cueWebspeechRate: number;
+  setCueWebspeechRate: (rate: number) => void;
+  cueMespeakPitch: number;
+  setCueMespeakPitch: (pitch: number) => void;
+  cueMespeakRate: number;
+  setCueMespeakRate: (rate: number) => void;
 }
 
 const SETTINGS_CATEGORIES = [
@@ -196,6 +224,30 @@ const Controls: React.FC<ControlsProps> = ({
   auditoryDevices,
   onUnlockAudioDevices,
   sinkStatus,
+  messageVoiceEngine,
+  setMessageVoiceEngine,
+  messageWebspeechVoiceURI,
+  setMessageWebspeechVoiceURI,
+  messageWebspeechPitch,
+  setMessageWebspeechPitch,
+  messageWebspeechRate,
+  setMessageWebspeechRate,
+  messageMespeakPitch,
+  setMessageMespeakPitch,
+  messageMespeakRate,
+  setMessageMespeakRate,
+  cueVoiceEngine,
+  setCueVoiceEngine,
+  cueWebspeechVoiceURI,
+  setCueWebspeechVoiceURI,
+  cueWebspeechPitch,
+  setCueWebspeechPitch,
+  cueWebspeechRate,
+  setCueWebspeechRate,
+  cueMespeakPitch,
+  setCueMespeakPitch,
+  cueMespeakRate,
+  setCueMespeakRate,
   scanningStrategy,
   setScanningStrategy,
   blockMode,
@@ -311,6 +363,31 @@ const Controls: React.FC<ControlsProps> = ({
             onUnlockAudioDevices={onUnlockAudioDevices}
             sinkStatus={sinkStatus}
             theme={theme}
+            availableVoices={availableVoices}
+            messageVoiceEngine={messageVoiceEngine}
+            setMessageVoiceEngine={setMessageVoiceEngine}
+            messageWebspeechVoiceURI={messageWebspeechVoiceURI}
+            setMessageWebspeechVoiceURI={setMessageWebspeechVoiceURI}
+            messageWebspeechPitch={messageWebspeechPitch}
+            setMessageWebspeechPitch={setMessageWebspeechPitch}
+            messageWebspeechRate={messageWebspeechRate}
+            setMessageWebspeechRate={setMessageWebspeechRate}
+            messageMespeakPitch={messageMespeakPitch}
+            setMessageMespeakPitch={setMessageMespeakPitch}
+            messageMespeakRate={messageMespeakRate}
+            setMessageMespeakRate={setMessageMespeakRate}
+            cueVoiceEngine={cueVoiceEngine}
+            setCueVoiceEngine={setCueVoiceEngine}
+            cueWebspeechVoiceURI={cueWebspeechVoiceURI}
+            setCueWebspeechVoiceURI={setCueWebspeechVoiceURI}
+            cueWebspeechPitch={cueWebspeechPitch}
+            setCueWebspeechPitch={setCueWebspeechPitch}
+            cueWebspeechRate={cueWebspeechRate}
+            setCueWebspeechRate={setCueWebspeechRate}
+            cueMespeakPitch={cueMespeakPitch}
+            setCueMespeakPitch={setCueMespeakPitch}
+            cueMespeakRate={cueMespeakRate}
+            setCueMespeakRate={setCueMespeakRate}
           />
         );
       case 'game':
