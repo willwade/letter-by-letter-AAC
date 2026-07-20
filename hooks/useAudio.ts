@@ -7,6 +7,7 @@ export interface UseAudioProps {
 
 export interface UseAudioReturn {
   playSound: (type: 'click' | 'select' | 'beep') => void;
+  playBeep: (frequency?: number, durationMs?: number) => void;
   isLoaded: boolean;
 }
 
@@ -97,8 +98,43 @@ export function useAudio({ enabled, volume = 0.3 }: UseAudioProps): UseAudioRetu
     [enabled, audioContext, audioBuffers, volume]
   );
 
+  // Synthesized beep using OscillatorNode. Avoids needing a beep.mp3 asset
+  // and lets callers pick a frequency (e.g. low pitch for green, high for red).
+  const playBeep = useCallback(
+    (frequency = 440, durationMs = 150) => {
+      if (!enabled || !audioContext) return;
+      // Browsers suspend AudioContext until a user gesture; resume on demand.
+      if (audioContext.state === 'suspended') {
+        audioContext.resume().catch(() => {
+          /* ignore - will retry on next call */
+        });
+      }
+
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+
+      oscillator.type = 'sine';
+      oscillator.frequency.value = frequency;
+
+      // Quick attack, exponential decay - pleasant short beep
+      const now = audioContext.currentTime;
+      const durationSec = durationMs / 1000;
+      gainNode.gain.setValueAtTime(0, now);
+      gainNode.gain.linearRampToValueAtTime(volume, now + 0.01);
+      gainNode.gain.exponentialRampToValueAtTime(0.0001, now + durationSec);
+
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+
+      oscillator.start(now);
+      oscillator.stop(now + durationSec);
+    },
+    [enabled, audioContext, volume]
+  );
+
   return {
     playSound,
+    playBeep,
     isLoaded,
   };
 }

@@ -83,7 +83,7 @@ const App: React.FC = () => {
   // MIGRATION: holdZoneRef and holdProgressIntervalRef now in useKeyboard hook!
 
   // MIGRATION: Audio handling now in useAudio hook!
-  const { playSound } = useAudio({
+  const { playSound, playBeep } = useAudio({
     enabled: settings.audioEffectsEnabled,
     volume: 0.3,
   });
@@ -493,6 +493,7 @@ const App: React.FC = () => {
     shortHoldAction: settings.shortHoldAction,
     longHoldAction: settings.longHoldAction,
     playSound,
+    playBeep,
     setIsHolding,
     setHoldProgress,
     setHoldZone,
