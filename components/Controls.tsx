@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import type { ScanMode, ThemeName, Theme, ScanningStrategy, BlockMode } from '../types';
+import type { ScanMode, ThemeName, Theme, ScanningStrategy, BlockMode, Switch1Input } from '../types';
 import { ModeSettings } from './settings/ModeSettings';
 import { LayoutSettings } from './settings/LayoutSettings';
 import { LanguageSettings } from './settings/LanguageSettings';
@@ -10,6 +10,8 @@ import { GameSettings } from './settings/GameSettings';
 interface ControlsProps {
   scanMode: ScanMode;
   setScanMode: (mode: ScanMode) => void;
+  switch1Input: Switch1Input;
+  setSwitch1Input: (input: Switch1Input) => void;
   scanningStrategy: ScanningStrategy;
   setScanningStrategy: (strategy: ScanningStrategy) => void;
   blockMode: BlockMode;
@@ -114,6 +116,8 @@ type SettingsCategory = typeof SETTINGS_CATEGORIES[number]['id'];
 const Controls: React.FC<ControlsProps> = ({
   scanMode,
   setScanMode,
+  switch1Input,
+  setSwitch1Input,
   scanSpeed,
   setScanSpeed,
   firstItemDelay,
@@ -212,6 +216,8 @@ const Controls: React.FC<ControlsProps> = ({
           <ModeSettings
             scanMode={scanMode}
             setScanMode={setScanMode}
+            switch1Input={switch1Input}
+            setSwitch1Input={setSwitch1Input}
             scanSpeed={scanSpeed}
             setScanSpeed={setScanSpeed}
             firstItemDelay={firstItemDelay}

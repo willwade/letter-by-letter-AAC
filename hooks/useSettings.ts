@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import type { ScanMode, ThemeName, ScanningStrategy, BlockMode } from '../types';
+import type { ScanMode, ThemeName, ScanningStrategy, BlockMode, Switch1Input } from '../types';
 
 /**
  * Custom hook to manage all app settings with localStorage persistence.
@@ -9,6 +9,10 @@ export function useSettings() {
   // Scanning settings
   const [scanMode, setScanMode] = useState<ScanMode>(() => {
     return (localStorage.getItem('scanMode') as ScanMode) || 'one-switch';
+  });
+
+  const [switch1Input, setSwitch1Input] = useState<Switch1Input>(() => {
+    return (localStorage.getItem('switch1Input') as Switch1Input) || 'space';
   });
 
   const [scanSpeed, setScanSpeed] = useState<number>(() => {
@@ -161,6 +165,7 @@ export function useSettings() {
   // Using a single useEffect to batch all localStorage writes
   useEffect(() => {
     localStorage.setItem('scanMode', scanMode);
+    localStorage.setItem('switch1Input', switch1Input);
     localStorage.setItem('scanSpeed', scanSpeed.toString());
     localStorage.setItem('firstItemDelay', firstItemDelay.toString());
     localStorage.setItem('holdSpeed', holdSpeed.toString());
@@ -208,6 +213,7 @@ export function useSettings() {
     }
   }, [
     scanMode,
+    switch1Input,
     scanSpeed,
     firstItemDelay,
     holdSpeed,
@@ -242,6 +248,8 @@ export function useSettings() {
     // Scanning settings
     scanMode,
     setScanMode,
+    switch1Input,
+    setSwitch1Input,
     scanSpeed,
     setScanSpeed,
     firstItemDelay,
