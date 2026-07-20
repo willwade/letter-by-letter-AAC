@@ -95,7 +95,9 @@ const App: React.FC = () => {
     setSelectedVoiceURI: settings.setSelectedVoiceURI,
   });
 
-  // Auditory Scanning Hook
+  // Auditory Scanning Hook (cue voice via meSpeak)
+  // Pass user-controlled meSpeak pitch + rate so the cue voice is tunable and
+  // honours a fixed WPM when the user has set one (replaces auto-from-scan-speed).
   const {
     playItem: playAuditoryItem,
     playMessage: playAuditoryMessage,
@@ -108,6 +110,8 @@ const App: React.FC = () => {
     enabled: settings.auditoryScanningEnabled,
     audioDeviceId: settings.auditoryScanningDeviceId,
     scanSpeed: settings.scanSpeed,
+    pitch: settings.cueMespeakPitch,
+    rate: settings.cueMespeakRate,
   });
 
   // Use scanning hook (needs predictions to build scan items AND playSound)
@@ -150,12 +154,66 @@ const App: React.FC = () => {
     }
   }, [scanItems, scanItemsSpoken, settings.auditoryScanningEnabled, addAuditoryItemsToCache]);
 
+  // Voice-routing wrappers. The message bar and the cue can each use either
+  // Web Speech or meSpeak; the wrappers pick the right engine based on settings
+  // so the rest of the app just calls one function. Defined early so multiple
+  // useEffects below can consume them.
+  const playMessageBarAudio = useCallback(
+    async (text: string): Promise<void> => {
+      if (settings.messageVoiceEngine === 'webspeech') {
+        await speak(text, {
+          voiceURI: settings.messageWebspeechVoiceURI,
+          pitch: settings.messageWebspeechPitch,
+          rate: settings.messageWebspeechRate,
+        });
+      } else {
+        await playAuditoryMessage(text, {
+          pitch: settings.messageMespeakPitch,
+          rate: settings.messageMespeakRate,
+        });
+      }
+    },
+    [
+      settings.messageVoiceEngine,
+      settings.messageWebspeechVoiceURI,
+      settings.messageWebspeechPitch,
+      settings.messageWebspeechRate,
+      settings.messageMespeakPitch,
+      settings.messageMespeakRate,
+      speak,
+      playAuditoryMessage,
+    ]
+  );
+
+  const playCueAudio = useCallback(
+    (text: string) => {
+      if (settings.cueVoiceEngine === 'webspeech') {
+        // Fire-and-forget - cues shouldn't block scanning.
+        void speak(text, {
+          voiceURI: settings.cueWebspeechVoiceURI,
+          pitch: settings.cueWebspeechPitch,
+          rate: settings.cueWebspeechRate,
+        });
+      } else {
+        playAuditoryItem(text);
+      }
+    },
+    [
+      settings.cueVoiceEngine,
+      settings.cueWebspeechVoiceURI,
+      settings.cueWebspeechPitch,
+      settings.cueWebspeechRate,
+      speak,
+      playAuditoryItem,
+    ]
+  );
+
   // Effect to play auditory scanning item when scan index changes
   useEffect(() => {
     if (isScanning && settings.auditoryScanningEnabled) {
       // Use currentItemSpoken from useScanning which handles block labels
       if (currentItemSpoken) {
-        playAuditoryItem(currentItemSpoken);
+        playCueAudio(currentItemSpoken);
       }
     }
   }, [
@@ -163,7 +221,7 @@ const App: React.FC = () => {
     isScanning,
     settings.auditoryScanningEnabled,
     currentItemSpoken,
-    playAuditoryItem,
+    playCueAudio,
   ]);
 
   // Effect to load available languages and their names on startup
@@ -376,7 +434,7 @@ const App: React.FC = () => {
 
     const play = async () => {
       if (message.length > 0) {
-        await playAuditoryMessage(message);
+        await playMessageBarAudio(message);
       }
 
       if (messagePlaybackIdRef.current === playbackId && wasScanning) {
@@ -389,7 +447,7 @@ const App: React.FC = () => {
   }, [
     message,
     settings.auditoryScanningEnabled,
-    playAuditoryMessage,
+    playMessageBarAudio,
     isScanning,
     setIsScanning,
   ]);
@@ -407,7 +465,9 @@ const App: React.FC = () => {
         case 'SPEAK':
           if (message) {
             console.log('🔊 Speaking message:', message);
-            speak(message);
+            // Route through the message-bar voice wrapper so SPEAK honours the
+            // user's chosen engine/voice/pitch/rate (Web Speech by default).
+            void playMessageBarAudio(message);
           } else {
             console.log('⚠️ No message to speak');
           }
@@ -429,7 +489,7 @@ const App: React.FC = () => {
           break;
       }
     },
-    [message, speak, handleUndo, handleClear, setIsScanning, setScanIndex]
+    [message, playMessageBarAudio, handleUndo, handleClear, setIsScanning, setScanIndex]
   );
 
   const handleSwitch1 = useCallback(() => {
@@ -697,6 +757,30 @@ const App: React.FC = () => {
         auditoryDevices={auditoryDevices}
         onUnlockAudioDevices={requestAudioDeviceAccess}
         sinkStatus={sinkStatus}
+        messageVoiceEngine={settings.messageVoiceEngine}
+        setMessageVoiceEngine={settings.setMessageVoiceEngine}
+        messageWebspeechVoiceURI={settings.messageWebspeechVoiceURI}
+        setMessageWebspeechVoiceURI={settings.setMessageWebspeechVoiceURI}
+        messageWebspeechPitch={settings.messageWebspeechPitch}
+        setMessageWebspeechPitch={settings.setMessageWebspeechPitch}
+        messageWebspeechRate={settings.messageWebspeechRate}
+        setMessageWebspeechRate={settings.setMessageWebspeechRate}
+        messageMespeakPitch={settings.messageMespeakPitch}
+        setMessageMespeakPitch={settings.setMessageMespeakPitch}
+        messageMespeakRate={settings.messageMespeakRate}
+        setMessageMespeakRate={settings.setMessageMespeakRate}
+        cueVoiceEngine={settings.cueVoiceEngine}
+        setCueVoiceEngine={settings.setCueVoiceEngine}
+        cueWebspeechVoiceURI={settings.cueWebspeechVoiceURI}
+        setCueWebspeechVoiceURI={settings.setCueWebspeechVoiceURI}
+        cueWebspeechPitch={settings.cueWebspeechPitch}
+        setCueWebspeechPitch={settings.setCueWebspeechPitch}
+        cueWebspeechRate={settings.cueWebspeechRate}
+        setCueWebspeechRate={settings.setCueWebspeechRate}
+        cueMespeakPitch={settings.cueMespeakPitch}
+        setCueMespeakPitch={settings.setCueMespeakPitch}
+        cueMespeakRate={settings.cueMespeakRate}
+        setCueMespeakRate={settings.setCueMespeakRate}
         scanningStrategy={settings.scanningStrategy}
         setScanningStrategy={settings.setScanningStrategy}
         blockMode={settings.blockMode}

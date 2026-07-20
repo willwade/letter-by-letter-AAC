@@ -2,6 +2,8 @@ export type ScanMode = 'one-switch' | 'two-switch';
 
 export type Switch1Input = 'space' | 'click';
 
+export type TTSEngine = 'webspeech' | 'mespeak';
+
 export type ScanningStrategy = 'linear' | 'block';
 
 export type BlockMode = 'static' | 'predictive' | 'hybrid';

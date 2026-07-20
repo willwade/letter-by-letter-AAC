@@ -6,9 +6,15 @@ export interface UseTTSProps {
   setSelectedVoiceURI: (uri: string) => void;
 }
 
+export interface SpeakOptions {
+  voiceURI?: string | null;
+  pitch?: number;
+  rate?: number;
+}
+
 export interface UseTTSReturn {
   availableVoices: SpeechSynthesisVoice[];
-  speak: (text: string) => void;
+  speak: (text: string, options?: SpeakOptions) => Promise<void>;
   isSupported: boolean;
 }
 
@@ -61,17 +67,32 @@ export function useTTS({
     };
   }, [selectedLanguage, selectedVoiceURI, setSelectedVoiceURI, isSupported]);
 
-  // Speak function with voice selection
+  // Speak function with voice selection. Options override the language-settings
+  // defaults so callers can use a different voice / pitch / rate (e.g. for the
+  // message bar vs. cues) without changing global state.
+  // Returns a Promise that resolves when speech finishes (or immediately if the
+  // text is empty / unsupported), so callers can await before resuming scanning.
   const speak = useCallback(
-    (text: string) => {
-      if (!isSupported || !text) return;
+    (text: string, options?: SpeakOptions): Promise<void> => {
+      if (!isSupported || !text) return Promise.resolve();
 
       const utterance = new SpeechSynthesisUtterance(text);
-      const selectedVoice = availableVoices.find((v) => v.voiceURI === selectedVoiceURI);
+      const voiceURI = options?.voiceURI ?? selectedVoiceURI;
+      const selectedVoice = availableVoices.find((v) => v.voiceURI === voiceURI);
       if (selectedVoice) {
         utterance.voice = selectedVoice;
       }
-      window.speechSynthesis.speak(utterance);
+      if (options?.pitch !== undefined) {
+        utterance.pitch = options.pitch;
+      }
+      if (options?.rate !== undefined) {
+        utterance.rate = options.rate;
+      }
+      return new Promise<void>((resolve) => {
+        utterance.onend = () => resolve();
+        utterance.onerror = () => resolve();
+        window.speechSynthesis.speak(utterance);
+      });
     },
     [isSupported, availableVoices, selectedVoiceURI]
   );
