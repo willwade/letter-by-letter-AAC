@@ -42,9 +42,6 @@ interface ControlsProps {
   setEnablePrediction: (enable: boolean) => void;
   showWordPrediction: boolean;
   setShowWordPrediction: (show: boolean) => void;
-  availableVoices: SpeechSynthesisVoice[];
-  selectedVoiceURI: string | null;
-  setSelectedVoiceURI: (uri: string) => void;
   onFileUpload: (file: File) => void;
   trainingStatus: string;
   showSettingsModal: boolean;
@@ -173,9 +170,6 @@ const Controls: React.FC<ControlsProps> = ({
   setEnablePrediction,
   showWordPrediction,
   setShowWordPrediction,
-  availableVoices,
-  selectedVoiceURI,
-  setSelectedVoiceURI,
   onFileUpload,
   trainingStatus,
   showSettingsModal,
@@ -319,9 +313,6 @@ const Controls: React.FC<ControlsProps> = ({
             availableScripts={availableScripts}
             useUppercase={useUppercase}
             setUseUppercase={setUseUppercase}
-            availableVoices={availableVoices}
-            selectedVoiceURI={selectedVoiceURI}
-            setSelectedVoiceURI={setSelectedVoiceURI}
             theme={theme}
             enablePrediction={enablePrediction}
             setEnablePrediction={setEnablePrediction}
@@ -367,7 +358,6 @@ const Controls: React.FC<ControlsProps> = ({
             onUnlockAudioDevices={onUnlockAudioDevices}
             sinkStatus={sinkStatus}
             theme={theme}
-            availableVoices={availableVoices}
             messageVoiceEngine={messageVoiceEngine}
             setMessageVoiceEngine={setMessageVoiceEngine}
             messageEdgeVoice={messageEdgeVoice}

@@ -12,9 +12,6 @@ interface LanguageSettingsProps {
   availableScripts: string[];
   useUppercase: boolean;
   setUseUppercase: (uppercase: boolean) => void;
-  availableVoices: SpeechSynthesisVoice[];
-  selectedVoiceURI: string | null;
-  setSelectedVoiceURI: (uri: string) => void;
   theme: Theme;
 
   // Prediction props
@@ -39,9 +36,6 @@ export const LanguageSettings: React.FC<LanguageSettingsProps> = ({
   availableScripts,
   useUppercase,
   setUseUppercase,
-  availableVoices,
-  selectedVoiceURI,
-  setSelectedVoiceURI,
   theme,
   enablePrediction,
   setEnablePrediction,
@@ -53,18 +47,6 @@ export const LanguageSettings: React.FC<LanguageSettingsProps> = ({
   onExportLearnedData,
   onClearLearnedData,
 }) => {
-  const handlePreviewVoice = () => {
-    if (!selectedVoiceURI || !window.speechSynthesis) return;
-
-    const selectedVoice = availableVoices.find((v) => v.voiceURI === selectedVoiceURI);
-    if (!selectedVoice) return;
-
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance('This is a test of the selected voice.');
-    utterance.voice = selectedVoice;
-    window.speechSynthesis.speak(utterance);
-  };
-
   return (
     <div className="flex flex-col gap-6">
       {/* Language Section */}
@@ -152,50 +134,7 @@ export const LanguageSettings: React.FC<LanguageSettingsProps> = ({
           </label>
         </div>
 
-        {/* Voice Picker */}
-        {availableVoices.length > 0 && (
-          <div className="flex items-center gap-2">
-            <label htmlFor="voicePicker" className="font-semibold w-32">
-              Voice:
-            </label>
-            <select
-              id="voicePicker"
-              value={selectedVoiceURI || ''}
-              onChange={(e) => setSelectedVoiceURI(e.target.value)}
-              className="w-64 p-2 border rounded-md"
-              style={{
-                backgroundColor: theme.colors.inputBg,
-                color: theme.colors.inputText,
-                borderColor: theme.colors.border,
-              }}
-            >
-              {availableVoices.map((voice, index) => (
-                <option key={`${voice.voiceURI}-${index}`} value={voice.voiceURI}>
-                  {`${voice.name} (${voice.lang})`}
-                </option>
-              ))}
-            </select>
-            <button
-              onClick={handlePreviewVoice}
-              className="p-2 bg-gray-200 text-black rounded-lg hover:bg-gray-300 transition-transform transform active:scale-95"
-              aria-label="Preview selected voice"
-              title="Preview Voice"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-5 w-5"
-                viewBox="0 0 20 20"
-                fill="currentColor"
-              >
-                <path
-                  fillRule="evenodd"
-                  d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z"
-                  clipRule="evenodd"
-                />
-              </svg>
-            </button>
-          </div>
-        )}
+        {/* Voice configuration moved to Audio settings (uses routable engines) */}
       </div>
 
       {/* Prediction Settings - Separator */}
