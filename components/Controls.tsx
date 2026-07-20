@@ -104,12 +104,12 @@ interface ControlsProps {
   // Message Bar Voice
   messageVoiceEngine: TTSEngine;
   setMessageVoiceEngine: (engine: TTSEngine) => void;
-  messageWebspeechVoiceURI: string | null;
-  setMessageWebspeechVoiceURI: (uri: string | null) => void;
-  messageWebspeechPitch: number;
-  setMessageWebspeechPitch: (pitch: number) => void;
-  messageWebspeechRate: number;
-  setMessageWebspeechRate: (rate: number) => void;
+  messageEdgeVoice: string;
+  setMessageEdgeVoice: (voice: string) => void;
+  messageEdgeRate: number;
+  setMessageEdgeRate: (rate: number) => void;
+  messageEdgePitch: number;
+  setMessageEdgePitch: (pitch: number) => void;
   messageMespeakPitch: number;
   setMessageMespeakPitch: (pitch: number) => void;
   messageMespeakRate: number;
@@ -118,16 +118,19 @@ interface ControlsProps {
   // Cue Voice
   cueVoiceEngine: TTSEngine;
   setCueVoiceEngine: (engine: TTSEngine) => void;
-  cueWebspeechVoiceURI: string | null;
-  setCueWebspeechVoiceURI: (uri: string | null) => void;
-  cueWebspeechPitch: number;
-  setCueWebspeechPitch: (pitch: number) => void;
-  cueWebspeechRate: number;
-  setCueWebspeechRate: (rate: number) => void;
+  cueEdgeVoice: string;
+  setCueEdgeVoice: (voice: string) => void;
+  cueEdgeRate: number;
+  setCueEdgeRate: (rate: number) => void;
+  cueEdgePitch: number;
+  setCueEdgePitch: (pitch: number) => void;
   cueMespeakPitch: number;
   setCueMespeakPitch: (pitch: number) => void;
   cueMespeakRate: number;
   setCueMespeakRate: (rate: number) => void;
+
+  // Edge TTS voice list (loaded once by useEdgeTTS).
+  edgeVoices: { ShortName: string; Name: string; Gender: string; Locale: string }[];
 }
 
 const SETTINGS_CATEGORIES = [
@@ -226,24 +229,25 @@ const Controls: React.FC<ControlsProps> = ({
   sinkStatus,
   messageVoiceEngine,
   setMessageVoiceEngine,
-  messageWebspeechVoiceURI,
-  setMessageWebspeechVoiceURI,
-  messageWebspeechPitch,
-  setMessageWebspeechPitch,
-  messageWebspeechRate,
-  setMessageWebspeechRate,
+  messageEdgeVoice,
+  setMessageEdgeVoice,
+  messageEdgeRate,
+  setMessageEdgeRate,
+  messageEdgePitch,
+  setMessageEdgePitch,
   messageMespeakPitch,
   setMessageMespeakPitch,
   messageMespeakRate,
   setMessageMespeakRate,
   cueVoiceEngine,
   setCueVoiceEngine,
-  cueWebspeechVoiceURI,
-  setCueWebspeechVoiceURI,
-  cueWebspeechPitch,
-  setCueWebspeechPitch,
-  cueWebspeechRate,
-  setCueWebspeechRate,
+  cueEdgeVoice,
+  setCueEdgeVoice,
+  cueEdgeRate,
+  setCueEdgeRate,
+  cueEdgePitch,
+  setCueEdgePitch,
+  edgeVoices,
   cueMespeakPitch,
   setCueMespeakPitch,
   cueMespeakRate,
@@ -366,24 +370,25 @@ const Controls: React.FC<ControlsProps> = ({
             availableVoices={availableVoices}
             messageVoiceEngine={messageVoiceEngine}
             setMessageVoiceEngine={setMessageVoiceEngine}
-            messageWebspeechVoiceURI={messageWebspeechVoiceURI}
-            setMessageWebspeechVoiceURI={setMessageWebspeechVoiceURI}
-            messageWebspeechPitch={messageWebspeechPitch}
-            setMessageWebspeechPitch={setMessageWebspeechPitch}
-            messageWebspeechRate={messageWebspeechRate}
-            setMessageWebspeechRate={setMessageWebspeechRate}
+            messageEdgeVoice={messageEdgeVoice}
+            setMessageEdgeVoice={setMessageEdgeVoice}
+            messageEdgeRate={messageEdgeRate}
+            setMessageEdgeRate={setMessageEdgeRate}
+            messageEdgePitch={messageEdgePitch}
+            setMessageEdgePitch={setMessageEdgePitch}
             messageMespeakPitch={messageMespeakPitch}
             setMessageMespeakPitch={setMessageMespeakPitch}
             messageMespeakRate={messageMespeakRate}
             setMessageMespeakRate={setMessageMespeakRate}
             cueVoiceEngine={cueVoiceEngine}
             setCueVoiceEngine={setCueVoiceEngine}
-            cueWebspeechVoiceURI={cueWebspeechVoiceURI}
-            setCueWebspeechVoiceURI={setCueWebspeechVoiceURI}
-            cueWebspeechPitch={cueWebspeechPitch}
-            setCueWebspeechPitch={setCueWebspeechPitch}
-            cueWebspeechRate={cueWebspeechRate}
-            setCueWebspeechRate={setCueWebspeechRate}
+            cueEdgeVoice={cueEdgeVoice}
+            setCueEdgeVoice={setCueEdgeVoice}
+            cueEdgeRate={cueEdgeRate}
+            setCueEdgeRate={setCueEdgeRate}
+            cueEdgePitch={cueEdgePitch}
+            setCueEdgePitch={setCueEdgePitch}
+            edgeVoices={edgeVoices}
             cueMespeakPitch={cueMespeakPitch}
             setCueMespeakPitch={setCueMespeakPitch}
             cueMespeakRate={cueMespeakRate}

@@ -102,20 +102,28 @@ export function useSettings() {
   });
 
   // Message bar voice settings (what reads out the composed message)
-  // Defaults to Web Speech so the message bar sounds different from meSpeak cues.
+  // Defaults to edge-tts (high-quality, routable via AudioContext) so the message
+  // bar sounds different from meSpeak cues AND honours the Scan Output device.
+  // Migrate any pre-existing webspeech default to edge-tts.
   const [messageVoiceEngine, setMessageVoiceEngine] = useState<TTSEngine>(() => {
-    return (localStorage.getItem('messageVoiceEngine') as TTSEngine) || 'webspeech';
+    const saved = localStorage.getItem('messageVoiceEngine');
+    if (!saved) return 'edge-tts';
+    // Migrate pre-existing webspeech setting (no longer a valid engine).
+    if (saved === 'webspeech') return 'edge-tts';
+    return saved as TTSEngine;
   });
-  const [messageWebspeechVoiceURI, setMessageWebspeechVoiceURI] = useState<string | null>(() => {
-    return localStorage.getItem('messageWebspeechVoiceURI') || null;
+  const [messageEdgeVoice, setMessageEdgeVoice] = useState<string>(() => {
+    return localStorage.getItem('messageEdgeVoice') || 'en-US-EmmaMultilingualNeural';
   });
-  const [messageWebspeechPitch, setMessageWebspeechPitch] = useState<number>(() => {
-    const saved = localStorage.getItem('messageWebspeechPitch');
-    return saved ? Number(saved) : 1;
+  // edge-tts rate/pitch are signed-percent / signed-Hz strings. We store the
+  // numeric slider value and format on use.
+  const [messageEdgeRate, setMessageEdgeRate] = useState<number>(() => {
+    const saved = localStorage.getItem('messageEdgeRate');
+    return saved ? Number(saved) : 0;
   });
-  const [messageWebspeechRate, setMessageWebspeechRate] = useState<number>(() => {
-    const saved = localStorage.getItem('messageWebspeechRate');
-    return saved ? Number(saved) : 1;
+  const [messageEdgePitch, setMessageEdgePitch] = useState<number>(() => {
+    const saved = localStorage.getItem('messageEdgePitch');
+    return saved ? Number(saved) : 0;
   });
   const [messageMespeakPitch, setMessageMespeakPitch] = useState<number>(() => {
     const saved = localStorage.getItem('messageMespeakPitch');
@@ -127,20 +135,24 @@ export function useSettings() {
   });
 
   // Cue voice settings (what reads each scanned item)
-  // Defaults to meSpeak so cues sound different from the Web Speech message bar.
+  // Defaults to meSpeak (offline, low-latency) so cues sound different from the
+  // edge-tts message bar. Migrate any pre-existing webspeech default to mespeak.
   const [cueVoiceEngine, setCueVoiceEngine] = useState<TTSEngine>(() => {
-    return (localStorage.getItem('cueVoiceEngine') as TTSEngine) || 'mespeak';
+    const saved = localStorage.getItem('cueVoiceEngine');
+    if (!saved) return 'mespeak';
+    if (saved === 'webspeech') return 'mespeak';
+    return saved as TTSEngine;
   });
-  const [cueWebspeechVoiceURI, setCueWebspeechVoiceURI] = useState<string | null>(() => {
-    return localStorage.getItem('cueWebspeechVoiceURI') || null;
+  const [cueEdgeVoice, setCueEdgeVoice] = useState<string>(() => {
+    return localStorage.getItem('cueEdgeVoice') || 'en-US-EmmaMultilingualNeural';
   });
-  const [cueWebspeechPitch, setCueWebspeechPitch] = useState<number>(() => {
-    const saved = localStorage.getItem('cueWebspeechPitch');
-    return saved ? Number(saved) : 1;
+  const [cueEdgeRate, setCueEdgeRate] = useState<number>(() => {
+    const saved = localStorage.getItem('cueEdgeRate');
+    return saved ? Number(saved) : 0;
   });
-  const [cueWebspeechRate, setCueWebspeechRate] = useState<number>(() => {
-    const saved = localStorage.getItem('cueWebspeechRate');
-    return saved ? Number(saved) : 1;
+  const [cueEdgePitch, setCueEdgePitch] = useState<number>(() => {
+    const saved = localStorage.getItem('cueEdgePitch');
+    return saved ? Number(saved) : 0;
   });
   const [cueMespeakPitch, setCueMespeakPitch] = useState<number>(() => {
     const saved = localStorage.getItem('cueMespeakPitch');
@@ -234,23 +246,15 @@ export function useSettings() {
     localStorage.setItem('audioEffectsEnabled', audioEffectsEnabled.toString());
     localStorage.setItem('auditoryScanningEnabled', auditoryScanningEnabled.toString());
     localStorage.setItem('messageVoiceEngine', messageVoiceEngine);
-    if (messageWebspeechVoiceURI) {
-      localStorage.setItem('messageWebspeechVoiceURI', messageWebspeechVoiceURI);
-    } else {
-      localStorage.removeItem('messageWebspeechVoiceURI');
-    }
-    localStorage.setItem('messageWebspeechPitch', messageWebspeechPitch.toString());
-    localStorage.setItem('messageWebspeechRate', messageWebspeechRate.toString());
+    localStorage.setItem('messageEdgeVoice', messageEdgeVoice);
+    localStorage.setItem('messageEdgeRate', messageEdgeRate.toString());
+    localStorage.setItem('messageEdgePitch', messageEdgePitch.toString());
     localStorage.setItem('messageMespeakPitch', messageMespeakPitch.toString());
     localStorage.setItem('messageMespeakRate', messageMespeakRate.toString());
     localStorage.setItem('cueVoiceEngine', cueVoiceEngine);
-    if (cueWebspeechVoiceURI) {
-      localStorage.setItem('cueWebspeechVoiceURI', cueWebspeechVoiceURI);
-    } else {
-      localStorage.removeItem('cueWebspeechVoiceURI');
-    }
-    localStorage.setItem('cueWebspeechPitch', cueWebspeechPitch.toString());
-    localStorage.setItem('cueWebspeechRate', cueWebspeechRate.toString());
+    localStorage.setItem('cueEdgeVoice', cueEdgeVoice);
+    localStorage.setItem('cueEdgeRate', cueEdgeRate.toString());
+    localStorage.setItem('cueEdgePitch', cueEdgePitch.toString());
     localStorage.setItem('cueMespeakPitch', cueMespeakPitch.toString());
     localStorage.setItem('cueMespeakRate', cueMespeakRate.toString());
     if (auditoryScanningDeviceId) {
@@ -301,15 +305,15 @@ export function useSettings() {
     auditoryScanningEnabled,
     auditoryScanningDeviceId,
     messageVoiceEngine,
-    messageWebspeechVoiceURI,
-    messageWebspeechPitch,
-    messageWebspeechRate,
+    messageEdgeVoice,
+    messageEdgeRate,
+    messageEdgePitch,
     messageMespeakPitch,
     messageMespeakRate,
     cueVoiceEngine,
-    cueWebspeechVoiceURI,
-    cueWebspeechPitch,
-    cueWebspeechRate,
+    cueEdgeVoice,
+    cueEdgeRate,
+    cueEdgePitch,
     cueMespeakPitch,
     cueMespeakRate,
     hideControlBar,
@@ -383,12 +387,12 @@ export function useSettings() {
     // Message bar voice settings
     messageVoiceEngine,
     setMessageVoiceEngine,
-    messageWebspeechVoiceURI,
-    setMessageWebspeechVoiceURI,
-    messageWebspeechPitch,
-    setMessageWebspeechPitch,
-    messageWebspeechRate,
-    setMessageWebspeechRate,
+    messageEdgeVoice,
+    setMessageEdgeVoice,
+    messageEdgeRate,
+    setMessageEdgeRate,
+    messageEdgePitch,
+    setMessageEdgePitch,
     messageMespeakPitch,
     setMessageMespeakPitch,
     messageMespeakRate,
@@ -397,12 +401,12 @@ export function useSettings() {
     // Cue voice settings
     cueVoiceEngine,
     setCueVoiceEngine,
-    cueWebspeechVoiceURI,
-    setCueWebspeechVoiceURI,
-    cueWebspeechPitch,
-    setCueWebspeechPitch,
-    cueWebspeechRate,
-    setCueWebspeechRate,
+    cueEdgeVoice,
+    setCueEdgeVoice,
+    cueEdgeRate,
+    setCueEdgeRate,
+    cueEdgePitch,
+    setCueEdgePitch,
     cueMespeakPitch,
     setCueMespeakPitch,
     cueMespeakRate,
