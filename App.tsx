@@ -372,6 +372,21 @@ const App: React.FC = () => {
       ? settings.gameWordList[settings.currentGameWordIndex % settings.gameWordList.length]
       : '';
 
+  // Announce the target word whenever it changes (game mode only). Critical for
+  // blind users: without this they have no way to know what to type. Plays a
+  // short intro tone then speaks the target via the routable message-bar voice.
+  const prevGameTargetRef = React.useRef('');
+  useEffect(() => {
+    if (!settings.gameMode || !currentGameTarget) return;
+    if (currentGameTarget === prevGameTargetRef.current) return;
+    prevGameTargetRef.current = currentGameTarget;
+    playBeep(550, 100);
+    const timer = window.setTimeout(() => {
+      void playMessageBarAudio(currentGameTarget);
+    }, 150);
+    return () => clearTimeout(timer);
+  }, [currentGameTarget, settings.gameMode, playMessageBarAudio, playBeep]);
+
   // MIGRATION: Scan items building logic now handled by useScanning hook!
 
   // MIGRATION: TTS voice loading now handled by useTTS hook!
@@ -385,6 +400,7 @@ const App: React.FC = () => {
     predictor,
     playSound,
     speak,
+    playBeep,
     setLearnedWordsCount,
     setScanIndex,
   });
