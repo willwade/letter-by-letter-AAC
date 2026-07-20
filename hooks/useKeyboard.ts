@@ -27,6 +27,7 @@ interface KeyboardConfig {
 
   // Audio feedback
   playSound: (sound: 'click' | 'beep') => void;
+  playBeep: (frequency?: number, durationMs?: number) => void;
 
   // Visual feedback callbacks
   setIsHolding: (value: boolean) => void;
@@ -52,6 +53,7 @@ export function useKeyboard(config: KeyboardConfig) {
     shortHoldAction,
     longHoldAction,
     playSound,
+    playBeep,
     setIsHolding,
     setHoldProgress,
     setHoldZone,
@@ -60,6 +62,15 @@ export function useKeyboard(config: KeyboardConfig) {
   // Use ref to track hold zone for keyup handler (avoids stale closure)
   const holdZoneRef = useRef<'none' | 'green' | 'red'>('none');
   const holdProgressIntervalRef = useRef<number | undefined>(undefined);
+  // Refs below persist across effect re-runs so a press that begins in one
+  // closure of the effect can be cleanly released in another. Without these,
+  // an App re-render between mousedown and mouseup would reset the in-progress
+  // press state and silently swallow the release.
+  const switch1PressedRef = useRef<boolean>(false);
+  const holdIntervalRef = useRef<number | undefined>(undefined);
+  const shortHoldTimeoutRef = useRef<number | undefined>(undefined);
+  const longHoldTimeoutRef = useRef<number | undefined>(undefined);
+  const lastKeyUpTimeRef = useRef<{ [key: string]: number }>({});
 
   useEffect(() => {
     // Don't attach keyboard listeners when disabled
@@ -67,12 +78,8 @@ export function useKeyboard(config: KeyboardConfig) {
       return;
     }
 
-    let holdInterval: number | undefined;
-    const lastKeyUpTime: { [key: string]: number } = {};
-    let shortHoldTimeout: number | undefined;
-    let longHoldTimeout: number | undefined;
-    // Track press state so a mouseup without a matching mousedown is a no-op
-    let switch1Pressed = false;
+    // Local aliases for readability - these read/write the refs above.
+    const lastKeyUpTime = lastKeyUpTimeRef.current;
 
     // Shared "press" logic for switch 1, invoked by either keydown or mousedown.
     // `isRepeat` mirrors KeyboardEvent.repeat (false on first press, true on auto-repeats).
@@ -133,15 +140,15 @@ export function useKeyboard(config: KeyboardConfig) {
             }
           }, 16); // ~60fps
 
-          // Set timeout to beep when entering green zone
-          shortHoldTimeout = window.setTimeout(() => {
-            playSound('beep');
+          // Set timeout to beep when entering green zone (low pitch)
+          shortHoldTimeoutRef.current = window.setTimeout(() => {
+            playBeep(440, 150);
             console.log(`🟢 Entered green zone (${shortHoldDuration}ms)`);
           }, shortHoldDuration);
 
-          // Set timeout to beep when entering red zone
-          longHoldTimeout = window.setTimeout(() => {
-            playSound('beep');
+          // Set timeout to beep when entering red zone (high pitch)
+          longHoldTimeoutRef.current = window.setTimeout(() => {
+            playBeep(880, 200);
             console.log(`🔴 Entered red zone (${longHoldDuration}ms)`);
           }, longHoldDuration);
         }
@@ -155,8 +162,8 @@ export function useKeyboard(config: KeyboardConfig) {
         // Detect if this is a repeat event (key is being held)
         if (isRepeat) {
           // Key is being held - check if we should advance based on holdSpeed
-          if (!holdInterval) {
-            holdInterval = window.setInterval(() => {
+          if (holdIntervalRef.current === undefined) {
+            holdIntervalRef.current = window.setInterval(() => {
               onSwitch1();
             }, holdSpeed);
           }
@@ -178,13 +185,13 @@ export function useKeyboard(config: KeyboardConfig) {
       // Handle hold actions on release
       if (scanMode === 'one-switch' && enableHoldActions) {
         // Clear timeouts
-        if (shortHoldTimeout !== undefined) {
-          clearTimeout(shortHoldTimeout);
-          shortHoldTimeout = undefined;
+        if (shortHoldTimeoutRef.current !== undefined) {
+          clearTimeout(shortHoldTimeoutRef.current);
+          shortHoldTimeoutRef.current = undefined;
         }
-        if (longHoldTimeout !== undefined) {
-          clearTimeout(longHoldTimeout);
-          longHoldTimeout = undefined;
+        if (longHoldTimeoutRef.current !== undefined) {
+          clearTimeout(longHoldTimeoutRef.current);
+          longHoldTimeoutRef.current = undefined;
         }
 
         // Clear progress animation
@@ -221,9 +228,9 @@ export function useKeyboard(config: KeyboardConfig) {
 
       if (scanMode === 'two-switch') {
         // Clear the hold interval when key is released
-        if (holdInterval !== undefined) {
-          clearInterval(holdInterval);
-          holdInterval = undefined;
+        if (holdIntervalRef.current !== undefined) {
+          clearInterval(holdIntervalRef.current);
+          holdIntervalRef.current = undefined;
         }
       }
     };
@@ -278,15 +285,15 @@ export function useKeyboard(config: KeyboardConfig) {
         return;
       }
       event.preventDefault();
-      switch1Pressed = true;
+      switch1PressedRef.current = true;
       triggerSwitch1Press(false);
     };
 
     const handleMouseUp = (event: MouseEvent) => {
       if (switch1Input !== 'click') return;
       if (event.button !== 0) return;
-      if (!switch1Pressed) return;
-      switch1Pressed = false;
+      if (!switch1PressedRef.current) return;
+      switch1PressedRef.current = false;
       triggerSwitch1Release();
     };
 
@@ -307,17 +314,12 @@ export function useKeyboard(config: KeyboardConfig) {
       window.removeEventListener('keyup', handleKeyUp);
       window.removeEventListener('mousedown', handleMouseDown);
       window.removeEventListener('mouseup', handleMouseUp);
-      if (holdInterval !== undefined) {
-        clearInterval(holdInterval);
-      }
-      if (shortHoldTimeout !== undefined) {
-        clearTimeout(shortHoldTimeout);
-      }
-      if (longHoldTimeout !== undefined) {
-        clearTimeout(longHoldTimeout);
-      }
-      // Note: Don't clear holdProgressIntervalRef here - it should only be cleared on keyup
-      // Clearing it here would stop the progress bar mid-hold when the effect re-runs
+      // NOTE: We deliberately do NOT clear holdIntervalRef / shortHoldTimeoutRef /
+      // longHoldTimeoutRef here. The effect re-runs whenever App re-renders during a
+      // hold (e.g. progress-bar setState cascades), and clearing these mid-press
+      // would swallow the user's beep and break the press lifecycle. They are
+      // cleared by triggerSwitch1Release instead. holdProgressIntervalRef is also
+      // intentionally left untouched for the same reason.
     };
   }, [
     switch1Key,
@@ -336,6 +338,7 @@ export function useKeyboard(config: KeyboardConfig) {
     shortHoldAction,
     longHoldAction,
     playSound,
+    playBeep,
     setIsHolding,
     setHoldProgress,
     setHoldZone,
