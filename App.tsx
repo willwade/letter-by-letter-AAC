@@ -13,6 +13,7 @@ import { useKeyboard } from './hooks/useKeyboard';
 import { useAudio } from './hooks/useAudio';
 import { useTTS } from './hooks/useTTS';
 import { useAuditoryScanning } from './hooks/useAuditoryScanning';
+import { useEdgeTTS } from './hooks/useEdgeTTS';
 import { useSelectionLogic } from './hooks/useSelectionLogic';
 
 const App: React.FC = () => {
@@ -114,6 +115,18 @@ const App: React.FC = () => {
     rate: settings.cueMespeakRate,
   });
 
+  // Edge TTS hook (parallel to useAuditoryScanning). Used when either voice is
+  // set to 'edge-tts' - shares the same audioDeviceId so output routing still
+  // honours the Scan Output picker.
+  const {
+    availableVoices: edgeVoices,
+    playItem: playEdgeItem,
+    playMessage: playEdgeMessage,
+  } = useEdgeTTS({
+    enabled: settings.auditoryScanningEnabled,
+    audioDeviceId: settings.auditoryScanningDeviceId,
+  });
+
   // Use scanning hook (needs predictions to build scan items AND playSound)
   const {
     scanIndex,
@@ -155,16 +168,17 @@ const App: React.FC = () => {
   }, [scanItems, scanItemsSpoken, settings.auditoryScanningEnabled, addAuditoryItemsToCache]);
 
   // Voice-routing wrappers. The message bar and the cue can each use either
-  // Web Speech or meSpeak; the wrappers pick the right engine based on settings
-  // so the rest of the app just calls one function. Defined early so multiple
-  // useEffects below can consume them.
+  // edge-tts (high-quality, routable, online) or meSpeak (offline, robotic).
+  // The wrappers pick the right engine based on settings so the rest of the
+  // app just calls one function. Defined early so multiple useEffects below
+  // can consume them.
   const playMessageBarAudio = useCallback(
     async (text: string): Promise<void> => {
-      if (settings.messageVoiceEngine === 'webspeech') {
-        await speak(text, {
-          voiceURI: settings.messageWebspeechVoiceURI,
-          pitch: settings.messageWebspeechPitch,
-          rate: settings.messageWebspeechRate,
+      if (settings.messageVoiceEngine === 'edge-tts') {
+        await playEdgeMessage(text, {
+          voice: settings.messageEdgeVoice,
+          rate: settings.messageEdgeRate,
+          pitch: settings.messageEdgePitch,
         });
       } else {
         await playAuditoryMessage(text, {
@@ -175,24 +189,24 @@ const App: React.FC = () => {
     },
     [
       settings.messageVoiceEngine,
-      settings.messageWebspeechVoiceURI,
-      settings.messageWebspeechPitch,
-      settings.messageWebspeechRate,
+      settings.messageEdgeVoice,
+      settings.messageEdgeRate,
+      settings.messageEdgePitch,
       settings.messageMespeakPitch,
       settings.messageMespeakRate,
-      speak,
+      playEdgeMessage,
       playAuditoryMessage,
     ]
   );
 
   const playCueAudio = useCallback(
     (text: string) => {
-      if (settings.cueVoiceEngine === 'webspeech') {
+      if (settings.cueVoiceEngine === 'edge-tts') {
         // Fire-and-forget - cues shouldn't block scanning.
-        void speak(text, {
-          voiceURI: settings.cueWebspeechVoiceURI,
-          pitch: settings.cueWebspeechPitch,
-          rate: settings.cueWebspeechRate,
+        playEdgeItem(text, {
+          voice: settings.cueEdgeVoice,
+          rate: settings.cueEdgeRate,
+          pitch: settings.cueEdgePitch,
         });
       } else {
         playAuditoryItem(text);
@@ -200,10 +214,10 @@ const App: React.FC = () => {
     },
     [
       settings.cueVoiceEngine,
-      settings.cueWebspeechVoiceURI,
-      settings.cueWebspeechPitch,
-      settings.cueWebspeechRate,
-      speak,
+      settings.cueEdgeVoice,
+      settings.cueEdgeRate,
+      settings.cueEdgePitch,
+      playEdgeItem,
       playAuditoryItem,
     ]
   );
@@ -759,28 +773,29 @@ const App: React.FC = () => {
         sinkStatus={sinkStatus}
         messageVoiceEngine={settings.messageVoiceEngine}
         setMessageVoiceEngine={settings.setMessageVoiceEngine}
-        messageWebspeechVoiceURI={settings.messageWebspeechVoiceURI}
-        setMessageWebspeechVoiceURI={settings.setMessageWebspeechVoiceURI}
-        messageWebspeechPitch={settings.messageWebspeechPitch}
-        setMessageWebspeechPitch={settings.setMessageWebspeechPitch}
-        messageWebspeechRate={settings.messageWebspeechRate}
-        setMessageWebspeechRate={settings.setMessageWebspeechRate}
+        messageEdgeVoice={settings.messageEdgeVoice}
+        setMessageEdgeVoice={settings.setMessageEdgeVoice}
+        messageEdgeRate={settings.messageEdgeRate}
+        setMessageEdgeRate={settings.setMessageEdgeRate}
+        messageEdgePitch={settings.messageEdgePitch}
+        setMessageEdgePitch={settings.setMessageEdgePitch}
         messageMespeakPitch={settings.messageMespeakPitch}
         setMessageMespeakPitch={settings.setMessageMespeakPitch}
         messageMespeakRate={settings.messageMespeakRate}
         setMessageMespeakRate={settings.setMessageMespeakRate}
         cueVoiceEngine={settings.cueVoiceEngine}
         setCueVoiceEngine={settings.setCueVoiceEngine}
-        cueWebspeechVoiceURI={settings.cueWebspeechVoiceURI}
-        setCueWebspeechVoiceURI={settings.setCueWebspeechVoiceURI}
-        cueWebspeechPitch={settings.cueWebspeechPitch}
-        setCueWebspeechPitch={settings.setCueWebspeechPitch}
-        cueWebspeechRate={settings.cueWebspeechRate}
-        setCueWebspeechRate={settings.setCueWebspeechRate}
+        cueEdgeVoice={settings.cueEdgeVoice}
+        setCueEdgeVoice={settings.setCueEdgeVoice}
+        cueEdgeRate={settings.cueEdgeRate}
+        setCueEdgeRate={settings.setCueEdgeRate}
+        cueEdgePitch={settings.cueEdgePitch}
+        setCueEdgePitch={settings.setCueEdgePitch}
         cueMespeakPitch={settings.cueMespeakPitch}
         setCueMespeakPitch={settings.setCueMespeakPitch}
         cueMespeakRate={settings.cueMespeakRate}
         setCueMespeakRate={settings.setCueMespeakRate}
+        edgeVoices={edgeVoices}
         scanningStrategy={settings.scanningStrategy}
         setScanningStrategy={settings.setScanningStrategy}
         blockMode={settings.blockMode}

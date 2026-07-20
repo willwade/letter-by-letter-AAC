@@ -17,18 +17,18 @@ interface AudioSettingsProps {
   } | null;
   theme: Theme;
 
-  // Web Speech voice list - shared by both sections when their engine is webspeech.
-  availableVoices: SpeechSynthesisVoice[];
+  // Edge TTS voice list - shared by both sections when their engine is edge-tts.
+  edgeVoices: { ShortName: string; Name: string; Gender: string; Locale: string }[];
 
   // Message Bar Voice
   messageVoiceEngine: TTSEngine;
   setMessageVoiceEngine: (engine: TTSEngine) => void;
-  messageWebspeechVoiceURI: string | null;
-  setMessageWebspeechVoiceURI: (uri: string | null) => void;
-  messageWebspeechPitch: number;
-  setMessageWebspeechPitch: (pitch: number) => void;
-  messageWebspeechRate: number;
-  setMessageWebspeechRate: (rate: number) => void;
+  messageEdgeVoice: string;
+  setMessageEdgeVoice: (voice: string) => void;
+  messageEdgeRate: number;
+  setMessageEdgeRate: (rate: number) => void;
+  messageEdgePitch: number;
+  setMessageEdgePitch: (pitch: number) => void;
   messageMespeakPitch: number;
   setMessageMespeakPitch: (pitch: number) => void;
   messageMespeakRate: number;
@@ -37,12 +37,12 @@ interface AudioSettingsProps {
   // Cue Voice
   cueVoiceEngine: TTSEngine;
   setCueVoiceEngine: (engine: TTSEngine) => void;
-  cueWebspeechVoiceURI: string | null;
-  setCueWebspeechVoiceURI: (uri: string | null) => void;
-  cueWebspeechPitch: number;
-  setCueWebspeechPitch: (pitch: number) => void;
-  cueWebspeechRate: number;
-  setCueWebspeechRate: (rate: number) => void;
+  cueEdgeVoice: string;
+  setCueEdgeVoice: (voice: string) => void;
+  cueEdgeRate: number;
+  setCueEdgeRate: (rate: number) => void;
+  cueEdgePitch: number;
+  setCueEdgePitch: (pitch: number) => void;
   cueMespeakPitch: number;
   setCueMespeakPitch: (pitch: number) => void;
   cueMespeakRate: number;
@@ -53,17 +53,17 @@ interface VoiceControlsProps {
   label: string;
   engine: TTSEngine;
   setEngine: (engine: TTSEngine) => void;
-  webspeechVoiceURI: string | null;
-  setWebspeechVoiceURI: (uri: string | null) => void;
-  webspeechPitch: number;
-  setWebspeechPitch: (pitch: number) => void;
-  webspeechRate: number;
-  setWebspeechRate: (rate: number) => void;
+  edgeVoice: string;
+  setEdgeVoice: (voice: string) => void;
+  edgePitch: number;
+  setEdgePitch: (pitch: number) => void;
+  edgeRate: number;
+  setEdgeRate: (rate: number) => void;
   mespeakPitch: number;
   setMespeakPitch: (pitch: number) => void;
   mespeakRate: number;
   setMespeakRate: (rate: number) => void;
-  availableVoices: SpeechSynthesisVoice[];
+  edgeVoices: { ShortName: string; Name: string; Gender: string; Locale: string }[];
   theme: Theme;
 }
 
@@ -71,17 +71,17 @@ const VoiceControls: React.FC<VoiceControlsProps> = ({
   label,
   engine,
   setEngine,
-  webspeechVoiceURI,
-  setWebspeechVoiceURI,
-  webspeechPitch,
-  setWebspeechPitch,
-  webspeechRate,
-  setWebspeechRate,
+  edgeVoice,
+  setEdgeVoice,
+  edgePitch,
+  setEdgePitch,
+  edgeRate,
+  setEdgeRate,
   mespeakPitch,
   setMespeakPitch,
   mespeakRate,
   setMespeakRate,
-  availableVoices,
+  edgeVoices,
   theme,
 }) => {
   const inputStyle = {
@@ -101,12 +101,12 @@ const VoiceControls: React.FC<VoiceControlsProps> = ({
           <input
             type="radio"
             name={`${label}-engine`}
-            value="webspeech"
-            checked={engine === 'webspeech'}
-            onChange={() => setEngine('webspeech')}
+            value="edge-tts"
+            checked={engine === 'edge-tts'}
+            onChange={() => setEngine('edge-tts')}
             className="form-radio h-4 w-4 text-black"
           />
-          Web Speech
+          Edge TTS
         </label>
         <label className="flex items-center gap-2 cursor-pointer text-sm">
           <input
@@ -121,61 +121,70 @@ const VoiceControls: React.FC<VoiceControlsProps> = ({
         </label>
       </div>
 
-      {engine === 'webspeech' ? (
+      {engine === 'edge-tts' ? (
         <>
-          {/* Web Speech voice picker */}
+          {/* Edge voice picker */}
           <div className="flex items-center gap-2">
-            <label htmlFor={`${label}-ws-voice`} className="w-32 text-sm">
+            <label htmlFor={`${label}-edge-voice`} className="w-32 text-sm">
               Voice:
             </label>
             <select
-              id={`${label}-ws-voice`}
-              value={webspeechVoiceURI || ''}
-              onChange={(e) => setWebspeechVoiceURI(e.target.value || null)}
-              className="w-64 p-1 border rounded-md text-sm"
+              id={`${label}-edge-voice`}
+              value={edgeVoice}
+              onChange={(e) => setEdgeVoice(e.target.value)}
+              className="w-72 p-1 border rounded-md text-sm"
               style={inputStyle}
             >
-              <option value="">System default</option>
-              {availableVoices.map((voice) => (
-                <option key={voice.voiceURI} value={voice.voiceURI}>
-                  {voice.name} ({voice.lang})
-                </option>
-              ))}
+              {edgeVoices.length === 0 ? (
+                <option value={edgeVoice}>{edgeVoice} (loading list…)</option>
+              ) : (
+                edgeVoices.map((voice) => (
+                  <option key={voice.ShortName} value={voice.ShortName}>
+                    {voice.ShortName} — {voice.Gender} ({voice.Locale})
+                  </option>
+                ))
+              )}
             </select>
           </div>
-          {/* Pitch (Web Speech: 0-2, default 1) */}
+          {/* Rate (edge: -50% to +200%) */}
           <div className="flex items-center gap-2">
-            <label htmlFor={`${label}-ws-pitch`} className="w-32 text-sm">
-              Pitch:
-            </label>
-            <input
-              id={`${label}-ws-pitch`}
-              type="range"
-              min="0"
-              max="2"
-              step="0.1"
-              value={webspeechPitch}
-              onChange={(e) => setWebspeechPitch(Number(e.target.value))}
-              className="w-48"
-            />
-            <span className="text-sm">{webspeechPitch.toFixed(1)}</span>
-          </div>
-          {/* Rate (Web Speech: 0.1-10, default 1) */}
-          <div className="flex items-center gap-2">
-            <label htmlFor={`${label}-ws-rate`} className="w-32 text-sm">
+            <label htmlFor={`${label}-edge-rate`} className="w-32 text-sm">
               Rate:
             </label>
             <input
-              id={`${label}-ws-rate`}
+              id={`${label}-edge-rate`}
               type="range"
-              min="0.5"
-              max="2"
-              step="0.1"
-              value={webspeechRate}
-              onChange={(e) => setWebspeechRate(Number(e.target.value))}
+              min="-50"
+              max="100"
+              step="5"
+              value={edgeRate}
+              onChange={(e) => setEdgeRate(Number(e.target.value))}
               className="w-48"
             />
-            <span className="text-sm">{webspeechRate.toFixed(1)}x</span>
+            <span className="text-sm">{edgeRate > 0 ? `+${edgeRate}` : edgeRate}%</span>
+          </div>
+          {/* Pitch (edge: -20Hz to +20Hz) */}
+          <div className="flex items-center gap-2">
+            <label htmlFor={`${label}-edge-pitch`} className="w-32 text-sm">
+              Pitch:
+            </label>
+            <input
+              id={`${label}-edge-pitch`}
+              type="range"
+              min="-20"
+              max="20"
+              step="1"
+              value={edgePitch}
+              onChange={(e) => setEdgePitch(Number(e.target.value))}
+              className="w-48"
+            />
+            <span className="text-sm">{edgePitch > 0 ? `+${edgePitch}` : edgePitch}Hz</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="w-32"></span>
+            <span className="text-xs text-gray-600 italic">
+              Online (Microsoft Edge Read-Aloud). Honours the Scan Output device picker.
+            </span>
           </div>
         </>
       ) : (
@@ -217,7 +226,7 @@ const VoiceControls: React.FC<VoiceControlsProps> = ({
           <div className="flex items-center gap-2">
             <span className="w-32"></span>
             <span className="text-xs text-gray-600 italic">
-              Only the en-us meSpeak voice ships with the app.
+              Offline. Only the en-us meSpeak voice ships with the app.
             </span>
           </div>
         </>
@@ -237,27 +246,27 @@ export const AudioSettings: React.FC<AudioSettingsProps> = ({
   onUnlockAudioDevices,
   sinkStatus,
   theme,
-  availableVoices,
+  edgeVoices,
   messageVoiceEngine,
   setMessageVoiceEngine,
-  messageWebspeechVoiceURI,
-  setMessageWebspeechVoiceURI,
-  messageWebspeechPitch,
-  setMessageWebspeechPitch,
-  messageWebspeechRate,
-  setMessageWebspeechRate,
+  messageEdgeVoice,
+  setMessageEdgeVoice,
+  messageEdgeRate,
+  setMessageEdgeRate,
+  messageEdgePitch,
+  setMessageEdgePitch,
   messageMespeakPitch,
   setMessageMespeakPitch,
   messageMespeakRate,
   setMessageMespeakRate,
   cueVoiceEngine,
   setCueVoiceEngine,
-  cueWebspeechVoiceURI,
-  setCueWebspeechVoiceURI,
-  cueWebspeechPitch,
-  setCueWebspeechPitch,
-  cueWebspeechRate,
-  setCueWebspeechRate,
+  cueEdgeVoice,
+  setCueEdgeVoice,
+  cueEdgeRate,
+  setCueEdgeRate,
+  cueEdgePitch,
+  setCueEdgePitch,
   cueMespeakPitch,
   setCueMespeakPitch,
   cueMespeakRate,
@@ -356,24 +365,24 @@ export const AudioSettings: React.FC<AudioSettingsProps> = ({
       <div className="mt-6 mb-2">
         <h4 className="font-semibold text-base">Message Bar Voice</h4>
         <p className="text-xs text-gray-600 italic mb-2">
-          Reads the message bar after a selection and when SPEAK is pressed. Default is Web Speech so it sounds
-          different from meSpeak cues.
+          Reads the message bar after a selection and when SPEAK is pressed. Default is Edge TTS - high-quality,
+          routable, and distinct from meSpeak cues.
         </p>
         <VoiceControls
           label="Message Bar"
           engine={messageVoiceEngine}
           setEngine={setMessageVoiceEngine}
-          webspeechVoiceURI={messageWebspeechVoiceURI}
-          setWebspeechVoiceURI={setMessageWebspeechVoiceURI}
-          webspeechPitch={messageWebspeechPitch}
-          setWebspeechPitch={setMessageWebspeechPitch}
-          webspeechRate={messageWebspeechRate}
-          setWebspeechRate={setMessageWebspeechRate}
+          edgeVoice={messageEdgeVoice}
+          setEdgeVoice={setMessageEdgeVoice}
+          edgePitch={messageEdgePitch}
+          setEdgePitch={setMessageEdgePitch}
+          edgeRate={messageEdgeRate}
+          setEdgeRate={setMessageEdgeRate}
           mespeakPitch={messageMespeakPitch}
           setMespeakPitch={setMessageMespeakPitch}
           mespeakRate={messageMespeakRate}
           setMespeakRate={setMessageMespeakRate}
-          availableVoices={availableVoices}
+          edgeVoices={edgeVoices}
           theme={theme}
         />
       </div>
@@ -382,24 +391,24 @@ export const AudioSettings: React.FC<AudioSettingsProps> = ({
       <div className="mt-6 mb-2">
         <h4 className="font-semibold text-base">Cue Voice</h4>
         <p className="text-xs text-gray-600 italic mb-2">
-          Reads each item as it is scanned. Default is meSpeak so cues sound different from the Web Speech message
-          bar. Only takes effect while Auditory Scan is on.
+          Reads each item as it is scanned. Default is meSpeak (offline, low-latency) so cues sound different from
+          the Edge TTS message bar. Only takes effect while Auditory Scan is on.
         </p>
         <VoiceControls
           label="Cue"
           engine={cueVoiceEngine}
           setEngine={setCueVoiceEngine}
-          webspeechVoiceURI={cueWebspeechVoiceURI}
-          setWebspeechVoiceURI={setCueWebspeechVoiceURI}
-          webspeechPitch={cueWebspeechPitch}
-          setWebspeechPitch={setCueWebspeechPitch}
-          webspeechRate={cueWebspeechRate}
-          setWebspeechRate={setCueWebspeechRate}
+          edgeVoice={cueEdgeVoice}
+          setEdgeVoice={setCueEdgeVoice}
+          edgePitch={cueEdgePitch}
+          setEdgePitch={setCueEdgePitch}
+          edgeRate={cueEdgeRate}
+          setEdgeRate={setCueEdgeRate}
           mespeakPitch={cueMespeakPitch}
           setMespeakPitch={setCueMespeakPitch}
           mespeakRate={cueMespeakRate}
           setMespeakRate={setCueMespeakRate}
-          availableVoices={availableVoices}
+          edgeVoices={edgeVoices}
           theme={theme}
         />
       </div>

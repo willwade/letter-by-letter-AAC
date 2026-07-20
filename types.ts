@@ -2,7 +2,7 @@ export type ScanMode = 'one-switch' | 'two-switch';
 
 export type Switch1Input = 'space' | 'click';
 
-export type TTSEngine = 'webspeech' | 'mespeak';
+export type TTSEngine = 'mespeak' | 'edge-tts';
 
 export type ScanningStrategy = 'linear' | 'block';
 
