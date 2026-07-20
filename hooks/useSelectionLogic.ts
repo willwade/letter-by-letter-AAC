@@ -11,7 +11,13 @@ interface UseSelectionLogicProps {
   currentGameTarget: string;
   predictor: any;
   playSound: (sound: 'click' | 'beep' | 'select') => void;
+  // Routes spoken message-bar audio through the user's chosen engine
+  // (Edge TTS or meSpeak). Used in game mode for word completion.
   speak: (text: string) => void;
+  // Synthesized beep for auditory feedback. Used in game mode for
+  // wrong-letter (low pitch) and correct-letter (high pitch) cues so
+  // blind users get immediate non-visual feedback.
+  playBeep: (frequency?: number, durationMs?: number) => void;
   setLearnedWordsCount: Dispatch<SetStateAction<number>>;
   setScanIndex: (index: number) => void;
 }
@@ -28,6 +34,7 @@ export function useSelectionLogic({
   // Removing it from destructuring to avoid unused var warning, but keeping in props for future or if I missed a usage.
   // Wait, I should check if I used it.
   speak,
+  playBeep,
   setLearnedWordsCount,
   setScanIndex,
 }: UseSelectionLogicProps) {
@@ -54,61 +61,80 @@ export function useSelectionLogic({
 
   const handleSelect = useCallback(
     (item: string) => {
-      // Game Mode
-      if (settings.gameMode && currentGameTarget) {
-        if (item === 'SPEAK' && message.length === currentGameTarget.length) {
-          speak(message);
-          settings.setCurrentGameWordIndex((prev: number) => (prev + 1) % settings.gameWordList.length);
-          setMessage('');
-          return;
-        } else if (settings.showWordPrediction && predictedWords.includes(item)) {
-          const remainingTarget = currentGameTarget.substring(message.length);
-          if (item.toLowerCase() === currentGameTarget.toLowerCase()) {
-            setMessage(item);
-            confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
-            speak(item);
-            setTimeout(() => {
-              settings.setCurrentGameWordIndex((prev: number) => (prev + 1) % settings.gameWordList.length);
-              setMessage('');
-            }, 1500);
-          } else if (remainingTarget.toLowerCase().startsWith(item.toLowerCase())) {
-            setMessage(message + item);
-            confetti({ particleCount: 50, spread: 60, origin: { y: 0.6 } });
-          }
-          return;
-        } else if (item.length === 1 || item === '_') {
-          const expectedChar = currentGameTarget[message.length];
-          if (expectedChar === ' ' && item === '_') {
-            setMessage((prev) => {
-              confetti({ particleCount: 30, spread: 50, origin: { y: 0.6 } });
-              return prev + ' ';
-            });
-          } else if (expectedChar && item.toLowerCase() === expectedChar.toLowerCase()) {
-            setMessage((prev) => {
-              const newMessage = prev + item;
-              confetti({ particleCount: 30, spread: 50, origin: { y: 0.6 } });
-              if (newMessage.length === currentGameTarget.length) {
-                setTimeout(() => {
-                  confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
-                  speak(newMessage);
-                  setTimeout(() => {
-                    settings.setCurrentGameWordIndex((prev: number) => (prev + 1) % settings.gameWordList.length);
-                    setMessage('');
-                  }, 1500);
-                }, 300);
-              }
-              return newMessage;
-            });
-          }
-          return;
-        } else if (item === 'UNDO') {
-          handleUndo();
-          return;
-        } else if (item === 'CLEAR') {
-          handleClear();
-          return;
+    // Game Mode
+    if (settings.gameMode && currentGameTarget) {
+      if (item === 'SPEAK' && message.length === currentGameTarget.length) {
+        speak(message);
+        settings.setCurrentGameWordIndex((prev: number) => (prev + 1) % settings.gameWordList.length);
+        setMessage('');
+        return;
+      } else if (settings.showWordPrediction && predictedWords.includes(item)) {
+        const remainingTarget = currentGameTarget.substring(message.length);
+        if (item.toLowerCase() === currentGameTarget.toLowerCase()) {
+          setMessage(item);
+          confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+          // Success chime - two ascending tones, then speak the completed word.
+          playBeep(660, 100);
+          window.setTimeout(() => playBeep(990, 120), 110);
+          speak(item);
+          setTimeout(() => {
+            settings.setCurrentGameWordIndex((prev: number) => (prev + 1) % settings.gameWordList.length);
+            setMessage('');
+          }, 1500);
+        } else if (remainingTarget.toLowerCase().startsWith(item.toLowerCase())) {
+          setMessage(message + item);
+          confetti({ particleCount: 50, spread: 60, origin: { y: 0.6 } });
+          // Correct prefix - brief positive cue.
+          playBeep(700, 80);
+        } else {
+          // Wrong word prediction - low buzz.
+          playBeep(220, 200);
         }
+        return;
+      } else if (item.length === 1 || item === '_') {
+        const expectedChar = currentGameTarget[message.length];
+        if (expectedChar === ' ' && item === '_') {
+          setMessage((prev) => {
+            confetti({ particleCount: 30, spread: 50, origin: { y: 0.6 } });
+            return prev + ' ';
+          });
+          // Correct space - brief positive cue.
+          playBeep(700, 80);
+        } else if (expectedChar && item.toLowerCase() === expectedChar.toLowerCase()) {
+          setMessage((prev) => {
+            const newMessage = prev + item;
+            confetti({ particleCount: 30, spread: 50, origin: { y: 0.6 } });
+            if (newMessage.length === currentGameTarget.length) {
+              // Word complete - ascending chime, then speak.
+              playBeep(660, 100);
+              window.setTimeout(() => playBeep(990, 120), 110);
+              setTimeout(() => {
+                confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+                speak(newMessage);
+                setTimeout(() => {
+                  settings.setCurrentGameWordIndex((prev: number) => (prev + 1) % settings.gameWordList.length);
+                  setMessage('');
+                }, 1500);
+              }, 300);
+            } else {
+              // Correct letter but word not done yet - brief positive cue.
+              playBeep(700, 80);
+            }
+            return newMessage;
+          });
+        } else {
+          // Wrong letter - low buzz so the user hears the miss immediately.
+          playBeep(220, 200);
+        }
+        return;
+      } else if (item === 'UNDO') {
+        handleUndo();
+        return;
+      } else if (item === 'CLEAR') {
+        handleClear();
+        return;
       }
+    }
 
       // Normal Mode
       if (settings.showWordPrediction && predictedWords.includes(item)) {
@@ -154,6 +180,7 @@ export function useSelectionLogic({
       currentGameTarget,
       predictor,
       speak,
+      playBeep,
       setMessage,
       setScanIndex,
       handleUndo,
