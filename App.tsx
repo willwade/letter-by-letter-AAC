@@ -90,7 +90,7 @@ const App: React.FC = () => {
   });
 
   // MIGRATION: TTS handling now in useTTS hook!
-  const { availableVoices, speak } = useTTS({
+  const { speak } = useTTS({
     selectedLanguage: settings.selectedLanguage,
     selectedVoiceURI: settings.selectedVoiceURI,
     setSelectedVoiceURI: settings.setSelectedVoiceURI,
@@ -717,9 +717,6 @@ const App: React.FC = () => {
         setEnablePrediction={settings.setEnablePrediction}
         showWordPrediction={settings.showWordPrediction}
         setShowWordPrediction={settings.setShowWordPrediction}
-        availableVoices={availableVoices}
-        selectedVoiceURI={settings.selectedVoiceURI}
-        setSelectedVoiceURI={settings.setSelectedVoiceURI}
         onFileUpload={handleFileUpload}
         trainingStatus={trainingStatus}
         showSettingsModal={showSettingsModal}
