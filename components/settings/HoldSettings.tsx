@@ -12,6 +12,9 @@ interface HoldSettingsProps {
   longHoldAction: string;
   setLongHoldAction: (action: string) => void;
   scanMode: 'one-switch' | 'two-switch' | 'auto-scan';
+  // Used to clamp zone minima: zones below the scan rate are unusable because
+  // the scan would have moved on before the user can release.
+  scanSpeed: number;
 }
 
 export const HoldSettings: React.FC<HoldSettingsProps> = ({
@@ -26,8 +29,28 @@ export const HoldSettings: React.FC<HoldSettingsProps> = ({
   longHoldAction,
   setLongHoldAction,
   scanMode,
+  scanSpeed,
 }) => {
   if (scanMode !== 'one-switch') return null;
+
+  // Dynamic minima so the user can't configure a zone shorter than the scan
+  // window (it would never fire reliably). Step is 100ms.
+  const STEP = 100;
+  const greenMin = Math.max(500, scanSpeed);
+  const redMin = Math.max(1000, shortHoldDuration + STEP);
+
+  const handleGreenChange = (value: number) => {
+    const clamped = Math.max(greenMin, value);
+    setShortHoldDuration(clamped);
+    // If red is now ≤ green, bump it up to preserve red > green.
+    if (longHoldDuration <= clamped) {
+      setLongHoldDuration(Math.min(clamped + STEP, 5000));
+    }
+  };
+
+  const handleRedChange = (value: number) => {
+    setLongHoldDuration(Math.max(redMin, value));
+  };
 
   return (
     <div className="flex flex-col gap-3 p-4 bg-gray-50 rounded-lg">
@@ -55,11 +78,11 @@ export const HoldSettings: React.FC<HoldSettingsProps> = ({
               <input
                 id="shortHoldDuration"
                 type="range"
-                min="500"
+                min={greenMin}
                 max="3000"
-                step="100"
+                step={STEP}
                 value={shortHoldDuration}
-                onChange={(e) => setShortHoldDuration(Number(e.target.value))}
+                onChange={(e) => handleGreenChange(Number(e.target.value))}
                 className="w-48"
               />
               <span className="w-16">{(shortHoldDuration / 1000).toFixed(1)}s</span>
@@ -85,11 +108,11 @@ export const HoldSettings: React.FC<HoldSettingsProps> = ({
               <input
                 id="longHoldDuration"
                 type="range"
-                min="1000"
+                min={redMin}
                 max="5000"
-                step="100"
+                step={STEP}
                 value={longHoldDuration}
-                onChange={(e) => setLongHoldDuration(Number(e.target.value))}
+                onChange={(e) => handleRedChange(Number(e.target.value))}
                 className="w-48"
               />
               <span className="w-16">{(longHoldDuration / 1000).toFixed(1)}s</span>
@@ -115,6 +138,13 @@ export const HoldSettings: React.FC<HoldSettingsProps> = ({
               • Hold & release in red: Execute red zone action
             </span>
             <span className="text-sm text-gray-600 italic">• Beep when entering each zone</span>
+            <span className="text-sm text-gray-600 italic">
+              • Scanning pauses while you hold so you can see what you&apos;re committing to
+            </span>
+            <span className="text-sm text-gray-600 italic">
+              • Zone times are clamped to be at least the scan rate ({(scanSpeed / 1000).toFixed(1)}
+              s)
+            </span>
           </div>
         </>
       )}

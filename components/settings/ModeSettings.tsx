@@ -229,6 +229,7 @@ export const ModeSettings: React.FC<ModeSettingsProps> = ({
       {/* Hold Settings */}
       <HoldSettings
         scanMode={scanMode}
+        scanSpeed={scanSpeed}
         enableHoldActions={enableHoldActions}
         setEnableHoldActions={setEnableHoldActions}
         shortHoldDuration={shortHoldDuration}

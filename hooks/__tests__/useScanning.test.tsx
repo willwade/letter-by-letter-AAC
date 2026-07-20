@@ -20,6 +20,7 @@ const defaultProps = {
   scanSpeed: 1000,
   firstItemDelay: 1000,
   showSettingsModal: false,
+  pauseScanForHold: false,
   playSound: vi.fn(),
   scanningStrategy: 'linear' as const,
   blockMode: 'static' as const,
