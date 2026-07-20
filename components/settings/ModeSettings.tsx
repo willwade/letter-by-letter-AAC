@@ -1,10 +1,12 @@
 import React from 'react';
-import type { ScanMode } from '../../types';
+import type { ScanMode, Switch1Input } from '../../types';
 import { HoldSettings } from './HoldSettings';
 
 interface ModeSettingsProps {
   scanMode: ScanMode;
   setScanMode: (mode: ScanMode) => void;
+  switch1Input: Switch1Input;
+  setSwitch1Input: (input: Switch1Input) => void;
   scanSpeed: number;
   setScanSpeed: (speed: number) => void;
   firstItemDelay: number;
@@ -30,6 +32,8 @@ interface ModeSettingsProps {
 export const ModeSettings: React.FC<ModeSettingsProps> = ({
   scanMode,
   setScanMode,
+  switch1Input,
+  setSwitch1Input,
   scanSpeed,
   setScanSpeed,
   firstItemDelay,
@@ -82,8 +86,48 @@ export const ModeSettings: React.FC<ModeSettingsProps> = ({
           <span className="w-32"></span>
           <span className="text-sm text-gray-600 italic">
             {scanMode === 'one-switch'
-              ? 'Press Space to select'
-              : 'Press Space to advance, Enter to select'}
+              ? switch1Input === 'click'
+                ? 'Click anywhere to select'
+                : 'Press Space to select'
+              : switch1Input === 'click'
+                ? 'Click anywhere to advance, press Enter to select'
+                : 'Press Space to advance, Enter to select'}
+          </span>
+        </div>
+      </div>
+
+      {/* Switch 1 Input Source */}
+      <div className="flex flex-col gap-2">
+        <div className="flex items-center gap-4">
+          <span className="font-semibold w-32">Switch 1 Input:</span>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="radio"
+              name="switch1Input"
+              value="space"
+              checked={switch1Input === 'space'}
+              onChange={() => setSwitch1Input('space')}
+              className="form-radio h-5 w-5 text-black"
+            />
+            Space
+          </label>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="radio"
+              name="switch1Input"
+              value="click"
+              checked={switch1Input === 'click'}
+              onChange={() => setSwitch1Input('click')}
+              className="form-radio h-5 w-5 text-black"
+            />
+            Left Click
+          </label>
+        </div>
+        <div className="flex items-center gap-4">
+          <span className="w-32"></span>
+          <span className="text-sm text-gray-600 italic">
+            Choose how switch 1 is triggered. Click mode fires on any left-click outside of
+            buttons and inputs.
           </span>
         </div>
       </div>

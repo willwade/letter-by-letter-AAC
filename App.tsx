@@ -479,6 +479,7 @@ const App: React.FC = () => {
   useKeyboard({
     switch1Key: 'Space',
     switch2Key: 'Enter',
+    switch1Input: settings.switch1Input,
     onSwitch1: handleSwitch1,
     onSwitch2: handleSwitch2,
     onHoldAction: executeHoldAction,
@@ -612,6 +613,8 @@ const App: React.FC = () => {
           setIsScanning(false);
           setScanIndex(0);
         }}
+        switch1Input={settings.switch1Input}
+        setSwitch1Input={settings.setSwitch1Input}
         scanSpeed={settings.scanSpeed}
         setScanSpeed={settings.setScanSpeed}
         firstItemDelay={settings.firstItemDelay}
