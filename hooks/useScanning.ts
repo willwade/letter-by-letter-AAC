@@ -18,6 +18,10 @@ interface UseScanningProps {
   scanSpeed: number;
   firstItemDelay: number;
   showSettingsModal: boolean;
+  // When true, suppresses the auto-advance interval without changing isScanning.
+  // Used to pause scanning while the user holds switch 1 to choose a hold zone,
+  // so the highlighted item stays put until they release.
+  pauseScanForHold: boolean;
   playSound: (sound: 'click' | 'beep') => void;
   scanningStrategy: ScanningStrategy;
   blockMode: BlockMode;
@@ -59,6 +63,7 @@ export function useScanning({
   scanSpeed,
   firstItemDelay,
   showSettingsModal,
+  pauseScanForHold,
   playSound,
   scanningStrategy,
   blockMode,
@@ -206,7 +211,7 @@ export function useScanning({
   useEffect(() => {
     let scanInterval: number | undefined;
 
-    if (isScanning && scanMode === 'one-switch' && !showSettingsModal) {
+    if (isScanning && scanMode === 'one-switch' && !showSettingsModal && !pauseScanForHold) {
       const isFirstItem = scanIndex === 0;
       const delay = isFirstItem ? firstItemDelay : scanSpeed;
 
@@ -228,8 +233,8 @@ export function useScanning({
     scanItems.length,
     scanIndex,
     firstItemDelay,
-    playSound,
     showSettingsModal,
+    pauseScanForHold,
   ]);
 
   const currentItem = scanItems[scanIndex] ?? '';

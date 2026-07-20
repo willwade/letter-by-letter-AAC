@@ -152,6 +152,9 @@ const App: React.FC = () => {
     scanSpeed: settings.scanSpeed,
     firstItemDelay: settings.firstItemDelay,
     showSettingsModal,
+    // Pause auto-advance while the user is holding switch 1 to pick a hold zone,
+    // so the item they want to commit to stays highlighted.
+    pauseScanForHold: isHolding,
     playSound,
     scanningStrategy: settings.scanningStrategy,
     blockMode: settings.blockMode,
